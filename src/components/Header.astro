@@ -1,15 +1,20 @@
 ---
+import LanguageSwitch from './LanguageSwitch.astro';
+import { getMessages, normalizeLocale } from '../i18n';
 const { compact = false } = Astro.props;
+const locale = normalizeLocale(Astro.cookies.get('murmurinho-language')?.value);
+const t = getMessages(locale);
 ---
 <header class:list={['topbar', { compact }]}> 
-  <a class="brand" href="/" aria-label="Murmurinho, página inicial">
+  <a class="brand" href="/" aria-label={`${t.site.title}, ${t.common.home}`}>
     <span class="brand-mark">m</span>
-    <span>Murmurinho</span>
+    <span>{t.site.title}</span>
   </a>
-  <nav class="topbar-actions" aria-label="Ações principais">
-    <a class="nav-link" href="/">Início</a>
-    <a class="nav-link" href="/perfil">Perfil</a>
-    <button class="icon-button" type="button" data-theme-toggle aria-label="Alternar tema">◐</button>
-    <button class="button ghost small" type="button" data-logout>Sair</button>
+  <nav class="topbar-actions" aria-label="Navigation">
+    <a class="nav-link" href="/">{t.common.home}</a>
+    <a class="nav-link" href="/perfil">{t.common.profile}</a>
+    <LanguageSwitch />
+    <button class="icon-button" type="button" data-theme-toggle aria-label="Theme">◐</button>
+    <button class="button ghost small" type="button" data-logout>{t.common.logout}</button>
   </nav>
 </header>

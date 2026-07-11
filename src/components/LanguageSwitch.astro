@@ -1,0 +1,8 @@
+---
+import { normalizeLocale } from '../i18n';
+const locale = normalizeLocale(Astro.cookies.get('murmurinho-language')?.value);
+---
+<div class="language-switch" aria-label="Language / Idioma">
+  <button class:list={['language-option', { active: locale === 'pt-BR' }]} type="button" data-language="pt-BR">PT</button>
+  <button class:list={['language-option', { active: locale === 'en' }]} type="button" data-language="en">EN</button>
+</div>

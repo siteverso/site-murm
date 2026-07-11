@@ -1,26 +1,29 @@
 ---
 import AppLayout from '../layouts/AppLayout.astro';
+import LanguageSwitch from '../components/LanguageSwitch.astro';
+import { getMessages, normalizeLocale } from '../i18n';
+const locale = normalizeLocale(Astro.cookies.get('murmurinho-language')?.value);
+const t = getMessages(locale);
 ---
-<AppLayout title="Recuperar senha — Murmurinho" auth={false}>
+<AppLayout title={`${t.recovery.title} — ${t.site.title}`} auth={false}>
   <main class="auth-page">
     <section class="auth-intro">
-      <a class="brand" href="/login"><span class="brand-mark">m</span><span>Murmurinho</span></a>
-      <div>
-        <h1>Volte para a conversa.</h1>
-        <p>Informe seu e-mail. Nesta versão local, simularemos o envio das instruções de recuperação.</p>
+      <div class="auth-brand-row">
+        <a class="brand" href="/login"><span class="brand-mark">m</span><span>{t.site.title}</span></a>
+        <LanguageSwitch />
       </div>
-      <small>Sem complicação.</small>
+      <div><h1>{t.recovery.headline}</h1><p>{t.recovery.intro}</p></div>
+      <small>{t.recovery.description}</small>
     </section>
     <section class="auth-form-wrap">
       <form class="panel auth-card" data-recovery-form>
-        <h2>Recuperar senha</h2>
-        <p>Você receberá uma confirmação na própria tela.</p>
-        <div class="field">
-          <label for="email">E-mail</label>
-          <input id="email" name="email" type="email" autocomplete="email" placeholder="voce@exemplo.com" required />
-        </div>
-        <button class="button primary full" type="submit">Enviar instruções</button>
-        <div class="auth-links"><a href="/login">Voltar para o login</a></div>
+        <h2>{t.recovery.title}</h2>
+        <p>{t.recovery.description}</p>
+        <div class="field"><label for="email">{t.common.email}</label><input id="email" name="email" type="email" autocomplete="email" required /></div>
+        <div class="field"><label for="password">{t.common.newPassword}</label><input id="password" name="password" type="password" minlength="6" autocomplete="new-password" required /></div>
+        <div class="field"><label for="confirmPassword">{t.common.confirmPassword}</label><input id="confirmPassword" name="confirmPassword" type="password" minlength="6" autocomplete="new-password" required /></div>
+        <button class="button primary full" type="submit">{t.recovery.submit}</button>
+        <div class="auth-links"><a href="/login">{t.common.backToLogin}</a></div>
         <p class="form-message" data-form-message></p>
       </form>
     </section>

@@ -1,9 +1,19 @@
 ---
 import '../styles/global.css';
-const { title = 'Murmurinho', description = 'A rede mais fácil do mundo', auth = true } = Astro.props;
+import { getMessages, normalizeLocale, type Locale } from '../i18n';
+
+const requestedLocale = Astro.cookies.get('murmurinho-language')?.value;
+const locale: Locale = normalizeLocale(requestedLocale);
+const messages = getMessages(locale);
+const {
+  title = messages.site.title,
+  description = messages.site.description,
+  auth = true,
+} = Astro.props;
+const clientMessages = JSON.stringify(messages).replace(/</g, '\\u003c');
 ---
 <!doctype html>
-<html lang="pt-BR">
+<html lang={locale}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
@@ -17,6 +27,7 @@ const { title = 'Murmurinho', description = 'A rede mais fácil do mundo', auth 
         document.documentElement.dataset.theme = theme;
       })();
     </script>
+    <script is:inline set:html={`window.__MURMUR_I18N__ = ${clientMessages}; window.__MURMUR_LOCALE__ = ${JSON.stringify(locale)};`} />
   </head>
   <body data-auth-required={auth ? 'true' : 'false'}>
     <slot />

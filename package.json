@@ -7,9 +7,9 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "astro dev --host 0.0.0.0 --port 4324",
+    "dev": "astro dev --host 0.0.0.0 --port 4321",
     "build": "astro build",
-    "preview": "astro preview --host 0.0.0.0 --port 4324"
+    "preview": "astro preview --host 0.0.0.0 --port 4321"
   },
   "dependencies": {
     "@astrojs/node": "^10.1.4",

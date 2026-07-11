@@ -2,48 +2,30 @@
 import AppLayout from '../layouts/AppLayout.astro';
 import Header from '../components/Header.astro';
 import Composer from '../components/Composer.astro';
+import { getMessages, normalizeLocale } from '../i18n';
+const locale = normalizeLocale(Astro.cookies.get('murmurinho-language')?.value);
+const t = getMessages(locale);
 ---
-<AppLayout title="Murmurinho — Início">
+<AppLayout title={`${t.site.title} — ${t.common.home}`}>
   <Header />
   <main class="shell app-grid">
     <aside class="sidebar">
-      <nav class="side-menu" aria-label="Menu lateral">
-        <a class="active" href="/">Início</a>
-        <a href="/perfil">Perfil</a>
-        <a href="#em-alta">Em alta</a>
+      <nav class="side-menu" aria-label="Menu">
+        <a class="active" href="/">{t.common.home}</a>
+        <a href="/perfil">{t.common.profile}</a>
+        <a href="#em-alta">{t.common.trending}</a>
       </nav>
-      <section class="panel side-card">
-        <h2>Regra dos murmúrios</h2>
-        <p>O limite nasce em 100 e cresce proporcionalmente à quantidade total de murmúrios. Abaixo do limite negativo, o card é recolhido. Acima do positivo, ganha destaque.</p>
-      </section>
+      <section class="panel side-card"><h2>{t.feed.ruleTitle}</h2><p>{t.feed.ruleText}</p></section>
     </aside>
-
     <section class="feed-column">
       <Composer />
-      <div class="feed-heading">
-        <h1>Murmúrios recentes</h1>
-        <span data-threshold-label>limite atual: 100</span>
-      </div>
+      <div class="feed-heading"><h1>{t.feed.recent}</h1><span data-threshold-label>{t.feed.currentLimit}: 100</span></div>
       <div class="feed" data-feed></div>
     </section>
-
     <aside class="right-column">
-      <section class="panel metric">
-        <strong data-total-murmurs>0</strong>
-        <span>murmúrios na rede</span>
-      </section>
-      <section class="panel metric">
-        <strong data-current-threshold>100</strong>
-        <span>limite atual de destaque e bloqueio</span>
-      </section>
-      <section class="panel trend-list" id="em-alta">
-        <h2>Como funciona</h2>
-        <ol>
-          <li>Positivos aumentam a diferença.</li>
-          <li>Negativos reduzem a diferença.</li>
-          <li>O limite acompanha o crescimento da rede.</li>
-        </ol>
-      </section>
+      <section class="panel metric"><strong data-total-murmurs>0</strong><span>{t.feed.networkMurmurs}</span></section>
+      <section class="panel metric"><strong data-current-threshold>100</strong><span>{t.feed.thresholdLabel}</span></section>
+      <section class="panel trend-list" id="em-alta"><h2>{t.feed.howWorks}</h2><ol><li>{t.feed.how1}</li><li>{t.feed.how2}</li><li>{t.feed.how3}</li></ol></section>
     </aside>
   </main>
   <div class="toast" data-toast></div>
