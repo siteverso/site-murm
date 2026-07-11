@@ -103,6 +103,10 @@ let posts = [];
 let feedSignature = '';
 let feedRequestRunning = false;
 const MIN_SITE_REFRESH_INTERVAL_MS = 2000;
+const FEED_BATCH_SIZE = 20;
+const feedBuckets = { all: [], male: [], female: [], other: [] };
+const splitFeedLimits = { male: FEED_BATCH_SIZE, female: FEED_BATCH_SIZE };
+let feedColumnObservers = [];
 let feedTimer = null;
 
 function userInitials(username = '') {
@@ -214,25 +218,28 @@ async function loadUser() {
 
 function renderPost(post) {
   const score = post.positive - post.negative;
+  const sexClass = post.sexCode === 'M' ? 'sex-m' : post.sexCode === 'F' ? 'sex-f' : 'sex-u';
   const replies = (post.replies || []).map(reply => `
     <div class="reply">
       <div class="reply-content"><strong>@${escapeHtml(reply.author)}</strong> ${escapeHtml(reply.text)}</div>
       ${currentUser?.id === reply.userId ? `<button class="reply-delete" data-delete-reply="${reply.id}" aria-label="Excluir resposta">×</button>` : ''}
     </div>`).join('');
 
-  return `<article class="panel murmur-card" data-post-id="${post.id}">
+  return `<article class="panel murmur-card ${sexClass}" data-post-id="${post.id}">
     <div class="murmur-head">
       <div class="avatar">${escapeHtml(post.author.slice(0, 2).toUpperCase())}</div>
       <div class="murmur-author"><strong>@${escapeHtml(post.author)}</strong><span>${new Date(post.createdAt).toLocaleString()}</span></div>
-      <button class="letter-button" data-direct-user="${post.userId}" data-direct-name="${escapeHtml(post.author)}" title="Enviar bilhete" aria-label="Enviar bilhete">${ICONS.direct}</button>
+      <button class="direct-card-button" type="button" data-direct-user="${post.userId}" data-direct-name="${escapeHtml(post.author)}" title="Enviar bilhete" aria-label="Enviar bilhete">${ICONS.direct}</button>
     </div>
     <p class="murmur-text">${escapeHtml(post.text)}</p>
-    <div class="score-line"><span class="score ${score < 0 ? 'negative' : ''}">${score}</span></div>
-    <div class="murmur-actions">
-      <button class="action-button ${post.myVote === 1 ? 'active' : ''}" data-vote="1" title="Ecoar" aria-label="Ecoar este murmúrio">${ICONS.echo}<span>${post.positive}</span></button>
-      <button class="action-button ${post.myVote === -1 ? 'active' : ''}" data-vote="-1" title="Ignorar" aria-label="Ignorar este murmúrio">${ICONS.ignore}<span>${post.negative}</span></button>
-      <button class="action-button" data-reply title="Responder" aria-label="Responder a este murmúrio">${ICONS.reply}<span>${post.replies?.length || 0}</span></button>
-      <button class="action-button" data-share title="Compartilhar link" aria-label="Compartilhar link deste murmúrio">${ICONS.share}<span>${post.shares}</span></button>
+    <div class="score-line">
+      <span class="score ${score < 0 ? 'negative' : ''}">${score}</span>
+      <div class="murmur-actions">
+        <button class="action-button ${post.myVote === 1 ? 'active' : ''}" data-vote="1" title="Ecoar" aria-label="Ecoar este murmúrio">${ICONS.echo}<span>${post.positive}</span></button>
+        <button class="action-button ${post.myVote === -1 ? 'active' : ''}" data-vote="-1" title="Ignorar" aria-label="Ignorar este murmúrio">${ICONS.ignore}<span>${post.negative}</span></button>
+        <button class="action-button" data-reply title="Responder" aria-label="Responder a este murmúrio">${ICONS.reply}<span>${post.replies?.length || 0}</span></button>
+        <button class="action-button" data-share title="Compartilhar link" aria-label="Compartilhar link deste murmúrio">${ICONS.share}<span>${post.shares}</span></button>
+      </div>
     </div>
     <form class="reply-box" data-reply-form>
       <input maxlength="280" placeholder="Responder sem fazer barulho…" required>
@@ -246,7 +253,54 @@ function renderLane(feed, posts) {
   if (!feed) return;
   feed.innerHTML = posts.length
     ? posts.map(renderPost).join('')
+    : '<p class="empty-state">Nenhum murmúrio nesta visualização.</p>';
+}
+
+function disconnectFeedColumnObservers() {
+  feedColumnObservers.forEach(observer => observer.disconnect());
+  feedColumnObservers = [];
+}
+
+function renderSplitLane(feed, items, kind) {
+  if (!feed) return;
+  const limit = splitFeedLimits[kind] || FEED_BATCH_SIZE;
+  const visible = items.slice(0, limit);
+  const hasMore = items.length > visible.length;
+  feed.innerHTML = visible.length
+    ? `${visible.map(renderPost).join('')}${hasMore ? `<div class="feed-more-wrap"><button class="feed-more-button" type="button" data-feed-more="${kind}">Mostrar mais 20</button><div class="feed-more-sentinel" data-feed-more-sentinel="${kind}" aria-hidden="true"></div></div>` : ''}`
     : '<p class="empty-state">Nenhum murmúrio nesta coluna.</p>';
+}
+
+function renderSplitFeeds() {
+  renderSplitLane($('[data-feed-male]'), feedBuckets.male, 'male');
+  renderSplitLane($('[data-feed-female]'), feedBuckets.female, 'female');
+  setupFeedColumnAutoload();
+}
+
+function expandSplitFeed(kind) {
+  if (!(kind in splitFeedLimits)) return;
+  const items = feedBuckets[kind] || [];
+  if (splitFeedLimits[kind] >= items.length) return;
+  splitFeedLimits[kind] += FEED_BATCH_SIZE;
+  renderSplitFeeds();
+}
+
+function setupFeedColumnAutoload() {
+  disconnectFeedColumnObservers();
+  $$('[data-feed-more-sentinel]').forEach(sentinel => {
+    const kind = sentinel.dataset.feedMoreSentinel;
+    const observer = new IntersectionObserver(entries => {
+      const entry = entries[0];
+      if (!entry?.isIntersecting) return;
+      expandSplitFeed(kind);
+    }, {
+      root: null,
+      threshold: 0.1,
+      rootMargin: '0px 0px 240px 0px',
+    });
+    observer.observe(sentinel);
+    feedColumnObservers.push(observer);
+  });
 }
 
 function renderNetworkInfo(posts, malePosts, femalePosts, otherPosts) {
@@ -327,8 +381,9 @@ function restoreFeedAnchor(anchor) {
 async function loadFeed(force = false) {
   const maleFeed = $('[data-feed-male]');
   const femaleFeed = $('[data-feed-female]');
+  const allListFeed = $('[data-feed-all-list]');
   const side = $('[data-feed-other-info]');
-  if ((!maleFeed && !femaleFeed && !side) || feedRequestRunning) return;
+  if ((!maleFeed && !femaleFeed && !allListFeed && !side) || feedRequestRunning) return;
 
   feedRequestRunning = true;
   try {
@@ -343,18 +398,17 @@ async function loadFeed(force = false) {
     posts = nextPosts;
     feedSignature = nextSignature;
 
-    const malePosts = posts.filter(post => post.sexCode === 'M');
-    const femalePosts = posts.filter(post => post.sexCode === 'F');
-    const otherPosts = posts.filter(post => post.sexCode !== 'M' && post.sexCode !== 'F');
+    feedBuckets.all = posts;
+    feedBuckets.male = posts.filter(post => post.sexCode === 'M');
+    feedBuckets.female = posts.filter(post => post.sexCode === 'F');
+    feedBuckets.other = posts.filter(post => post.sexCode !== 'M' && post.sexCode !== 'F');
 
-    renderLane(maleFeed, malePosts);
-    renderLane(femaleFeed, femalePosts);
-    renderNetworkInfo(posts, malePosts, femalePosts, otherPosts);
+    renderSplitFeeds();
+    renderLane(allListFeed, feedBuckets.all);
+    renderNetworkInfo(feedBuckets.all, feedBuckets.male, feedBuckets.female, feedBuckets.other);
 
-    $('[data-count-male]')?.replaceChildren(document.createTextNode(`${malePosts.length} murmúrios`));
-    $('[data-count-female]')?.replaceChildren(document.createTextNode(`${femalePosts.length} murmúrios`));
-    $('[data-count-other]')?.replaceChildren(document.createTextNode(`${otherPosts.length} sem sexo`));
-    $('[data-threshold-label]')?.replaceChildren(document.createTextNode(`Total na rede: ${posts.length}`));
+    $('[data-count-other]')?.replaceChildren(document.createTextNode(`${feedBuckets.other.length} sem sexo`));
+    $('[data-threshold-label]')?.replaceChildren(document.createTextNode(`Total na rede: ${feedBuckets.all.length}`));
 
     restoreFeedAnchor(anchor);
   } finally {
@@ -385,6 +439,42 @@ function startFeedPolling() {
   });
 }
 
+function bindFeedView() {
+  const switcher = $('[data-feed-view-switch]');
+  const board = $('[data-feed-board]');
+  if (!switcher || !board) return;
+
+  const panels = $$('[data-feed-view-panel]', board);
+  const buttons = $$('[data-feed-view]', switcher);
+  const validViews = new Set(['split', 'list']);
+
+  const applyView = view => {
+    const mode = validViews.has(view) ? view : 'split';
+    board.dataset.feedViewMode = mode;
+    buttons.forEach(button => {
+      const active = button.dataset.feedView === mode;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    panels.forEach(panel => {
+      panel.hidden = panel.dataset.feedViewPanel !== mode;
+    });
+    if (mode === 'split') requestAnimationFrame(setupFeedColumnAutoload);
+    try { localStorage.setItem('murmur_feed_view', mode); } catch {}
+  };
+
+  const initial = (() => {
+    try { return localStorage.getItem('murmur_feed_view') || 'split'; } catch { return 'split'; }
+  })();
+  applyView(initial);
+
+  switcher.addEventListener('click', event => {
+    const button = event.target.closest('[data-feed-view]');
+    if (!button) return;
+    applyView(button.dataset.feedView);
+  });
+}
+
 function bindFeed() {
   document.addEventListener('click', async event => {
     const target = event.target.closest('button');
@@ -410,7 +500,9 @@ function bindFeed() {
       }
       if (target.matches('[data-share]')) { await api(`/api/posts/${card.dataset.postId}/share`, { method: 'POST' }); await navigator.clipboard?.writeText(`${location.origin}/#murmurio-${card.dataset.postId}`); toast('Link copiado.'); await loadFeed(); }
       if (target.matches('[data-delete-reply]')) { await api(`/api/replies/${target.dataset.deleteReply}`, { method: 'DELETE' }); await loadFeed(); }
-      if (target.matches('[data-direct-user]')) openDirectComposer(Number(target.dataset.directUser), target.dataset.directName);
+      if (target.matches('[data-feed-more]')) { expandSplitFeed(target.dataset.feedMore); }
+      const directButton = target.closest('[data-direct-user]');
+      if (directButton) openDirectComposer(Number(directButton.dataset.directUser), directButton.dataset.directName);
     } catch (error) { toast(error.message); }
   });
 
@@ -980,7 +1072,7 @@ document.addEventListener('submit', async event => {
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
-  bindUi(); bindAuth(); bindProfile(); bindFeed();
+  bindUi(); bindAuth(); bindProfile(); bindFeedView(); bindFeed();
   await loadUser();
   await loadFeed(true).catch(() => {});
   startFeedPolling();

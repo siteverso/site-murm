@@ -2,7 +2,26 @@
 import { normalizeLocale } from '../i18n';
 const locale = normalizeLocale(Astro.cookies.get('murmurinho-language')?.value);
 ---
-<div class="language-switch" aria-label="Language / Idioma">
-  <button class:list={['language-option', { active: locale === 'pt-BR' }]} type="button" data-language="pt-BR">PT</button>
-  <button class:list={['language-option', { active: locale === 'en' }]} type="button" data-language="en">EN</button>
+<div class="segmented-control language-switch" data-language-switch aria-label="Language / Idioma">
+  <button class:list={['segmented-control__button', 'language-option', { active: locale === 'pt-BR' }]} type="button" data-language-option="pt-BR" aria-pressed={locale === 'pt-BR' ? 'true' : 'false'}>PT</button>
+  <button class:list={['segmented-control__button', 'language-option', { active: locale === 'en' }]} type="button" data-language-option="en" aria-pressed={locale === 'en' ? 'true' : 'false'}>EN</button>
 </div>
+
+<script>
+  const LANGUAGE_COOKIE = 'murmurinho-language';
+  const LANGUAGE_MAX_AGE = 60 * 60 * 24 * 365;
+
+  function setLanguage(language) {
+    if (language !== 'pt-BR' && language !== 'en') return;
+    document.cookie = `${LANGUAGE_COOKIE}=${encodeURIComponent(language)};path=/;max-age=${LANGUAGE_MAX_AGE};samesite=lax`;
+    window.location.reload();
+  }
+
+  document.addEventListener('click', event => {
+    const button = event.target instanceof Element
+      ? event.target.closest('[data-language-option]')
+      : null;
+    if (!(button instanceof HTMLButtonElement)) return;
+    setLanguage(button.dataset.languageOption || '');
+  });
+</script>

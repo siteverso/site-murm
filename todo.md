@@ -5,4 +5,5 @@ Mas voce pode ter a visao de conjunto antes
 - deve permitir alterar mensagem no chat
 - deixar em  negrito so chats com novas mensagens na esquerda
 - tirar o total de murmurios do topo das colunas da home
+- o prorpeitario deve poder remover o murmurio
 - 
