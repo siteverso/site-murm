@@ -264,14 +264,38 @@ function renderPostHeaderActions(post) {
   return `<div class="murmur-head-actions">${deleteButton}${directButton}</div>`;
 }
 
-function renderPost(post) {
+function groupPostsByParent(items) {
+  const childrenByParent = new Map();
+  items.forEach(post => {
+    if (post.parentPostId == null) return;
+    const key = String(post.parentPostId);
+    const children = childrenByParent.get(key) || [];
+    children.push(post);
+    childrenByParent.set(key, children);
+  });
+  return childrenByParent;
+}
+
+function getRootPosts(items) {
+  const publishedIds = new Set(items.map(post => String(post.id)));
+  return items.filter(post => post.parentPostId == null || !publishedIds.has(String(post.parentPostId)));
+}
+
+function renderPost(post, childrenByParent = new Map(), ancestry = new Set()) {
   const score = post.positive - post.negative;
   const sexClass = post.sexCode === 'M' ? 'sex-m' : post.sexCode === 'F' ? 'sex-f' : 'sex-u';
   const replyContext = post.parentPostId
     ? `<a class="murmur-reply-context" href="#murmurio-${post.parentPostId}">Resposta para @${escapeHtml(post.parentAuthor || 'murmúrio')}</a>`
     : '';
+  const postKey = String(post.id);
+  const nextAncestry = new Set(ancestry);
+  nextAncestry.add(postKey);
+  const replies = (childrenByParent.get(postKey) || []).filter(reply => !nextAncestry.has(String(reply.id)));
+  const nestedReplies = replies.length
+    ? `<div class="replies" data-replies-for="${post.id}">${replies.map(reply => renderPost(reply, childrenByParent, nextAncestry)).join('')}</div>`
+    : '';
 
-  return `<article id="murmurio-${post.id}" class="panel murmur-card ${sexClass}" data-post-id="${post.id}">
+  return `<article id="murmurio-${post.id}" class="panel murmur-card ${sexClass}${post.parentPostId ? ' murmur-reply-card' : ''}" data-post-id="${post.id}">
     <div class="murmur-head">
       <div class="avatar">${escapeHtml(post.author.slice(0, 2).toUpperCase())}</div>
       <div class="murmur-author"><strong>@${escapeHtml(post.author)}</strong><span>${new Date(post.createdAt).toLocaleString()}</span></div>
@@ -292,13 +316,16 @@ function renderPost(post) {
       <input maxlength="280" placeholder="Responder sem fazer barulho…" required>
       <button class="reply-send-button" type="submit" title="Enviar resposta" aria-label="Enviar resposta">${ICONS.send}</button>
     </form>
+    ${nestedReplies}
   </article>`;
 }
 
 function renderLane(feed, posts) {
   if (!feed) return;
-  feed.innerHTML = posts.length
-    ? posts.map(renderPost).join('')
+  const childrenByParent = groupPostsByParent(posts);
+  const roots = getRootPosts(posts);
+  feed.innerHTML = roots.length
+    ? roots.map(post => renderPost(post, childrenByParent)).join('')
     : '<p class="empty-state">Nenhum murmúrio nesta visualização.</p>';
 }
 
@@ -316,19 +343,21 @@ function getColumnDefinitions() {
 }
 
 function getColumnItems(definition) {
+  const roots = getRootPosts(posts);
   if (getColumnGroupMode() === 'region') {
-    return posts.filter(post => (post.regionCode || '') === definition.code);
+    return roots.filter(post => (post.regionCode || '') === definition.code);
   }
-  return posts.filter(post => (post.sexCode || '') === definition.code);
+  return roots.filter(post => (post.sexCode || '') === definition.code);
 }
 
 function renderSplitLane(feed, items, kind) {
   if (!feed) return;
   const limit = splitFeedLimits[kind] || FEED_BATCH_SIZE;
   const visible = items.slice(0, limit);
+  const childrenByParent = groupPostsByParent(posts);
   const hasMore = items.length > visible.length;
   feed.innerHTML = visible.length
-    ? `${visible.map(renderPost).join('')}${hasMore ? `<div class="feed-more-wrap"><button class="feed-more-button" type="button" data-feed-more="${kind}">Mostrar mais 20</button><div class="feed-more-sentinel" data-feed-more-sentinel="${kind}" aria-hidden="true"></div></div>` : ''}`
+    ? `${visible.map(post => renderPost(post, childrenByParent)).join('')}${hasMore ? `<div class="feed-more-wrap"><button class="feed-more-button" type="button" data-feed-more="${kind}">Mostrar mais 20</button><div class="feed-more-sentinel" data-feed-more-sentinel="${kind}" aria-hidden="true"></div></div>` : ''}`
     : '<p class="empty-state">Nenhum murmúrio nesta coluna.</p>';
 }
 
@@ -536,19 +565,25 @@ function bindColumnGroup() {
   });
 }
 
+function openReplyForm(card, { toggle = false } = {}) {
+  const form = card?.querySelector('[data-reply-form]');
+  if (!form) return;
+
+  if (toggle) form.classList.toggle('open');
+  else form.classList.add('open');
+
+  if (form.classList.contains('open')) {
+    requestAnimationFrame(() => form.querySelector('input')?.focus({ preventScroll: true }));
+  }
+}
+
 function bindFeed() {
   document.addEventListener('click', async event => {
     const target = event.target.closest('button');
     if (!target) return;
     const card = target.closest('[data-post-id]');
     try {
-      if (target.matches('[data-reply]')) {
-        const form = card.querySelector('[data-reply-form]');
-        form.classList.toggle('open');
-        if (form.classList.contains('open')) {
-          requestAnimationFrame(() => form.querySelector('input')?.focus({ preventScroll: true }));
-        }
-      }
+      if (target.matches('[data-reply]')) openReplyForm(card, { toggle: true });
       if (target.matches('[data-vote]')) {
         const postId = card.dataset.postId;
         card.classList.add('actions-pinned');
@@ -580,11 +615,7 @@ function bindFeed() {
 
   document.addEventListener('dblclick', event => {
     if (event.target.closest('button, a, input, textarea, form')) return;
-    const card = event.target.closest('[data-post-id]');
-    if (!card) return;
-    const form = card.querySelector('[data-reply-form]');
-    form.classList.add('open');
-    requestAnimationFrame(() => form.querySelector('input')?.focus({ preventScroll: true }));
+    openReplyForm(event.target.closest('[data-post-id]'));
   });
 
   document.addEventListener('submit', async event => {
