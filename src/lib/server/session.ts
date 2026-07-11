@@ -7,6 +7,7 @@ export type SessionUser = {
     username: string;
     email: string;
     bio: string;
+    sexCode: string;
     avatarUrl: string;
     languageCode: string;
     themeCode: string;
@@ -103,6 +104,7 @@ export async function currentUser(context: APIContext): Promise<SessionUser | nu
                     u.username,
                     u.email,
                     NVL(u.bio, '') AS bio,
+                    NVL(u.sex_code, '') AS sex_code,
                     NVL(u.avatar_url, '') AS avatar_url,
                     u.language_code,
                     NVL(u.theme_code, 'auto') AS theme_code,
@@ -132,6 +134,7 @@ export async function currentUser(context: APIContext): Promise<SessionUser | nu
             username: String(row.USERNAME),
             email: String(row.EMAIL),
             bio: String(row.BIO || ''),
+            sexCode: String(row.SEX_CODE || ''),
             avatarUrl: String(row.AVATAR_URL || ''),
             languageCode: String(row.LANGUAGE_CODE || 'pt-BR'),
             themeCode: String(row.THEME_CODE || 'auto'),

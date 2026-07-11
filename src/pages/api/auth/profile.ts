@@ -7,10 +7,12 @@ import { withConnection } from '../../../lib/server/oracle';
 export const PATCH: APIRoute = async context => {
     try {
         const user = await requireUser(context);
-        const input = await body<{ username?: string; bio?: string }>(context.request);
+        const input = await body<{ username?: string; bio?: string; sexCode?: string }>(context.request);
         const username = normalizeUsername(input.username);
         const bio = String(input.bio || '').trim().slice(0, 180);
+        const sexCode = String(input.sexCode || '').trim().toUpperCase();
         validateUsername(username);
+        if (sexCode && !['M', 'F'].includes(sexCode)) throw new Error('JSON_INVALIDO');
 
         await withConnection(async connection => {
             try {
@@ -18,9 +20,10 @@ export const PATCH: APIRoute = async context => {
                     `UPDATE murm_user
                      SET username = :username,
                          bio = :bio,
+                         sex_code = :sex_code,
                          updated_at = SYSTIMESTAMP
                      WHERE id = :id`,
-                    { username, bio: bio || null, id: user.id },
+                    { username, bio: bio || null, sex_code: sexCode || null, id: user.id },
                     { autoCommit: true },
                 );
             } catch (error) {

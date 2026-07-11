@@ -7,6 +7,7 @@ CREATE TABLE murm_user
     password_hash      VARCHAR2(500),
     google_sub         VARCHAR2(255),
     bio                VARCHAR2(180),
+    sex_code           VARCHAR2(1),
     avatar_url         VARCHAR2(1000),
     language_code      VARCHAR2(10) DEFAULT 'pt-BR' NOT NULL,
     email_verified     NUMBER(1)    DEFAULT 0       NOT NULL,
@@ -17,6 +18,7 @@ CREATE TABLE murm_user
     CONSTRAINT uk_murm_user_username UNIQUE (username),
     CONSTRAINT uk_murm_user_email UNIQUE (email),
     CONSTRAINT uk_murm_user_google_sub UNIQUE (google_sub),
+    CONSTRAINT ck_murm_user_sex CHECK (sex_code IN ('M', 'F')),
     CONSTRAINT ck_murm_user_language CHECK (language_code IN ('pt-BR', 'en')),
     CONSTRAINT ck_murm_user_email_verified CHECK (email_verified IN (0, 1)),
     CONSTRAINT ck_murm_user_active CHECK (active IN (0, 1))

@@ -1,19 +1,43 @@
 ---
 import AppLayout from '../layouts/AppLayout.astro';
 import Header from '../components/Header.astro';
-import Composer from '../components/Composer.astro';
 import { getMessages, normalizeLocale } from '../i18n';
 const locale = normalizeLocale(Astro.cookies.get('murmurinho-language')?.value);
 const t = getMessages(locale);
 ---
 <AppLayout title={`${t.site.title} — ${t.common.home}`}>
   <Header />
-  <main class="shell minimal-feed-page">
-    <div class="feed-heading minimal">
+  <main class="shell minimal-feed-page network-board-page">
+    <div class="feed-heading minimal network-board-heading">
       <h1>{t.feed.recent}</h1>
-      <!--<span data-threshold-label>{t.feed.currentLimit}: 100</span>-->
+      <span data-threshold-label>Total na rede: 0</span>
     </div>
-    <div class="feed feed-grid" data-feed></div>
+
+    <section class="network-board">
+      <section class="network-lane male-lane">
+        <div class="lane-inline-head">
+          <strong>Machos</strong>
+          <span data-count-male>0 murmúrios</span>
+        </div>
+        <div class="feed lane-feed" data-feed-male></div>
+      </section>
+
+      <section class="network-lane female-lane">
+        <div class="lane-inline-head">
+          <strong>Fêmeas</strong>
+          <span data-count-female>0 murmúrios</span>
+        </div>
+        <div class="feed lane-feed" data-feed-female></div>
+      </section>
+
+      <aside class="network-side panel">
+        <div class="lane-heading network-side-heading">
+          <h2>Rede</h2>
+          <span data-count-other>0 sem sexo</span>
+        </div>
+        <div class="network-side-body" data-feed-other-info></div>
+      </aside>
+    </section>
   </main>
   <button class="floating-action" type="button" data-new-murmur aria-label="Novo murmúrio">＋</button>
   <button class="scroll-top" type="button" data-scroll-top aria-label="Voltar ao topo">↑</button>

@@ -14,6 +14,7 @@ export async function listPosts(currentUserId: number | null): Promise<unknown[]
                     p.status,
                     p.created_at,
                     u.username,
+                    NVL(u.sex_code, '') AS sex_code,
                     NVL(u.avatar_url, '') AS avatar_url,
                     NVL(v.vote_value, 0) AS my_vote
              FROM murm_post p
@@ -42,6 +43,7 @@ export async function listPosts(currentUserId: number | null): Promise<unknown[]
             id: Number(row.ID),
             userId: Number(row.USER_ID),
             author: String(row.USERNAME),
+            sexCode: String(row.SEX_CODE || ''),
             avatarUrl: String(row.AVATAR_URL || ''),
             text: String(row.CONTENTS),
             positive: Number(row.POSITIVE_COUNT),

@@ -12,6 +12,7 @@ const t = getMessages(locale);
       <div class="avatar" data-profile-avatar>MU</div>
       <h1 data-profile-username>usuario</h1>
       <span class="handle" data-profile-email>usuario@exemplo.com</span>
+      <span class="profile-sex" data-profile-sex>Sexo não informado</span>
       <p class="bio" data-profile-bio></p>
       <div class="profile-stats">
         <div><strong data-profile-posts>0</strong><span>{t.profile.murmurs}</span></div>
@@ -26,6 +27,7 @@ const t = getMessages(locale);
         <form data-profile-form>
           <div class="field"><label for="username">{t.common.username}</label><input id="username" name="username" maxlength="30" required /></div>
           <div class="field"><label for="email">{t.common.email}</label><input id="email" name="email" type="email" readonly /></div>
+          <div class="field"><label for="sexCode">Sexo</label><select id="sexCode" name="sexCode"><option value="">Não informar</option><option value="M">Macho</option><option value="F">Fêmea</option></select></div>
           <div class="field"><label for="bio">{t.profile.bio}</label><textarea id="bio" name="bio" maxlength="180" rows="5"></textarea></div>
           <button class="button primary" type="submit">{t.common.save}</button>
           <p class="form-message" data-form-message></p>
