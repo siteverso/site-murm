@@ -144,6 +144,15 @@
     form.addEventListener('submit', async event => {
       event.preventDefault();
       const formData = new FormData(form);
+      const submit = $('button[type="submit"]', form);
+      const originalText = submit?.textContent || '';
+
+      message(form, 'Conectando ao Oracle...');
+      if (submit) {
+        submit.disabled = true;
+        submit.textContent = 'Entrando...';
+      }
+
       try {
         await api('/api/auth/login', {
           method: 'POST',
@@ -157,6 +166,11 @@
         location.href = '/';
       } catch (error) {
         message(form, error.message);
+      } finally {
+        if (submit) {
+          submit.disabled = false;
+          submit.textContent = originalText;
+        }
       }
     });
   }

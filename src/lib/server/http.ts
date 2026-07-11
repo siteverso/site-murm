@@ -35,6 +35,8 @@ export function errorResponse(error: unknown): Response {
         RESPOSTA_NAO_ENCONTRADA: [404, 'Resposta não encontrada.'],
         SEM_PERMISSAO: [403, 'Você não pode executar esta ação.'],
         RESET_DESABILITADO: [501, 'Recuperação por e-mail ainda não configurada.'],
+        ORACLE_WALLET_INVALIDA: [503, 'A carteira Oracle não foi encontrada ou está incompleta.'],
+        ORACLE_INDISPONIVEL: [503, 'Não foi possível conectar ao banco Oracle. Confira usuário, senha, serviço e Wallet.'],
     };
 
     const [status, publicMessage] = known[message] || [500, 'Erro interno.'];
