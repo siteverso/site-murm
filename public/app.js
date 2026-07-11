@@ -643,6 +643,9 @@ function bindDirectsPage() {
 
   const list = $('[data-direct-list]', root);
   const messages = $('[data-direct-messages]', root);
+  const messageList = $('[data-direct-message-list]', root);
+  const messagesTop = $('[data-direct-messages-top]', root);
+  const loadMoreButton = $('[data-load-more-direct]', root);
   const empty = $('[data-direct-empty]', root);
   const stage = $('[data-direct-stage]', root);
   const form = $('[data-direct-form]', root);
@@ -651,10 +654,13 @@ function bindDirectsPage() {
   const pendingDeletes = new Map();
   let activeUserId = '';
   let requestToken = 0;
+  let oldestMessageId = 0;
+  let hasMoreMessages = false;
+  let loadingOlderMessages = false;
 
   const labels = locale === 'en'
-    ? { remove: 'Delete', confirm: 'Confirm', cancel: 'Cancel', undo: 'Undo', deleted: 'Message deleted.' }
-    : { remove: 'Excluir', confirm: 'Confirmar', cancel: 'Cancelar', undo: 'Desfazer', deleted: 'Bilhete excluído.' };
+    ? { remove: 'Delete', confirm: 'Confirm', cancel: 'Cancel', undo: 'Undo', deleted: 'Message deleted.', loadMore: 'Load 20 earlier', loadingMore: 'Loading…' }
+    : { remove: 'Excluir', confirm: 'Confirmar', cancel: 'Cancelar', undo: 'Desfazer', deleted: 'Bilhete excluído.', loadMore: 'Carregar 20 anteriores', loadingMore: 'Carregando…' };
 
   const sexClass = value => value === 'M' ? 'sex-m' : value === 'F' ? 'sex-f' : '';
 
@@ -668,32 +674,44 @@ function bindDirectsPage() {
     `).join('');
   };
 
-  const renderMessages = items => {
-    messages.innerHTML = (items || []).map(message => {
-      const own = message.senderId === currentUser.id;
-      const senderSexCode = message.senderSexCode || (own ? currentUser?.sexCode : '');
-      return `
-        <article class="direct-note ${own ? 'sent' : 'received'} ${sexClass(senderSexCode)}" data-direct-message="${message.id}">
-          <div class="direct-note-head">
-            <span>${own ? 'Você' : '@' + escapeHtml(message.senderName)}</span>
-            ${own ? `<div class="direct-delete-zone">
-              <div class="direct-delete-confirm" data-delete-confirm hidden>
-                <button type="button" data-confirm-delete="${message.id}">${labels.confirm}</button>
-                <button type="button" data-cancel-delete>${labels.cancel}</button>
-              </div>
-              <button class="direct-delete-button" type="button" data-delete-direct="${message.id}" aria-label="${labels.remove}" title="${labels.remove}">×</button>
-            </div>` : ''}
-          </div>
-          <p>${escapeHtml(message.contents)}</p>
-          <time>${new Date(message.createdAt).toLocaleString()}</time>
-        </article>`;
-    }).join('');
-    messages.scrollTop = messages.scrollHeight;
+  const messageHtml = message => {
+    const own = message.senderId === currentUser.id;
+    const senderSexCode = message.senderSexCode || (own ? currentUser?.sexCode : '');
+    return `
+      <article class="direct-note ${own ? 'sent' : 'received'} ${sexClass(senderSexCode)}" data-direct-message="${message.id}">
+        <div class="direct-note-head">
+          <span>${own ? 'Você' : '@' + escapeHtml(message.senderName)}</span>
+          ${own ? `<div class="direct-delete-zone">
+            <div class="direct-delete-confirm" data-delete-confirm hidden>
+              <button type="button" data-confirm-delete="${message.id}">${labels.confirm}</button>
+              <button type="button" data-cancel-delete>${labels.cancel}</button>
+            </div>
+            <button class="direct-delete-button" type="button" data-delete-direct="${message.id}" aria-label="${labels.remove}" title="${labels.remove}">×</button>
+          </div>` : ''}
+        </div>
+        <p>${escapeHtml(message.contents)}</p>
+        <time>${new Date(message.createdAt).toLocaleString()}</time>
+      </article>`;
+  };
+
+  const updateLoadMore = () => {
+    messagesTop.hidden = !hasMoreMessages;
+    loadMoreButton.textContent = loadingOlderMessages ? labels.loadingMore : labels.loadMore;
+    loadMoreButton.disabled = loadingOlderMessages;
+  };
+
+  const renderMessages = (items, prepend = false) => {
+    const html = (items || []).map(messageHtml).join('');
+    if (prepend) messageList.insertAdjacentHTML('afterbegin', html);
+    else messageList.innerHTML = html;
+
+    const first = messageList.querySelector('[data-direct-message]');
+    oldestMessageId = first ? Number(first.dataset.directMessage) : 0;
   };
 
   const load = async (otherUserId = activeUserId) => {
     const token = ++requestToken;
-    const url = otherUserId ? `/api/directs?otherUserId=${otherUserId}` : '/api/directs';
+    const url = otherUserId ? `/api/directs?otherUserId=${otherUserId}&limit=20` : '/api/directs';
     const data = await api(url);
     if (token !== requestToken) return;
 
@@ -702,9 +720,34 @@ function bindDirectsPage() {
 
     if (activeUserId) {
       renderMessages(data.messages || []);
+      hasMoreMessages = Boolean(data.hasMore);
+      updateLoadMore();
       form.dataset.recipientId = activeUserId;
       empty.hidden = true;
       stage.hidden = false;
+      requestAnimationFrame(() => { messages.scrollTop = messages.scrollHeight; });
+    }
+  };
+
+  const loadOlderMessages = async () => {
+    if (!activeUserId || !oldestMessageId || !hasMoreMessages || loadingOlderMessages) return;
+    loadingOlderMessages = true;
+    updateLoadMore();
+    const previousHeight = messages.scrollHeight;
+    const previousTop = messages.scrollTop;
+
+    try {
+      const data = await api(`/api/directs?otherUserId=${activeUserId}&beforeId=${oldestMessageId}&limit=20`);
+      renderMessages(data.messages || [], true);
+      hasMoreMessages = Boolean(data.hasMore);
+      requestAnimationFrame(() => {
+        messages.scrollTop = previousTop + (messages.scrollHeight - previousHeight);
+      });
+    } catch (error) {
+      toast(error.message);
+    } finally {
+      loadingOlderMessages = false;
+      updateLoadMore();
     }
   };
 
@@ -733,6 +776,12 @@ function bindDirectsPage() {
   };
 
   root.addEventListener('click', event => {
+    const loadMore = event.target.closest('[data-load-more-direct]');
+    if (loadMore) {
+      loadOlderMessages();
+      return;
+    }
+
     const open = event.target.closest('[data-open-direct]');
     if (open) {
       load(open.dataset.openDirect).catch(error => toast(error.message));

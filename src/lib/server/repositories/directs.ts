@@ -28,7 +28,11 @@ export async function listConversations(userId: number): Promise<unknown[]> {
     });
 }
 
-export async function listMessages(userId: number, otherUserId: number): Promise<unknown[]> {
+export async function listMessages(
+    userId: number,
+    otherUserId: number,
+    options: { beforeId?: number; limit?: number } = {},
+): Promise<{ messages: unknown[]; hasMore: boolean }> {
     return withConnection(async connection => {
         await connection.execute(
             `UPDATE murm_direct
@@ -39,6 +43,9 @@ export async function listMessages(userId: number, otherUserId: number): Promise
             { user_id: userId, other_user_id: otherUserId },
             { autoCommit: true },
         );
+
+        const limit = Math.min(50, Math.max(1, Number(options.limit || 20)));
+        const beforeId = Number(options.beforeId || 0);
         const result = await connection.execute<Record<string, unknown>>(
             `SELECT d.id,
                     d.sender_user_id,
@@ -50,12 +57,23 @@ export async function listMessages(userId: number, otherUserId: number): Promise
                FROM murm_direct d
                JOIN murm_user u
                  ON u.id = d.sender_user_id
-              WHERE (d.sender_user_id = :user_id AND d.recipient_user_id = :other_user_id)
-                 OR (d.sender_user_id = :other_user_id AND d.recipient_user_id = :user_id)
-              ORDER BY d.created_at`,
-            { user_id: userId, other_user_id: otherUserId },
+              WHERE ((d.sender_user_id = :user_id AND d.recipient_user_id = :other_user_id)
+                 OR  (d.sender_user_id = :other_user_id AND d.recipient_user_id = :user_id))
+                AND (:before_id = 0 OR d.id < :before_id)
+              ORDER BY d.id DESC
+              FETCH FIRST :fetch_limit ROWS ONLY`,
+            {
+                user_id: userId,
+                other_user_id: otherUserId,
+                before_id: beforeId,
+                fetch_limit: limit + 1,
+            },
         );
-        return (result.rows || []).map(row => ({
+
+        const rows = result.rows || [];
+        const hasMore = rows.length > limit;
+        const pageRows = rows.slice(0, limit).reverse();
+        const messages = pageRows.map(row => ({
             id: Number(row.ID),
             senderId: Number(row.SENDER_USER_ID),
             recipientId: Number(row.RECIPIENT_USER_ID),
@@ -64,6 +82,8 @@ export async function listMessages(userId: number, otherUserId: number): Promise
             contents: String(row.CONTENTS),
             createdAt: new Date(String(row.CREATED_AT)).getTime(),
         }));
+
+        return { messages, hasMore };
     });
 }
 

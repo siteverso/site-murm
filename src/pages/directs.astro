@@ -12,7 +12,12 @@ import Header from '../components/Header.astro';
     <section class="directs-stage panel">
       <div class="direct-empty" data-direct-empty><strong>Escolha um bilhete</strong><span>As conversas chegam como correspondência, sem cara de chat.</span></div>
       <div class="direct-stage" data-direct-stage hidden>
-        <div class="direct-messages" data-direct-messages></div>
+        <div class="direct-messages" data-direct-messages>
+          <div class="direct-messages-top" data-direct-messages-top hidden>
+            <button class="direct-load-more" type="button" data-load-more-direct>Carregar 20 anteriores</button>
+          </div>
+          <div class="direct-message-list" data-direct-message-list></div>
+        </div>
         <form class="direct-form" data-direct-form>
           <textarea name="contents" maxlength="256" placeholder="Responder com outro bilhete…" required></textarea>
           <button class="button primary" type="submit">Enviar</button>
