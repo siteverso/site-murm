@@ -188,6 +188,42 @@ function getFeedSignature(items) {
   ]));
 }
 
+function captureFeedAnchor() {
+  if (window.scrollY <= 0) return null;
+
+  const headerBottom = $('[data-site-header]')?.getBoundingClientRect().bottom
+    || $('.topbar')?.getBoundingClientRect().bottom
+    || 0;
+  const cards = $$('[data-post-id]').filter(card => {
+    const rect = card.getBoundingClientRect();
+    return rect.bottom > headerBottom && rect.top < window.innerHeight;
+  });
+
+  if (!cards.length) return null;
+
+  const anchor = cards.reduce((closest, card) => {
+    const distance = Math.abs(card.getBoundingClientRect().top - headerBottom);
+    return !closest || distance < closest.distance ? { card, distance } : closest;
+  }, null)?.card;
+
+  if (!anchor) return null;
+
+  return {
+    postId: anchor.dataset.postId,
+    top: anchor.getBoundingClientRect().top,
+  };
+}
+
+function restoreFeedAnchor(anchor) {
+  if (!anchor) return;
+
+  const card = document.querySelector(`[data-post-id="${anchor.postId}"]`);
+  if (!card) return;
+
+  const delta = card.getBoundingClientRect().top - anchor.top;
+  if (Math.abs(delta) > 0.5) window.scrollBy(0, delta);
+}
+
 async function loadFeed(force = false) {
   const maleFeed = $('[data-feed-male]');
   const femaleFeed = $('[data-feed-female]');
@@ -201,6 +237,8 @@ async function loadFeed(force = false) {
     const nextSignature = getFeedSignature(nextPosts);
 
     if (!force && nextSignature === feedSignature) return;
+
+    const anchor = captureFeedAnchor();
 
     posts = nextPosts;
     feedSignature = nextSignature;
@@ -217,6 +255,8 @@ async function loadFeed(force = false) {
     $('[data-count-female]')?.replaceChildren(document.createTextNode(`${femalePosts.length} murmúrios`));
     $('[data-count-other]')?.replaceChildren(document.createTextNode(`${otherPosts.length} sem sexo`));
     $('[data-threshold-label]')?.replaceChildren(document.createTextNode(`Total na rede: ${posts.length}`));
+
+    restoreFeedAnchor(anchor);
   } finally {
     feedRequestRunning = false;
   }
