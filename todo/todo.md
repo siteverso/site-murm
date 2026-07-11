@@ -1,23 +1,15 @@
 site-murm
-Instrucoes
+Instruções
 
-Faca cada coisa de uma vez com cuidado e teste e nao duplique codigo
-Se preferir vamos fazer uma alteracao por vez e eu confirma revisando para fazer a proxima
-Mas voce pode ter a visao de conjunto antes
-E antes de fazer resuam o que sera feito em linhas gerias
-Realize testes unitarios para garantir funcionamento
+Faça cada coisa de uma vez com cuidado e teste e não duplique código.
+Você pode ter a visão de conjunto antes.
+Mas Vamos fazer uma alteração por vez e eu vou confirmar uma por uma após você enviar o zip.
+Liste os itens numerados e o que entendeu de cada um.
+Realize testes unitários para garantir funcionamento.
 
-TODO:
+TODO, um de cada vez:
 
-- rever todos os css se estao corretos e otimizados
-- as repostas tb devem virar murmurios cards normais
-- deve permitir alterar mensagem no chat
-- deixar em  negrito so chats com novas mensagens na esquerda
-- tirar o total de murmurios do topo das colunas da home
-- o prorpeitario deve poder remover o murmurio
-- 2 cliques no murmurio permite responder
-- Mudar o icone do ignorar com  um fonte de ouvido
-- Mostrar o icone de direct apenas no hover e mudar par um bilhetinho
-- mostrar 3 colunas de cadastros sem sexo ![img.png](img.png)
-- deve exibir data e hora aqui na coluna do chat esquerda ![img_1.png](img_1.png)
-- quando o perfil for meu o termo é Observando e nao observadores ![img_2.png](img_2.png)
+- revisar todos os CSS se estão corretos e otimizados
+- remover títulos das colunas
+- após o envio de mensagem no chat, deve aparecer um ícone enviando girando, nunca aparece a label, hoje aparece a label e há algum bug, então a label fica na tela ![img_2.png](img_2.png)
+- deve ter uma opcao  página no perfil para ver meus murmúrios e outra para ver minhas resposas ![img_3.png](img_3.png)
