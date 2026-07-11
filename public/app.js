@@ -102,6 +102,7 @@ let currentUser = null;
 let posts = [];
 let feedSignature = '';
 let feedRequestRunning = false;
+const MIN_SITE_REFRESH_INTERVAL_MS = 2000;
 let feedTimer = null;
 
 function userInitials(username = '') {
@@ -377,7 +378,7 @@ function startFeedPolling() {
   clearInterval(feedTimer);
   feedTimer = setInterval(() => {
     if (document.visibilityState === 'visible') loadFeed().catch(() => {});
-  }, 1000);
+  }, MIN_SITE_REFRESH_INTERVAL_MS);
 
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') loadFeed().catch(() => {});
@@ -657,6 +658,8 @@ function bindDirectsPage() {
   let oldestMessageId = 0;
   let hasMoreMessages = false;
   let loadingOlderMessages = false;
+  let refreshingDirects = false;
+  let directsRefreshTimer = null;
 
   const labels = locale === 'en'
     ? { remove: 'Delete', confirm: 'Confirm', cancel: 'Cancel', undo: 'Undo', deleted: 'Message deleted.', loadMore: 'Load 20 earlier', loadingMore: 'Loading…' }
@@ -727,6 +730,49 @@ function bindDirectsPage() {
       stage.hidden = false;
       requestAnimationFrame(() => { messages.scrollTop = messages.scrollHeight; });
     }
+  };
+
+  const refreshDirects = async () => {
+    if (refreshingDirects || document.visibilityState !== 'visible') return;
+    refreshingDirects = true;
+
+    try {
+      const requestedUserId = activeUserId;
+      const url = requestedUserId ? `/api/directs?otherUserId=${requestedUserId}&limit=20` : '/api/directs';
+      const data = await api(url);
+      if (requestedUserId !== activeUserId) return;
+
+      renderConversations(data.conversations || []);
+      if (!requestedUserId) return;
+
+      const nearBottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 80;
+      const existingIds = new Set(
+        $$('[data-direct-message]', messageList).map(item => String(item.dataset.directMessage))
+      );
+      const newMessages = (data.messages || []).filter(message => !existingIds.has(String(message.id)));
+
+      if (newMessages.length) {
+        messageList.insertAdjacentHTML('beforeend', newMessages.map(messageHtml).join(''));
+        if (nearBottom) {
+          requestAnimationFrame(() => { messages.scrollTop = messages.scrollHeight; });
+        }
+      }
+
+      hasMoreMessages = Boolean(data.hasMore);
+      updateLoadMore();
+    } catch {
+      // A próxima atualização tenta novamente sem interromper o uso do chat.
+    } finally {
+      refreshingDirects = false;
+    }
+  };
+
+  const startDirectsPolling = () => {
+    clearInterval(directsRefreshTimer);
+    directsRefreshTimer = setInterval(refreshDirects, MIN_SITE_REFRESH_INTERVAL_MS);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') refreshDirects();
+    });
   };
 
   const loadOlderMessages = async () => {
@@ -856,6 +902,7 @@ function bindDirectsPage() {
   });
 
   load('').catch(error => toast(error.message));
+  startDirectsPolling();
 }
 
 document.addEventListener('submit', async event => {
