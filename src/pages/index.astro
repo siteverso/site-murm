@@ -10,7 +10,15 @@ const t = getMessages(locale);
   <main class="shell minimal-feed-page network-board-page">
     <div class="feed-heading minimal network-board-heading">
       <h1>{t.feed.recent}</h1>
-      <div class="segmented-control feed-view-switch" data-feed-view-switch aria-label="Modo de visualização dos murmúrios">
+      <div class="feed-display-controls">
+        <label class="column-group-control" data-column-group-control>
+          <span>Agrupar colunas por</span>
+          <select data-column-group-select aria-label="Agrupar colunas por">
+            <option value="sex">Sexo</option>
+            <option value="region">Regiões do Brasil</option>
+          </select>
+        </label>
+        <div class="segmented-control feed-view-switch" data-feed-view-switch aria-label="Modo de visualização dos murmúrios">
         <button class="segmented-control__button feed-view-button" type="button" data-feed-view="split" aria-label="Ver em colunas" title="Colunas">
           <svg viewBox="0 0 20 20" aria-hidden="true" fill="none">
             <rect x="3" y="4" width="5" height="12" rx="1.5" stroke="currentColor" stroke-width="1.6"/>
@@ -25,19 +33,12 @@ const t = getMessages(locale);
             <circle cx="3.2" cy="14.5" r=".9" fill="currentColor"/>
           </svg>
         </button>
+        </div>
       </div>
     </div>
 
     <section class="network-board" data-feed-board>
-      <div class="feed-view-panel split-view" data-feed-view-panel="split">
-        <section class="network-lane male-lane">
-          <div class="feed lane-feed" data-feed-male></div>
-        </section>
-
-        <section class="network-lane female-lane">
-          <div class="feed lane-feed" data-feed-female></div>
-        </section>
-      </div>
+      <div class="feed-view-panel split-view" data-feed-view-panel="split" data-feed-columns></div>
 
       <div class="feed-view-panel list-view" data-feed-view-panel="list" hidden>
         <section class="network-lane all-lane">
@@ -48,6 +49,5 @@ const t = getMessages(locale);
   </main>
   <button class="floating-action" type="button" data-new-murmur aria-label="Novo murmúrio">＋</button>
   <button class="scroll-top" type="button" data-scroll-top aria-label="Voltar ao topo">↑</button>
-  <div class="mail-pigeon" aria-hidden="true">✉</div>
   <div class="toast" data-toast></div>
 </AppLayout>

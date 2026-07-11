@@ -43,6 +43,29 @@ const t = getMessages(locale);
               </div>
               <small class="field-help" data-sex-rule>A primeira definição é livre. Depois, somente uma correção será permitida, após 30 dias.</small>
             </div>
+            <div class="field">
+              <label for="regionCode">Região do Brasil</label>
+              <div class="select-wrap">
+                <select id="regionCode" name="regionCode">
+                  <option value="">Não informar</option>
+                  <option value="N">Norte</option>
+                  <option value="NE">Nordeste</option>
+                  <option value="CO">Centro-Oeste</option>
+                  <option value="SE">Sudeste</option>
+                  <option value="S">Sul</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label for="columnGroupCode">Colunas da página inicial</label>
+              <div class="select-wrap">
+                <select id="columnGroupCode" name="columnGroupCode">
+                  <option value="sex">Agrupar por sexo</option>
+                  <option value="region">Agrupar por regiões do Brasil</option>
+                </select>
+              </div>
+              <small class="field-help">Define como o modo Colunas organiza os murmúrios.</small>
+            </div>
           </div>
           <div class="field"><label for="bio">{t.profile.bio}</label><textarea id="bio" name="bio" maxlength="180" rows="5"></textarea></div>
           <button class="button primary" type="submit">{t.common.save}</button>

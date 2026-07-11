@@ -1,31 +1,32 @@
 import oracledb from 'oracledb';
-import { withConnection } from '../oracle';
+import {withConnection} from '../oracle';
 
 export async function listPosts(currentUserId: number | null): Promise<unknown[]> {
     return withConnection(async connection => {
         const result = await connection.execute<Record<string, unknown>>(
             `SELECT p.id,
-                    p.user_id,
-                    p.parent_post_id,
-                    p.contents,
-                    p.positive_count,
-                    p.negative_count,
-                    p.share_count,
-                    p.status,
-                    p.created_at,
-                    u.username,
-                    NVL(u.sex_code, '') AS sex_code,
-                    NVL(u.avatar_url, '') AS avatar_url,
-                    NVL(v.vote_value, 0) AS my_vote
+                 p.user_id,
+                 p.parent_post_id,
+                 p.contents,
+                 p.positive_count,
+                 p.negative_count,
+                 p.share_count,
+                 p.status,
+                 p.created_at,
+                 u.username,
+                 nvl(u.sex_code, '') AS sex_code,
+                 nvl(u.region_code, '') AS region_code,
+                 nvl(u.avatar_url, '') AS avatar_url,
+                 nvl(v.vote_value, 0) AS my_vote
              FROM murm_post p
              JOIN murm_user u
-               ON u.id = p.user_id
+                  ON u.id = p.user_id
              LEFT JOIN murm_vote v
-               ON v.post_id = p.id
-              AND v.user_id = :current_user_id
+                       ON v.post_id = p.id
+                           AND v.user_id = :current_user_id
              WHERE p.status = 'published'
              ORDER BY p.created_at DESC`,
-            { current_user_id: currentUserId },
+            {current_user_id: currentUserId},
         );
 
         const rows = result.rows || [];
@@ -39,11 +40,13 @@ export async function listPosts(currentUserId: number | null): Promise<unknown[]
             repliesByParent.set(parentId, list);
         });
 
+        // noinspection TypeScriptUnresolvedReference
         return roots.map(row => ({
             id: Number(row.ID),
             userId: Number(row.USER_ID),
             author: String(row.USERNAME),
             sexCode: String(row.SEX_CODE || ''),
+            regionCode: String(row.REGION_CODE || ''),
             avatarUrl: String(row.AVATAR_URL || ''),
             text: String(row.CONTENTS),
             positive: Number(row.POSITIVE_COUNT),
@@ -62,31 +65,45 @@ export async function listPosts(currentUserId: number | null): Promise<unknown[]
     });
 }
 
-export async function createPost(userId: number, contents: string, parentPostId: number | null = null): Promise<number> {
+export async function createPost(userId: number, contents: string, parentPostId: number | null = null,): Promise<number> {
     return withConnection(async connection => {
         const result = await connection.execute(
-            `INSERT INTO murm_post
-             (
-                 user_id,
-                 parent_post_id,
-                 contents
-             )
-             VALUES
-             (
-                 :user_id,
-                 :parent_post_id,
-                 :contents
-             )
-             RETURNING id INTO :id`,
+            `
+                BEGIN
+                    INSERT INTO murm_post
+                    (
+                        user_id,
+                        parent_post_id,
+                        contents
+                    )
+                    VALUES
+                    (
+                        :user_id,
+                        :parent_post_id,
+                        :contents
+                    )
+                    RETURNING id INTO :id;
+                END;
+            `,
             {
                 user_id: userId,
                 parent_post_id: parentPostId,
                 contents,
-                id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
+                id: {
+                    dir: oracledb.BIND_OUT,
+                    type: oracledb.NUMBER,
+                },
             },
-            { autoCommit: true },
+            {
+                autoCommit: true,
+            },
         );
-        return Number((result.outBinds as { id: number[] }).id[0]);
+
+        const outBinds = result.outBinds as {
+            id: number;
+        };
+
+        return Number(outBinds.id);
     });
 }
 
@@ -96,19 +113,20 @@ export async function vote(postId: number, userId: number, value: -1 | 1): Promi
             `SELECT vote_value
              FROM murm_vote
              WHERE post_id = :post_id
-               AND user_id = :user_id`,
-            { post_id: postId, user_id: userId },
+                 AND user_id = :user_id`,
+            {post_id: postId, user_id: userId},
         );
 
         const existing = current.rows?.[0];
 
         if (existing && Number(existing.VOTE_VALUE) === value) {
             await connection.execute(
-                `DELETE FROM murm_vote
+                `DELETE
+                 FROM murm_vote
                  WHERE post_id = :post_id
-                   AND user_id = :user_id`,
-                { post_id: postId, user_id: userId },
-                { autoCommit: true },
+                     AND user_id = :user_id`,
+                {post_id: postId, user_id: userId},
+                {autoCommit: true},
             );
             return;
         }
@@ -123,8 +141,8 @@ export async function vote(postId: number, userId: number, value: -1 | 1): Promi
              WHEN NOT MATCHED THEN
                  INSERT (post_id, user_id, vote_value)
                  VALUES (source.post_id, source.user_id, source.vote_value)`,
-            { post_id: postId, user_id: userId, vote_value: value },
-            { autoCommit: true },
+            {post_id: postId, user_id: userId, vote_value: value},
+            {autoCommit: true},
         );
     });
 }
@@ -138,14 +156,40 @@ export async function share(postId: number, userId: number): Promise<void> {
                  user_id,
                  share_type
              )
-             VALUES
-             (
+             VALUES (
                  :post_id,
                  :user_id,
                  'link'
              )`,
-            { post_id: postId, user_id: userId },
-            { autoCommit: true },
+            {post_id: postId, user_id: userId},
+            {autoCommit: true},
+        );
+    });
+}
+
+export async function deletePost(postId: number, userId: number): Promise<void> {
+    await withConnection(async connection => {
+        const owner = await connection.execute<Record<string, unknown>>(
+            `SELECT id
+             FROM murm_post
+             WHERE id = :post_id
+                 AND user_id = :user_id
+                 AND parent_post_id IS NULL
+                 AND status = 'published'`,
+            {post_id: postId, user_id: userId},
+        );
+        if (!owner.rows?.length) throw new Error('POST_NAO_ENCONTRADO');
+
+        await connection.execute(
+            `UPDATE murm_post
+             SET status = 'deleted',
+                 deleted_at = systimestamp,
+                 deleted_by_user_id = :user_id,
+                 updated_at = systimestamp
+             WHERE (id = :post_id OR parent_post_id = :post_id)
+                 AND status = 'published'`,
+            {post_id: postId, user_id: userId},
+            {autoCommit: true},
         );
     });
 }
@@ -155,15 +199,15 @@ export async function deleteReply(replyId: number, userId: number): Promise<void
         const result = await connection.execute(
             `UPDATE murm_post
              SET status = 'deleted',
-                 deleted_at = SYSTIMESTAMP,
+                 deleted_at = systimestamp,
                  deleted_by_user_id = :user_id,
-                 updated_at = SYSTIMESTAMP
+                 updated_at = systimestamp
              WHERE id = :reply_id
-               AND user_id = :user_id
-               AND parent_post_id IS NOT NULL
-               AND status = 'published'`,
-            { reply_id: replyId, user_id: userId },
-            { autoCommit: true },
+                 AND user_id = :user_id
+                 AND parent_post_id IS NOT NULL
+                 AND status = 'published'`,
+            {reply_id: replyId, user_id: userId},
+            {autoCommit: true},
         );
         if (!result.rowsAffected) throw new Error('RESPOSTA_NAO_ENCONTRADA');
     });
@@ -176,14 +220,14 @@ export async function restoreReply(replyId: number, userId: number): Promise<voi
              SET status = 'published',
                  deleted_at = NULL,
                  deleted_by_user_id = NULL,
-                 updated_at = SYSTIMESTAMP
+                 updated_at = systimestamp
              WHERE id = :reply_id
-               AND user_id = :user_id
-               AND deleted_by_user_id = :user_id
-               AND parent_post_id IS NOT NULL
-               AND status = 'deleted'`,
-            { reply_id: replyId, user_id: userId },
-            { autoCommit: true },
+                 AND user_id = :user_id
+                 AND deleted_by_user_id = :user_id
+                 AND parent_post_id IS NOT NULL
+                 AND status = 'deleted'`,
+            {reply_id: replyId, user_id: userId},
+            {autoCommit: true},
         );
         if (!result.rowsAffected) throw new Error('RESPOSTA_NAO_ENCONTRADA');
     });

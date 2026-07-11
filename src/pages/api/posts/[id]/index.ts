@@ -1,0 +1,16 @@
+import type { APIRoute } from 'astro';
+import { errorResponse, json } from '../../../../lib/server/http';
+import { deletePost } from '../../../../lib/server/repositories/posts';
+import { requireUser } from '../../../../lib/server/session';
+
+export const DELETE: APIRoute = async context => {
+    try {
+        const user = await requireUser(context);
+        const postId = Number(context.params.id);
+        if (!Number.isInteger(postId) || postId <= 0) throw new Error('POST_NAO_ENCONTRADO');
+        await deletePost(postId, user.id);
+        return json({ ok: true });
+    } catch (error) {
+        return errorResponse(error);
+    }
+};

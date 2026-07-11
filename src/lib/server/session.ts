@@ -22,6 +22,8 @@ export type SessionUser = {
     avatarUrl: string;
     languageCode: string;
     themeCode: string;
+    regionCode: string;
+    columnGroupCode: 'sex' | 'region';
     hasPassword: boolean;
     hasGoogle: boolean;
     postCount: number;
@@ -124,6 +126,8 @@ export async function currentUser(context: APIContext): Promise<SessionUser | nu
                     NVL(u.avatar_url, '') AS avatar_url,
                     u.language_code,
                     NVL(u.theme_code, 'auto') AS theme_code,
+                    NVL(u.region_code, '') AS region_code,
+                    NVL(u.column_group_code, 'sex') AS column_group_code,
                     CASE WHEN u.password_hash IS NULL THEN 0 ELSE 1 END AS has_password,
                     CASE WHEN u.google_sub IS NULL THEN 0 ELSE 1 END AS has_google,
                     (SELECT COUNT(*) FROM murm_post p WHERE p.user_id = u.id AND p.parent_post_id IS NULL AND p.status = 'published') AS post_count,
@@ -179,6 +183,8 @@ export async function currentUser(context: APIContext): Promise<SessionUser | nu
             avatarUrl: String(row.AVATAR_URL || ''),
             languageCode: String(row.LANGUAGE_CODE || 'pt-BR'),
             themeCode: String(row.THEME_CODE || 'auto'),
+            regionCode: String(row.REGION_CODE || ''),
+            columnGroupCode: String(row.COLUMN_GROUP_CODE || 'sex') === 'region' ? 'region' : 'sex',
             hasPassword: Number(row.HAS_PASSWORD) === 1,
             hasGoogle: Number(row.HAS_GOOGLE) === 1,
             postCount: Number(row.POST_COUNT || 0),

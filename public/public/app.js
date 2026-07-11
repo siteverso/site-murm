@@ -1,3 +1,5 @@
+// noinspection JSUnresolvedReference
+
 const $ = (selector, root = document) => root.querySelector(selector);
 
 const ICONS = {
@@ -62,6 +64,7 @@ const sameId = (left, right) => left != null && right != null && String(left) ==
 
 const api = async (url, options = {}) => {
   const response = await fetch(url, {
+    cache: 'no-store',
     ...options,
     headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
   });
@@ -156,10 +159,12 @@ function renderUser(user) {
 
   const profileForm = $('[data-profile-form]');
   if (profileForm) {
-    const usernameInput = profileForm.username;
+    const usernameInput = $('[name="username"]', profileForm);
     const usernameRule = $('[data-username-rule]', profileForm);
-    usernameInput.value = user.username;
-    usernameInput.disabled = !user.usernameCanChange;
+    if (usernameInput) {
+      usernameInput.value = user.username;
+      usernameInput.disabled = !user.usernameCanChange;
+    }
 
     if (user.usernameChangeCount >= 1) {
       usernameRule.textContent = 'Usuário bloqueado: a única correção permitida para esta conta já foi utilizada.';
@@ -250,14 +255,6 @@ async function loadUser() {
   }
 }
 
-function renderPostHeaderActions(post) {
-  const directButton = `<button class="direct-card-button" type="button" data-direct-user="${post.userId}" data-direct-name="${escapeHtml(post.author)}" title="Enviar bilhete" aria-label="Enviar bilhete">${ICONS.direct}</button>`;
-  const deleteButton = sameId(currentUser?.id, post.userId)
-    ? `<button class="direct-card-button murmur-delete-button" type="button" data-delete-post="${post.id}" title="Apagar murmúrio" aria-label="Apagar murmúrio">${ICONS.delete}</button>`
-    : '';
-  return `<div class="murmur-head-actions">${deleteButton}${directButton}</div>`;
-}
-
 function renderPost(post) {
   const score = post.positive - post.negative;
   const sexClass = post.sexCode === 'M' ? 'sex-m' : post.sexCode === 'F' ? 'sex-f' : 'sex-u';
@@ -271,7 +268,10 @@ function renderPost(post) {
     <div class="murmur-head">
       <div class="avatar">${escapeHtml(post.author.slice(0, 2).toUpperCase())}</div>
       <div class="murmur-author"><strong>@${escapeHtml(post.author)}</strong><span>${new Date(post.createdAt).toLocaleString()}</span></div>
-      ${renderPostHeaderActions(post)}
+      <div class="murmur-head-actions">
+        <button class="direct-card-button" type="button" data-direct-user="${post.userId}" data-direct-name="${escapeHtml(post.author)}" title="Enviar bilhete" aria-label="Enviar bilhete">${ICONS.direct}</button>
+        ${sameId(currentUser?.id, post.userId) ? `<button class="direct-card-button murmur-delete-button" type="button" data-delete-post="${post.id}" title="Apagar murmúrio" aria-label="Apagar murmúrio">${ICONS.delete}</button>` : ''}
+      </div>
     </div>
     <p class="murmur-text">${escapeHtml(post.text)}</p>
     <div class="score-line">
@@ -652,7 +652,7 @@ function bindProfile() {
     setButtonLoading(submit, true, 'Salvando…');
 
     try {
-      await api('/api/auth/profile', {
+      const data = await api('/api/auth/profile', {
         method: 'PATCH',
         body: JSON.stringify({
           username: profileForm.username.value,
@@ -663,7 +663,8 @@ function bindProfile() {
           bio: profileForm.bio.value,
         }),
       });
-      await loadUser();
+      currentUser = data.user || await loadUser();
+      renderUser(currentUser);
       setFormMessage(message, 'Perfil salvo com sucesso.', 'success');
       toast('Perfil atualizado.');
     } catch (error) {
@@ -1148,6 +1149,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadFeed(true).catch(() => {});
   startFeedPolling();
   bindDirectsPage();
-  pollDirects();
-  setInterval(pollDirects, 7000);
+  await pollDirects();
+  setInterval(() => {
+    void pollDirects();
+  }, 7000);
 });
