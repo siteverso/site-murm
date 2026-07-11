@@ -10,7 +10,6 @@ const t = getMessages(locale);
   <main class="shell minimal-feed-page network-board-page">
     <div class="feed-heading minimal network-board-heading">
       <h1>{t.feed.recent}</h1>
-      <span data-threshold-label>Total na rede: 0</span>
     </div>
 
     <section class="network-board">
@@ -30,13 +29,6 @@ const t = getMessages(locale);
         <div class="feed lane-feed" data-feed-female></div>
       </section>
 
-      <aside class="network-side panel">
-        <div class="lane-heading network-side-heading">
-          <h2>Rede</h2>
-          <span data-count-other>0 sem sexo</span>
-        </div>
-        <div class="network-side-body" data-feed-other-info></div>
-      </aside>
     </section>
   </main>
   <button class="floating-action" type="button" data-new-murmur aria-label="Novo murmúrio">＋</button>
