@@ -4,14 +4,17 @@ import { withConnection } from '../oracle';
 export async function listConversations(userId: number): Promise<unknown[]> {
     return withConnection(async connection => {
         const result = await connection.execute<Record<string, unknown>>(
-            `SELECT other_user_id,
-                    username,
-                    last_message,
-                    last_at,
-                    unread_count
-               FROM vw_murm_direct_conversation
-              WHERE user_id = :user_id
-              ORDER BY last_at DESC`,
+            `SELECT c.other_user_id,
+                    c.username,
+                    c.last_message,
+                    c.last_at,
+                    c.unread_count,
+                    NVL(u.sex_code, '') AS sex_code
+               FROM vw_murm_direct_conversation c
+               JOIN murm_user u
+                 ON u.id = c.other_user_id
+              WHERE c.user_id = :user_id
+              ORDER BY c.last_at DESC`,
             { user_id: userId },
         );
         return (result.rows || []).map(row => ({
@@ -20,6 +23,7 @@ export async function listConversations(userId: number): Promise<unknown[]> {
             lastMessage: String(row.LAST_MESSAGE),
             lastAt: new Date(String(row.LAST_AT)).getTime(),
             unreadCount: Number(row.UNREAD_COUNT || 0),
+            sexCode: String(row.SEX_CODE || ''),
         }));
     });
 }
@@ -36,29 +40,19 @@ export async function listMessages(userId: number, otherUserId: number): Promise
             { autoCommit: true },
         );
         const result = await connection.execute<Record<string, unknown>>(
-            `SELECT id,
-                    sender_user_id,
-                    recipient_user_id,
-                    contents,
-                    created_at,
-                    sender_name
-               FROM
-                    (
-                        SELECT d.id,
-                               d.sender_user_id,
-                               d.recipient_user_id,
-                               d.contents,
-                               d.created_at,
-                               u.username AS sender_name
-                          FROM murm_direct d
-                          JOIN murm_user u
-                            ON u.id = d.sender_user_id
-                         WHERE (d.sender_user_id = :user_id AND d.recipient_user_id = :other_user_id)
-                            OR (d.sender_user_id = :other_user_id AND d.recipient_user_id = :user_id)
-                         ORDER BY d.created_at DESC
-                         FETCH FIRST 100 ROWS ONLY
-                    )
-              ORDER BY created_at`,
+            `SELECT d.id,
+                    d.sender_user_id,
+                    d.recipient_user_id,
+                    d.contents,
+                    d.created_at,
+                    u.username AS sender_name,
+                    NVL(u.sex_code, '') AS sender_sex_code
+               FROM murm_direct d
+               JOIN murm_user u
+                 ON u.id = d.sender_user_id
+              WHERE (d.sender_user_id = :user_id AND d.recipient_user_id = :other_user_id)
+                 OR (d.sender_user_id = :other_user_id AND d.recipient_user_id = :user_id)
+              ORDER BY d.created_at`,
             { user_id: userId, other_user_id: otherUserId },
         );
         return (result.rows || []).map(row => ({
@@ -66,6 +60,7 @@ export async function listMessages(userId: number, otherUserId: number): Promise
             senderId: Number(row.SENDER_USER_ID),
             recipientId: Number(row.RECIPIENT_USER_ID),
             senderName: String(row.SENDER_NAME),
+            senderSexCode: String(row.SENDER_SEX_CODE || ''),
             contents: String(row.CONTENTS),
             createdAt: new Date(String(row.CREATED_AT)).getTime(),
         }));
@@ -122,19 +117,5 @@ export async function unreadDirects(userId: number): Promise<{ count: number; la
         );
         const row = result.rows?.[0];
         return { count: Number(row?.UNREAD_COUNT || 0), latestId: Number(row?.LATEST_ID || 0) };
-    });
-}
-
-
-export async function deleteDirect(userId: number, directId: number): Promise<void> {
-    await withConnection(async connection => {
-        const result = await connection.execute(
-            `DELETE FROM murm_direct
-              WHERE id = :direct_id
-                AND sender_user_id = :user_id`,
-            { direct_id: directId, user_id: userId },
-            { autoCommit: true },
-        );
-        if (!result.rowsAffected) throw new Error('DIRECT_NAO_ENCONTRADO');
     });
 }

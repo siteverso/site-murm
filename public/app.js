@@ -643,8 +643,15 @@ function bindDirectsPage() {
   const load = async (otherUserId = '') => {
     const url = otherUserId ? `/api/directs?otherUserId=${otherUserId}` : '/api/directs';
     const data = await api(url);
-    $('[data-direct-list]').innerHTML = (data.conversations || []).map(item => `<button class="direct-thread ${String(item.otherUserId) === String(otherUserId) ? 'active' : ''}" data-open-direct="${item.otherUserId}"><strong>@${escapeHtml(item.username)}</strong><span>${escapeHtml(item.lastMessage)}</span><small>${item.unreadCount ? `${item.unreadCount} novo(s)` : ''}</small></button>`).join('');
-    if (data.messages) $('[data-direct-messages]').innerHTML = data.messages.map(message => `<article class="direct-note ${message.senderId === currentUser.id ? 'sent' : 'received'}"><span>${message.senderId === currentUser.id ? 'Você' : '@' + escapeHtml(message.senderName)}</span><p>${escapeHtml(message.contents)}</p><time>${new Date(message.createdAt).toLocaleString()}</time></article>`).join('');
+    $('[data-direct-list]').innerHTML = (data.conversations || []).map(item => {
+      const sexClass = item.sexCode === 'M' ? 'sex-m' : item.sexCode === 'F' ? 'sex-f' : '';
+      return `<button class="direct-thread ${String(item.otherUserId) === String(otherUserId) ? 'active' : ''} ${sexClass}" data-open-direct="${item.otherUserId}"><strong>@${escapeHtml(item.username)}</strong><span>${escapeHtml(item.lastMessage)}</span><small>${item.unreadCount ? `${item.unreadCount} novo(s)` : ''}</small></button>`;
+    }).join('');
+    if (data.messages) $('[data-direct-messages]').innerHTML = data.messages.map(message => {
+      const senderSexCode = message.senderSexCode || (message.senderId === currentUser.id ? currentUser?.sexCode : '');
+      const sexClass = senderSexCode === 'M' ? 'sex-m' : senderSexCode === 'F' ? 'sex-f' : '';
+      return `<article class="direct-note ${message.senderId === currentUser.id ? 'sent' : 'received'} ${sexClass}"><span>${message.senderId === currentUser.id ? 'Você' : '@' + escapeHtml(message.senderName)}</span><p>${escapeHtml(message.contents)}</p><time>${new Date(message.createdAt).toLocaleString()}</time></article>`;
+    }).join('');
     if (otherUserId) { $('[data-direct-form]').dataset.recipientId = otherUserId; $('[data-direct-empty]').hidden = true; $('[data-direct-stage]').hidden = false; }
   };
   root.addEventListener('click', event => { const button = event.target.closest('[data-open-direct]'); if (button) load(button.dataset.openDirect); });

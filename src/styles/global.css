@@ -421,6 +421,11 @@ html[data-theme="dark"] .field-help[data-type="waiting"] { color: #91baf0; }
   font-size: .84rem;
   font-weight: 700;
 }
+.lane-inline-head.count-only {
+  justify-content: flex-end;
+  padding-top: 14px;
+  padding-bottom: 2px;
+}
 .lane-heading {
   padding: 18px 20px 14px;
   display: flex;
@@ -579,8 +584,12 @@ html[data-theme="dark"] .field-help[data-type="waiting"] { color: #91baf0; }
 .directs-sidebar-head h1 { margin: 0; }
 .directs-sidebar-head span { color: var(--muted); }
 .direct-list { min-height: 0; overflow-y: auto; border-top: 1px solid var(--line); }
-.direct-thread { width: 100%; padding: 15px 18px; display: grid; gap: 4px; text-align: left; border: 0; border-bottom: 1px solid var(--line); background: transparent; cursor: pointer; }
+.direct-thread { width: 100%; padding: 15px 18px; display: grid; gap: 4px; text-align: left; border: 0; border-left: 2px solid transparent; border-bottom: 1px solid var(--line); background: transparent; cursor: pointer; transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease; }
 .direct-thread:hover, .direct-thread.active { background: var(--surface-2); }
+.direct-thread.sex-m { border-left-color: color-mix(in srgb, #4f84ff 42%, transparent); box-shadow: inset 3px 0 0 color-mix(in srgb, #4f84ff 14%, transparent); }
+.direct-thread.sex-f { border-left-color: color-mix(in srgb, #f28bb8 42%, transparent); box-shadow: inset 3px 0 0 color-mix(in srgb, #f28bb8 16%, transparent); }
+.direct-thread.sex-m:hover, .direct-thread.sex-m.active { background: color-mix(in srgb, #4f84ff 8%, var(--surface-2)); }
+.direct-thread.sex-f:hover, .direct-thread.sex-f.active { background: color-mix(in srgb, #f28bb8 9%, var(--surface-2)); }
 .direct-thread span { overflow: hidden; color: var(--muted); white-space: nowrap; text-overflow: ellipsis; }
 .direct-thread small { min-height: 14px; font-weight: 800; }
 .directs-stage { position: relative; background: var(--surface); }
@@ -590,6 +599,8 @@ html[data-theme="dark"] .field-help[data-type="waiting"] { color: #91baf0; }
 .direct-messages { min-height: 0; padding: 28px; display: flex; flex-direction: column; justify-content: flex-end; gap: 16px; overflow-y: auto; overscroll-behavior: contain; }
 .direct-note { width: min(560px, 86%); padding: 16px 18px; border: 1px solid var(--line); background: var(--surface); box-shadow: 5px 7px 0 color-mix(in srgb, var(--line) 65%, transparent); transform: rotate(-.25deg); }
 .direct-note.sent { align-self: flex-end; transform: rotate(.25deg); }
+.direct-note.sex-m { border-color: color-mix(in srgb, #4f84ff 26%, var(--line)); background: color-mix(in srgb, #4f84ff 4%, var(--surface)); box-shadow: 5px 7px 0 color-mix(in srgb, #4f84ff 12%, var(--line)); }
+.direct-note.sex-f { border-color: color-mix(in srgb, #f28bb8 28%, var(--line)); background: color-mix(in srgb, #f28bb8 5%, var(--surface)); box-shadow: 5px 7px 0 color-mix(in srgb, #f28bb8 14%, var(--line)); }
 .direct-note span, .direct-note time { color: var(--muted); font-size: .76rem; }
 .direct-note p { margin: 9px 0; line-height: 1.5; white-space: pre-wrap; }
 .direct-form { padding: 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; border-top: 1px solid var(--line); background: var(--surface); }
