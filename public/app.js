@@ -1,11 +1,13 @@
+import { formatDateTime, getSexColumnDefinitions, hasUnreadMessages } from '/app-utils.mjs';
+
 const $ = (selector, root = document) => root.querySelector(selector);
 
 const ICONS = {
   direct: `
     <span class="action-icon" aria-hidden="true">
       <svg viewBox="0 0 20 20" fill="none">
-        <path d="M3.5 5.5H16.5V14.5H3.5V5.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
-        <path d="M4.5 6.5L10 10.7L15.5 6.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M4 4.5H16V13.2H9.2L5.3 16V13.2H4V4.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M7 8.8H13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
       </svg>
     </span>`,
   echo: `
@@ -19,9 +21,9 @@ const ICONS = {
   ignore: `
     <span class="action-icon" aria-hidden="true">
       <svg viewBox="0 0 20 20" fill="none">
-        <circle cx="5.4" cy="9.8" r="1.45" fill="currentColor"/>
-        <path d="M8.1 8.05C9.2 8.9 9.2 10.7 8.1 11.55" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-        <path d="M4.1 4.6L15.2 15.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        <path d="M11.8 4.2C8.2 4.2 6.1 6.5 6.1 9.4C6.1 11.2 7 12.2 8.1 13.1C9 13.8 9.3 14.4 9.3 15.2C9.3 16.2 10.1 16.9 11.1 16.9C12.5 16.9 13.2 15.8 13.2 14.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        <path d="M9.1 9.7C9.1 8.2 10 7.2 11.4 7.2C12.7 7.2 13.6 8.1 13.6 9.3C13.6 10.2 13.1 10.8 12.4 11.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        <path d="M4.2 4.3L15.8 15.7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
       </svg>
     </span>`,
   reply: `
@@ -94,18 +96,22 @@ const setFormMessage = (element, message = '', type = 'info') => {
 const setButtonLoading = (button, loading, label = 'Verificando…') => {
   if (!button) return;
   if (loading) {
-    button.dataset.originalLabel = button.textContent.trim();
+    if (!button.hasAttribute('data-original-content')) {
+      button.dataset.originalContent = button.innerHTML;
+    }
     button.disabled = true;
     button.classList.add('is-loading');
     button.setAttribute('aria-busy', 'true');
-    button.innerHTML = `<span class="button-spinner" aria-hidden="true"></span><span>${label}</span>`;
+    button.innerHTML = `<span class="button-spinner" aria-hidden="true"></span>${label ? `<span>${label}</span>` : ''}`;
     return;
   }
   button.disabled = false;
   button.classList.remove('is-loading');
   button.removeAttribute('aria-busy');
-  button.textContent = button.dataset.originalLabel || button.textContent;
-  delete button.dataset.originalLabel;
+  if (button.hasAttribute('data-original-content')) {
+    button.innerHTML = button.dataset.originalContent;
+    delete button.dataset.originalContent;
+  }
 };
 
 const escapeHtml = (value = '') => String(value).replace(/[&<>'"]/g, char => ({
@@ -121,10 +127,7 @@ const FEED_BATCH_SIZE = 20;
 const feedBuckets = { all: [] };
 const splitFeedLimits = {};
 const COLUMN_GROUPS = {
-  sex: [
-    { code: 'M', label: 'Machos', className: 'male-lane' },
-    { code: 'F', label: 'Fêmeas', className: 'female-lane' },
-  ],
+  sex: getSexColumnDefinitions(),
   region: [
     { code: 'N', label: 'Norte' },
     { code: 'NE', label: 'Nordeste' },
@@ -251,9 +254,12 @@ async function loadUser() {
 }
 
 function renderPostHeaderActions(post) {
-  const directButton = `<button class="direct-card-button" type="button" data-direct-user="${post.userId}" data-direct-name="${escapeHtml(post.author)}" title="Enviar bilhete" aria-label="Enviar bilhete">${ICONS.direct}</button>`;
+  const directButton = sameId(currentUser?.id, post.userId)
+    ? ''
+    : `<button class="direct-card-button" type="button" data-direct-user="${post.userId}" data-direct-name="${escapeHtml(post.author)}" title="Enviar bilhete" aria-label="Enviar bilhete">${ICONS.direct}</button>`;
+  const deleteAttribute = post.parentPostId ? `data-delete-reply="${post.id}"` : `data-delete-post="${post.id}"`;
   const deleteButton = sameId(currentUser?.id, post.userId)
-    ? `<button class="direct-card-button murmur-delete-button" type="button" data-delete-post="${post.id}" title="Apagar murmúrio" aria-label="Apagar murmúrio">${ICONS.delete}</button>`
+    ? `<button class="direct-card-button murmur-delete-button" type="button" ${deleteAttribute} title="Apagar murmúrio" aria-label="Apagar murmúrio">${ICONS.delete}</button>`
     : '';
   return `<div class="murmur-head-actions">${deleteButton}${directButton}</div>`;
 }
@@ -261,25 +267,24 @@ function renderPostHeaderActions(post) {
 function renderPost(post) {
   const score = post.positive - post.negative;
   const sexClass = post.sexCode === 'M' ? 'sex-m' : post.sexCode === 'F' ? 'sex-f' : 'sex-u';
-  const replies = (post.replies || []).map(reply => `
-    <div class="reply">
-      <div class="reply-content"><strong>@${escapeHtml(reply.author)}</strong> ${escapeHtml(reply.text)}</div>
-      ${sameId(currentUser?.id, reply.userId) ? `<button class="reply-delete" data-delete-reply="${reply.id}" aria-label="Excluir resposta">×</button>` : ''}
-    </div>`).join('');
+  const replyContext = post.parentPostId
+    ? `<a class="murmur-reply-context" href="#murmurio-${post.parentPostId}">Resposta para @${escapeHtml(post.parentAuthor || 'murmúrio')}</a>`
+    : '';
 
-  return `<article class="panel murmur-card ${sexClass}" data-post-id="${post.id}">
+  return `<article id="murmurio-${post.id}" class="panel murmur-card ${sexClass}" data-post-id="${post.id}">
     <div class="murmur-head">
       <div class="avatar">${escapeHtml(post.author.slice(0, 2).toUpperCase())}</div>
       <div class="murmur-author"><strong>@${escapeHtml(post.author)}</strong><span>${new Date(post.createdAt).toLocaleString()}</span></div>
       ${renderPostHeaderActions(post)}
     </div>
+    ${replyContext}
     <p class="murmur-text">${escapeHtml(post.text)}</p>
     <div class="score-line">
       <span class="score ${score < 0 ? 'negative' : ''}">${score}</span>
       <div class="murmur-actions">
         <button class="action-button ${post.myVote === 1 ? 'active' : ''}" data-vote="1" title="Ecoar" aria-label="Ecoar este murmúrio">${ICONS.echo}<span>${post.positive}</span></button>
         <button class="action-button ${post.myVote === -1 ? 'active' : ''}" data-vote="-1" title="Ignorar" aria-label="Ignorar este murmúrio">${ICONS.ignore}<span>${post.negative}</span></button>
-        <button class="action-button" data-reply title="Responder" aria-label="Responder a este murmúrio">${ICONS.reply}<span>${post.replies?.length || 0}</span></button>
+        <button class="action-button" data-reply title="Responder" aria-label="Responder a este murmúrio">${ICONS.reply}<span>${post.replyCount || 0}</span></button>
         <button class="action-button" data-share title="Compartilhar link" aria-label="Compartilhar link deste murmúrio">${ICONS.share}<span>${post.shares}</span></button>
       </div>
     </div>
@@ -287,7 +292,6 @@ function renderPost(post) {
       <input maxlength="280" placeholder="Responder sem fazer barulho…" required>
       <button class="reply-send-button" type="submit" title="Enviar resposta" aria-label="Enviar resposta">${ICONS.send}</button>
     </form>
-    <div class="replies">${replies}</div>
   </article>`;
 }
 
@@ -336,9 +340,7 @@ function renderSplitFeeds() {
   columns.dataset.columnCount = String(definitions.length);
   columns.innerHTML = definitions.map(definition => {
     const key = `${getColumnGroupMode()}-${definition.code || 'none'}`;
-    const items = getColumnItems(definition);
     return `<section class="network-lane ${definition.className || ''}">
-      <div class="lane-inline-head"><strong>${definition.label}</strong><span>${items.length}</span></div>
       <div class="feed lane-feed" data-feed-column="${key}"></div>
     </section>`;
   }).join('');
@@ -384,7 +386,9 @@ function getFeedSignature(items) {
     post.shares,
     post.myVote,
     post.createdAt,
-    (post.replies || []).map(reply => [reply.id, reply.text, reply.createdAt]),
+    post.parentPostId,
+    post.parentAuthor,
+    post.replyCount,
   ]));
 }
 
@@ -556,7 +560,7 @@ function bindFeed() {
         pinCardActions(postId);
       }
       if (target.matches('[data-share]')) { await api(`/api/posts/${card.dataset.postId}/share`, { method: 'POST' }); await navigator.clipboard?.writeText(`${location.origin}/#murmurio-${card.dataset.postId}`); toast('Link copiado.'); await loadFeed(); }
-      if (target.matches('[data-delete-reply]')) { await api(`/api/replies/${target.dataset.deleteReply}`, { method: 'DELETE' }); await loadFeed(); }
+      if (target.matches('[data-delete-reply]')) { await api(`/api/replies/${target.dataset.deleteReply}`, { method: 'DELETE' }); await loadFeed(true); toast('Murmúrio apagado.'); }
       if (target.matches('[data-delete-post]')) {
         const postId = target.dataset.deletePost;
         modal(`<h2>Apagar murmúrio?</h2><p class="modal-subtitle">O murmúrio inteiro e todas as respostas deixarão de aparecer.</p><div class="modal-actions murmur-delete-confirm-actions"><button class="button" type="button" data-modal-close>Cancelar</button><button class="button primary" type="button" data-confirm-delete-post="${postId}">Apagar</button></div>`, 'confirm-delete-modal');
@@ -572,6 +576,15 @@ function bindFeed() {
       const directButton = target.closest('[data-direct-user]');
       if (directButton) openDirectComposer(Number(directButton.dataset.directUser), directButton.dataset.directName);
     } catch (error) { toast(error.message); }
+  });
+
+  document.addEventListener('dblclick', event => {
+    if (event.target.closest('button, a, input, textarea, form')) return;
+    const card = event.target.closest('[data-post-id]');
+    if (!card) return;
+    const form = card.querySelector('[data-reply-form]');
+    form.classList.add('open');
+    requestAnimationFrame(() => form.querySelector('input')?.focus({ preventScroll: true }));
   });
 
   document.addEventListener('submit', async event => {
@@ -856,16 +869,16 @@ function bindDirectsPage() {
   let directsRefreshTimer = null;
 
   const labels = locale === 'en'
-    ? { remove: 'Delete', confirm: 'Confirm', cancel: 'Cancel', undo: 'Undo', deleted: 'Message deleted.', loadMore: 'Load 20 earlier', loadingMore: 'Loading…' }
-    : { remove: 'Excluir', confirm: 'Confirmar', cancel: 'Cancelar', undo: 'Desfazer', deleted: 'Bilhete excluído.', loadMore: 'Carregar 20 anteriores', loadingMore: 'Carregando…' };
+    ? { remove: 'Delete', edit: 'Edit', save: 'Save', confirm: 'Confirm', cancel: 'Cancel', undo: 'Undo', deleted: 'Message deleted.', loadMore: 'Load 20 earlier', loadingMore: 'Loading…', edited: 'edited' }
+    : { remove: 'Excluir', edit: 'Editar', save: 'Salvar', confirm: 'Confirmar', cancel: 'Cancelar', undo: 'Desfazer', deleted: 'Bilhete excluído.', loadMore: 'Carregar 20 anteriores', loadingMore: 'Carregando…', edited: 'editado' };
 
   const sexClass = value => value === 'M' ? 'sex-m' : value === 'F' ? 'sex-f' : '';
 
   const renderConversations = conversations => {
     list.innerHTML = (conversations || []).map(item => `
-      <button class="direct-thread ${String(item.otherUserId) === String(activeUserId) ? 'active' : ''} ${sexClass(item.sexCode)}" data-open-direct="${item.otherUserId}" type="button">
-        <strong>@${escapeHtml(item.username)}</strong>
-        <span>${escapeHtml(item.lastMessage)}</span>
+      <button class="direct-thread ${String(item.otherUserId) === String(activeUserId) ? 'active' : ''} ${hasUnreadMessages(item.unreadCount) ? 'has-unread' : ''} ${sexClass(item.sexCode)}" data-open-direct="${item.otherUserId}" type="button">
+        <span class="direct-thread-head"><strong>@${escapeHtml(item.username)}</strong><time>${formatDateTime(item.lastAt)}</time></span>
+        <span class="direct-thread-preview">${escapeHtml(item.lastMessage)}</span>
         <small>${item.unreadCount ? `${item.unreadCount} novo(s)` : ''}</small>
       </button>
     `).join('');
@@ -876,10 +889,16 @@ function bindDirectsPage() {
     const senderSexCode = message.senderSexCode || (own ? currentUser?.sexCode : '');
     return `
       <article class="direct-note ${own ? 'sent' : 'received'} ${sexClass(senderSexCode)}" data-direct-message="${message.id}" data-direct-sender-id="${message.senderId}">
-        <p>${escapeHtml(message.contents)}</p>
+        <p data-direct-contents>${escapeHtml(message.contents)}</p>
+        <form class="direct-edit-form" data-direct-edit-form hidden>
+          <textarea maxlength="256" required>${escapeHtml(message.contents)}</textarea>
+          <button type="submit">${labels.save}</button>
+          <button type="button" data-cancel-edit>${labels.cancel}</button>
+        </form>
         <div class="direct-note-footer">
-          <time>${new Date(message.createdAt).toLocaleString()}</time>
+          <time>${new Date(message.updatedAt || message.createdAt).toLocaleString()}${message.updatedAt > message.createdAt ? ` · ${labels.edited}` : ''}</time>
           ${own ? `<div class="direct-delete-zone">
+            <button class="direct-edit-button" type="button" data-edit-direct="${message.id}" aria-label="${labels.edit}" title="${labels.edit}">✎</button>
             <div class="direct-delete-confirm" data-delete-confirm hidden>
               <button type="button" data-confirm-delete="${message.id}">${labels.confirm}</button>
               <button type="button" data-cancel-delete>${labels.cancel}</button>
@@ -1077,6 +1096,23 @@ function bindDirectsPage() {
       return;
     }
 
+    const edit = event.target.closest('[data-edit-direct]');
+    if (edit) {
+      const note = edit.closest('[data-direct-message]');
+      note.querySelector('[data-direct-contents]').hidden = true;
+      note.querySelector('[data-direct-edit-form]').hidden = false;
+      note.querySelector('[data-direct-edit-form] textarea').focus();
+      return;
+    }
+
+    const cancelEdit = event.target.closest('[data-cancel-edit]');
+    if (cancelEdit) {
+      const note = cancelEdit.closest('[data-direct-message]');
+      note.querySelector('[data-direct-edit-form]').hidden = true;
+      note.querySelector('[data-direct-contents]').hidden = false;
+      return;
+    }
+
     const remove = event.target.closest('[data-delete-direct]');
     if (remove) {
       const note = remove.closest('[data-direct-message]');
@@ -1117,13 +1153,35 @@ function bindDirectsPage() {
     }
   });
 
+  root.addEventListener('submit', async event => {
+    const editForm = event.target.closest('[data-direct-edit-form]');
+    if (!editForm) return;
+    event.preventDefault();
+    const note = editForm.closest('[data-direct-message]');
+    const contents = editForm.querySelector('textarea').value.trim();
+    if (!contents) return;
+    const submit = editForm.querySelector('button[type="submit"]');
+    submit.disabled = true;
+    try {
+      await api('/api/directs', {
+        method: 'PUT',
+        body: JSON.stringify({ messageId: Number(note.dataset.directMessage), contents }),
+      });
+      await load(activeUserId);
+    } catch (error) {
+      toast(error.message);
+    } finally {
+      submit.disabled = false;
+    }
+  });
+
   form?.addEventListener('submit', async event => {
     event.preventDefault();
     const contents = textarea.value.trim();
     if (!contents || !activeUserId) return;
 
     const submit = $('button[type="submit"]', form);
-    setButtonLoading(submit, true, locale === 'en' ? 'Sending…' : 'Enviando…');
+    setButtonLoading(submit, true, '');
     try {
       await api('/api/directs', {
         method: 'POST',

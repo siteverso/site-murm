@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { body, errorResponse, json } from '../../../lib/server/http';
 import { requireUser } from '../../../lib/server/session';
-import { deleteDirect, listConversations, listMessages, sendDirect } from '../../../lib/server/repositories/directs';
+import { deleteDirect, listConversations, listMessages, sendDirect, updateDirect } from '../../../lib/server/repositories/directs';
 
 export const GET: APIRoute = async context => {
     try {
@@ -31,6 +31,22 @@ export const POST: APIRoute = async context => {
     }
 };
 
+
+export const PUT: APIRoute = async context => {
+    try {
+        const user = await requireUser(context);
+        const input = await body<{ messageId?: number; contents?: string }>(context.request);
+        const messageId = Number(input.messageId);
+        const contents = String(input.contents || '').trim();
+        if (!Number.isInteger(messageId) || messageId <= 0 || !contents || contents.length > 256) {
+            throw new Error('DIRECT_INVALIDO');
+        }
+        await updateDirect(messageId, user.id, contents);
+        return json({ ok: true });
+    } catch (error) {
+        return errorResponse(error);
+    }
+};
 
 export const DELETE: APIRoute = async context => {
     try {

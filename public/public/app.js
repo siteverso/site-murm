@@ -338,7 +338,6 @@ function renderSplitFeeds() {
     const key = `${getColumnGroupMode()}-${definition.code || 'none'}`;
     const items = getColumnItems(definition);
     return `<section class="network-lane ${definition.className || ''}">
-      <div class="lane-inline-head"><strong>${definition.label}</strong><span>${items.length}</span></div>
       <div class="feed lane-feed" data-feed-column="${key}"></div>
     </section>`;
   }).join('');

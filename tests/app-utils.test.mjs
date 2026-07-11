@@ -18,3 +18,18 @@ test('data e hora da conversa são formatadas em conjunto', () => {
   assert.match(formatted, /11\/07\/2026/);
   assert.match(formatted, /22:30/);
 });
+
+
+test('colunas do feed não renderizam títulos visuais', async () => {
+  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  assert.doesNotMatch(source, /lane-inline-head/);
+  assert.doesNotMatch(source, /<strong>\$\{definition\.label\}<\/strong>/);
+});
+
+test('envio de bilhete usa somente spinner e restaura o ícone original', async () => {
+  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  assert.match(source, /setButtonLoading\(submit, true, ''\)/);
+  assert.doesNotMatch(source, /Sending…|Enviando…/);
+  assert.match(source, /button\.dataset\.originalContent = button\.innerHTML/);
+  assert.match(source, /button\.innerHTML = button\.dataset\.originalContent/);
+});

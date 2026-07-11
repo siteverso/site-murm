@@ -55,6 +55,7 @@ export async function listMessages(
                     d.recipient_user_id,
                     d.contents,
                     d.created_at,
+                    d.updated_at,
                     u.username AS sender_name,
                     NVL(u.sex_code, '') AS sender_sex_code
                FROM murm_direct d
@@ -84,6 +85,7 @@ export async function listMessages(
             senderSexCode: String(row.SENDER_SEX_CODE || ''),
             contents: String(row.CONTENTS),
             createdAt: new Date(String(row.CREATED_AT)).getTime(),
+            updatedAt: new Date(String(row.UPDATED_AT || row.CREATED_AT)).getTime(),
         }));
 
         return { messages, hasMore };
@@ -141,6 +143,22 @@ export async function sendDirect(senderId: number, recipientId: number, contents
     }
 }
 
+
+export async function updateDirect(messageId: number, userId: number, contents: string): Promise<void> {
+    await withConnection(async connection => {
+        const result = await connection.execute(
+            `UPDATE murm_direct
+                SET contents = :contents,
+                    updated_at = SYSTIMESTAMP
+              WHERE id = :message_id
+                AND sender_user_id = :user_id`,
+            { contents, message_id: messageId, user_id: userId },
+            { autoCommit: true },
+        );
+
+        if (!result.rowsAffected) throw new Error('DIRECT_NAO_ENCONTRADO');
+    });
+}
 
 export async function deleteDirect(messageId: number, userId: number): Promise<void> {
     await withConnection(async connection => {

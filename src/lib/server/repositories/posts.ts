@@ -5,45 +5,48 @@ export async function listPosts(currentUserId: number | null): Promise<unknown[]
     return withConnection(async connection => {
         const result = await connection.execute<Record<string, unknown>>(
             `SELECT p.id,
-                 p.user_id,
-                 p.parent_post_id,
-                 p.contents,
-                 p.positive_count,
-                 p.negative_count,
-                 p.share_count,
-                 p.status,
-                 p.created_at,
-                 u.username,
-                 nvl(u.sex_code, '') AS sex_code,
-                 nvl(u.region_code, '') AS region_code,
-                 nvl(u.avatar_url, '') AS avatar_url,
-                 nvl(v.vote_value, 0) AS my_vote
-             FROM murm_post p
-             JOIN murm_user u
-                  ON u.id = p.user_id
-             LEFT JOIN murm_vote v
-                       ON v.post_id = p.id
-                           AND v.user_id = :current_user_id
-             WHERE p.status = 'published'
-             ORDER BY p.created_at DESC`,
+                    p.user_id,
+                    p.parent_post_id,
+                    p.contents,
+                    p.positive_count,
+                    p.negative_count,
+                    p.share_count,
+                    p.status,
+                    p.created_at,
+                    u.username,
+                    NVL(u.sex_code, '') AS sex_code,
+                    NVL(u.region_code, '') AS region_code,
+                    NVL(u.avatar_url, '') AS avatar_url,
+                    NVL(v.vote_value, 0) AS my_vote,
+                    parent_user.username AS parent_username
+               FROM murm_post p
+               JOIN murm_user u
+                 ON u.id = p.user_id
+               LEFT JOIN murm_post parent_post
+                 ON parent_post.id = p.parent_post_id
+               LEFT JOIN murm_user parent_user
+                 ON parent_user.id = parent_post.user_id
+               LEFT JOIN murm_vote v
+                 ON v.post_id = p.id
+                AND v.user_id = :current_user_id
+              WHERE p.status = 'published'
+              ORDER BY p.created_at DESC`,
             {current_user_id: currentUserId},
         );
 
         const rows = result.rows || [];
-        const roots = rows.filter(row => row.PARENT_POST_ID == null);
-        const repliesByParent = new Map<number, Record<string, unknown>[]>();
-
-        rows.filter(row => row.PARENT_POST_ID != null).forEach(row => {
+        const replyCounts = new Map<number, number>();
+        rows.forEach(row => {
+            if (row.PARENT_POST_ID == null) return;
             const parentId = Number(row.PARENT_POST_ID);
-            const list = repliesByParent.get(parentId) || [];
-            list.push(row);
-            repliesByParent.set(parentId, list);
+            replyCounts.set(parentId, (replyCounts.get(parentId) || 0) + 1);
         });
 
-        // noinspection TypeScriptUnresolvedReference
-        return roots.map(row => ({
+        return rows.map(row => ({
             id: Number(row.ID),
             userId: Number(row.USER_ID),
+            parentPostId: row.PARENT_POST_ID == null ? null : Number(row.PARENT_POST_ID),
+            parentAuthor: String(row.PARENT_USERNAME || ''),
             author: String(row.USERNAME),
             sexCode: String(row.SEX_CODE || ''),
             regionCode: String(row.REGION_CODE || ''),
@@ -54,13 +57,7 @@ export async function listPosts(currentUserId: number | null): Promise<unknown[]
             shares: Number(row.SHARE_COUNT),
             myVote: Number(row.MY_VOTE),
             createdAt: new Date(String(row.CREATED_AT)).getTime(),
-            replies: (repliesByParent.get(Number(row.ID)) || []).map(reply => ({
-                id: Number(reply.ID),
-                userId: Number(reply.USER_ID),
-                author: String(reply.USERNAME),
-                text: String(reply.CONTENTS),
-                createdAt: new Date(String(reply.CREATED_AT)).getTime(),
-            })),
+            replyCount: replyCounts.get(Number(row.ID)) || 0,
         }));
     });
 }
