@@ -267,7 +267,14 @@ function bindAuth() {
       google.accounts.id.initialize({ client_id: googleRoot.dataset.googleClientId, callback: async response => {
         try { await api('/api/auth/google', { method: 'POST', body: JSON.stringify({ credential: response.credential }) }); location.href = '/'; } catch (error) { $('[data-google-message]').textContent = error.message; }
       }});
-      google.accounts.id.renderButton($('[data-google-button]'), { theme: document.documentElement.dataset.theme === 'dark' ? 'filled_black' : 'outline', size: 'large', width: Math.min(376, googleRoot.clientWidth), text: 'continue_with' });
+      const googleButton = $('[data-google-button]');
+      google.accounts.id.renderButton(googleButton, {
+        theme: document.documentElement.dataset.theme === 'dark' ? 'filled_black' : 'outline',
+        size: 'large',
+        shape: 'pill',
+        width: Math.floor(Math.min(400, googleButton.getBoundingClientRect().width)),
+        text: 'continue_with',
+      });
     };
     start();
   }

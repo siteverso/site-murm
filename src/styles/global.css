@@ -184,7 +184,7 @@ button { color: inherit; }
 }
 
 .google-login { width: 100%; min-height: 48px; display: grid; justify-items: center; }
-.google-login > div:first-child { width: 100%; display: flex; justify-content: center; }
+.google-button-frame { width: min(400px, 100%); min-height: 44px; display: flex; justify-content: center; overflow: hidden; border-radius: 999px; }
 .google-login iframe { max-width: 100% !important; }
 .auth-divider { margin: 20px 0; display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; }
 .auth-divider::before, .auth-divider::after { content: ''; height: 1px; flex: 1; background: var(--line); }
@@ -493,11 +493,11 @@ button { color: inherit; }
 .feed-heading.minimal { margin-inline: 4px; }
 .empty-state { padding: 40px; color: var(--muted); }
 
-/* Google sem recorte */
-.google-login { display: block; min-height: 48px; overflow: visible; }
-.google-login > div:first-child, .google-button-frame { width: 100% !important; min-width: 0; display: block; overflow: visible; }
-.google-login iframe { width: 100% !important; min-width: 0 !important; max-width: none !important; }
-.google-login div[role="button"] { width: 100% !important; }
+/* Google alinhado sem esticar o iframe oficial */
+.google-login { overflow: hidden; }
+.google-button-frame > div { max-width: 100%; }
+.google-login iframe { display: block; }
+
 
 /* Ações flutuantes */
 .floating-action, .scroll-top { position: fixed; right: 24px; z-index: 80; width: 54px; height: 54px; border: 1px solid var(--line); border-radius: 50%; color: var(--inverse); background: var(--strong); box-shadow: var(--shadow); cursor: pointer; font-size: 1.55rem; }
