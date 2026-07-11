@@ -21,13 +21,11 @@ import Header from '../components/Header.astro';
         <form class="direct-form" data-direct-form>
           <textarea name="contents" maxlength="256" placeholder="Responder com outro bilhete…" required></textarea>
           <button class="direct-send-button" type="submit" aria-label="Enviar bilhete" title="Enviar bilhete">
-            <span class="action-icon" aria-hidden="true">
-              <svg viewBox="0 0 20 20" fill="none">
-                <circle cx="5" cy="10" r="1.45" fill="currentColor"/>
-                <path d="M8 7.85C9.25 8.85 9.25 11.15 8 12.15" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-                <path d="M11.2 5.8C14.7 8.25 14.7 11.75 11.2 14.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-              </svg>
-            </span>
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <circle cx="5" cy="10" r="1.45" fill="currentColor"/>
+              <path d="M8 7.85C9.25 8.85 9.25 11.15 8 12.15" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              <path d="M11.2 5.8C14.7 8.25 14.7 11.75 11.2 14.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
           </button>
         </form>
       </div>

@@ -103,7 +103,6 @@ let posts = [];
 let feedSignature = '';
 let feedRequestRunning = false;
 const MIN_SITE_REFRESH_INTERVAL_MS = 2000;
-const DIRECT_SEND_COOLDOWN_MS = 2000;
 let feedTimer = null;
 
 function userInitials(username = '') {
@@ -652,7 +651,6 @@ function bindDirectsPage() {
   const stage = $('[data-direct-stage]', root);
   const form = $('[data-direct-form]', root);
   const textarea = $('textarea[name="contents"]', form);
-  const submitButton = $('button[type="submit"]', form);
   const locale = window.__MURMUR_LOCALE__ === 'en' ? 'en' : 'pt-BR';
   const pendingDeletes = new Map();
   const getUrlUserId = () => {
@@ -674,35 +672,12 @@ function bindDirectsPage() {
   let loadingOlderMessages = false;
   let refreshingDirects = false;
   let directsRefreshTimer = null;
-  let sendingDirect = false;
-  let directSendCooldownTimer = null;
-  const directSendStorageKey = 'murmurinho:last-direct-sent-at';
 
   const labels = locale === 'en'
     ? { remove: 'Delete', confirm: 'Confirm', cancel: 'Cancel', undo: 'Undo', deleted: 'Message deleted.', loadMore: 'Load 20 earlier', loadingMore: 'Loading…' }
     : { remove: 'Excluir', confirm: 'Confirmar', cancel: 'Cancelar', undo: 'Desfazer', deleted: 'Bilhete excluído.', loadMore: 'Carregar 20 anteriores', loadingMore: 'Carregando…' };
 
   const sexClass = value => value === 'M' ? 'sex-m' : value === 'F' ? 'sex-f' : '';
-
-  const setDirectSendDisabled = disabled => {
-    if (!submitButton) return;
-    submitButton.disabled = disabled;
-    submitButton.setAttribute('aria-disabled', String(disabled));
-  };
-
-  const scheduleDirectSendUnlock = () => {
-    clearTimeout(directSendCooldownTimer);
-    const lastSentAt = Number(localStorage.getItem(directSendStorageKey) || 0);
-    const remaining = Math.max(0, DIRECT_SEND_COOLDOWN_MS - (Date.now() - lastSentAt));
-    if (!sendingDirect && remaining === 0) {
-      setDirectSendDisabled(false);
-      return;
-    }
-    setDirectSendDisabled(true);
-    if (!sendingDirect) {
-      directSendCooldownTimer = setTimeout(scheduleDirectSendUnlock, remaining + 10);
-    }
-  };
 
   const renderConversations = conversations => {
     list.innerHTML = (conversations || []).map(item => `
@@ -776,7 +751,7 @@ function bindDirectsPage() {
     try {
       const requestedUserId = activeUserId;
       const renderedCount = $$('[data-direct-message]', messageList).length;
-      const refreshLimit = Math.min(50, Math.max(20, renderedCount));
+      const refreshLimit = Math.max(20, renderedCount);
       const url = requestedUserId ? `/api/directs?otherUserId=${requestedUserId}&limit=${refreshLimit}` : '/api/directs';
       const data = await api(url);
       if (requestedUserId !== activeUserId) return;
@@ -789,15 +764,12 @@ function bindDirectsPage() {
       const existingIds = new Set(existingNotes.map(item => String(item.dataset.directMessage)));
       const refreshedMessages = data.messages || [];
       const refreshedIds = new Set(refreshedMessages.map(message => String(message.id)));
-      const oldestRefreshedId = refreshedMessages.length
-        ? Math.min(...refreshedMessages.map(message => Number(message.id)))
-        : 0;
 
+      // Reconcilia integralmente tudo que já está carregado na conversa.
+      // Se o servidor não devolveu mais um ID, a mensagem foi excluída e
+      // deve desaparecer também no outro navegador no próximo polling.
       existingNotes.forEach(note => {
-        const messageId = Number(note.dataset.directMessage);
-        if ((oldestRefreshedId === 0 || messageId >= oldestRefreshedId) && !refreshedIds.has(String(messageId))) {
-          note.remove();
-        }
+        if (!refreshedIds.has(String(note.dataset.directMessage))) note.remove();
       });
 
       const newMessages = refreshedMessages.filter(message => !existingIds.has(String(message.id)));
@@ -939,36 +911,22 @@ function bindDirectsPage() {
   form?.addEventListener('submit', async event => {
     event.preventDefault();
     const contents = textarea.value.trim();
-    const lastSentAt = Number(localStorage.getItem(directSendStorageKey) || 0);
-    const cooldownRemaining = DIRECT_SEND_COOLDOWN_MS - (Date.now() - lastSentAt);
-    if (!contents || !activeUserId || sendingDirect) return;
-    if (cooldownRemaining > 0) {
-      scheduleDirectSendUnlock();
-      return;
-    }
+    if (!contents || !activeUserId) return;
 
-    sendingDirect = true;
-    setDirectSendDisabled(true);
-    submitButton?.setAttribute('aria-busy', 'true');
+    const submit = $('button[type="submit"]', form);
+    setButtonLoading(submit, true, locale === 'en' ? 'Sending…' : 'Enviando…');
     try {
       await api('/api/directs', {
         method: 'POST',
         body: JSON.stringify({ recipientId: Number(activeUserId), contents }),
       });
-      localStorage.setItem(directSendStorageKey, String(Date.now()));
       form.reset();
       await load(activeUserId);
       textarea.focus({ preventScroll: true });
     } catch (error) {
-      if (error.message === 'Aguarde 2 segundos antes de enviar outro bilhete.') {
-        localStorage.setItem(directSendStorageKey, String(Date.now()));
-      } else {
-        toast(error.message);
-      }
+      toast(error.message);
     } finally {
-      sendingDirect = false;
-      submitButton?.removeAttribute('aria-busy');
-      scheduleDirectSendUnlock();
+      setButtonLoading(submit, false);
     }
   });
 
@@ -983,7 +941,6 @@ function bindDirectsPage() {
     load(urlUserId).catch(error => toast(error.message));
   });
 
-  scheduleDirectSendUnlock();
   load(activeUserId, Boolean(activeUserId), true).catch(error => toast(error.message));
   startDirectsPolling();
 }

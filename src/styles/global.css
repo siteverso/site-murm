@@ -598,7 +598,13 @@ html[data-theme="dark"] .field-help[data-type="waiting"] { color: #91baf0; }
 .direct-empty { height: 100%; min-height: 0; display: grid; place-content: center; gap: 8px; padding: 24px; text-align: center; color: var(--muted); }
 .direct-empty strong { color: var(--text); font-size: 1.4rem; }
 .direct-stage { height: 100%; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; }
-.direct-messages { min-height: 0; padding: 28px; display: flex; flex-direction: column; justify-content: flex-end; gap: 16px; overflow-y: auto; overscroll-behavior: contain; }
+.direct-messages { min-height: 0; padding: 28px; overflow-y: auto; overscroll-behavior: contain; }
+.direct-messages-top { position: sticky; top: 0; z-index: 3; padding: 0 0 16px; text-align: center; background: linear-gradient(var(--surface) 70%, transparent); }
+.direct-messages-top[hidden] { display: none; }
+.direct-load-more { min-height: 34px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: var(--surface-2); cursor: pointer; font-size: .76rem; font-weight: 800; }
+.direct-load-more:hover, .direct-load-more:focus-visible { color: var(--text); background: var(--surface); }
+.direct-load-more:disabled { cursor: default; opacity: .6; }
+.direct-message-list { min-height: 100%; display: flex; flex-direction: column; justify-content: flex-end; gap: 16px; }
 .direct-note { width: min(560px, calc(50% - 18px)); box-sizing: border-box; margin-right: auto; margin-left: 0; padding: 16px 18px; border: 1px solid var(--line); background: var(--surface); box-shadow: 5px 7px 0 color-mix(in srgb, var(--line) 65%, transparent); transform: rotate(-.25deg); }
 .direct-note.received { margin-right: auto; margin-left: 0; }
 .direct-note.sent { margin-right: 0; margin-left: auto; transform: rotate(.25deg); }
@@ -621,8 +627,34 @@ html[data-theme="dark"] .field-help[data-type="waiting"] { color: #91baf0; }
 @keyframes directUndoCountdown { to { transform: scaleX(0); } }
 .direct-note p { margin: 9px 0; line-height: 1.5; white-space: pre-wrap; }
 .direct-form { padding: 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 10px; border-top: 1px solid var(--line); background: var(--surface); }
-.direct-form .button { min-height: 46px; height: 46px; align-self: end; }
 .direct-form textarea { min-height: 54px; max-height: 120px; padding: 14px; border: 1px solid var(--line); border-radius: 16px; color: var(--text); background: var(--bg); resize: vertical; }
+
+.direct-send-button {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  align-self: end;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--text) 16%, var(--line));
+  border-radius: 50%;
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-2) 88%, transparent);
+  box-shadow: 0 6px 18px color-mix(in srgb, #000 18%, transparent);
+  cursor: pointer;
+  transition: transform .18s ease, background-color .18s ease, border-color .18s ease, box-shadow .18s ease, opacity .18s ease;
+}
+.direct-send-button svg { width: 23px; height: 23px; display: block; }
+.direct-send-button:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.04);
+  border-color: color-mix(in srgb, var(--text) 34%, var(--line));
+  background: color-mix(in srgb, var(--surface-2) 74%, var(--text) 8%);
+  box-shadow: 0 9px 24px color-mix(in srgb, #000 24%, transparent);
+}
+.direct-send-button:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+.direct-send-button:active:not(:disabled) { transform: scale(.96); }
+.direct-send-button:disabled { opacity: .38; cursor: not-allowed; box-shadow: none; }
 
 @media (max-width: 760px) {
   .direct-note { width: 86%; }
