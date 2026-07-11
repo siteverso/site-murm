@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { body, errorResponse, json } from '../../../lib/server/http';
 import { requireUser } from '../../../lib/server/session';
-import { listConversations, listMessages, sendDirect } from '../../../lib/server/repositories/directs';
+import { deleteDirect, listConversations, listMessages, sendDirect } from '../../../lib/server/repositories/directs';
 
 export const GET: APIRoute = async context => {
     try {
@@ -21,9 +21,22 @@ export const POST: APIRoute = async context => {
         const input = await body<{ recipientId?: number; contents?: string }>(context.request);
         const recipientId = Number(input.recipientId);
         const contents = String(input.contents || '').trim();
-        if (!Number.isInteger(recipientId) || !contents || contents.length > 1000) throw new Error('DIRECT_INVALIDO');
+        if (!Number.isInteger(recipientId) || !contents || contents.length > 256) throw new Error('DIRECT_INVALIDO');
         const id = await sendDirect(user.id, recipientId, contents);
         return json({ ok: true, id }, 201);
+    } catch (error) {
+        return errorResponse(error);
+    }
+};
+
+
+export const DELETE: APIRoute = async context => {
+    try {
+        const user = await requireUser(context);
+        const directId = Number(context.url.searchParams.get('id') || 0);
+        if (!Number.isInteger(directId) || directId <= 0) throw new Error('DIRECT_INVALIDO');
+        await deleteDirect(user.id, directId);
+        return json({ ok: true });
     } catch (error) {
         return errorResponse(error);
     }

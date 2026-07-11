@@ -34,6 +34,7 @@ export function errorResponse(error: unknown): Response {
         POST_NAO_ENCONTRADO: [404, 'Murmúrio não encontrado.'],
         RESPOSTA_NAO_ENCONTRADA: [404, 'Resposta não encontrada.'],
         DIRECT_INVALIDO: [400, 'Bilhete inválido ou destinatário indisponível.'],
+        DIRECT_NAO_ENCONTRADO: [404, 'Bilhete não encontrado ou sem permissão para excluir.'],
         SEM_PERMISSAO: [403, 'Você não pode executar esta ação.'],
         RESET_DESABILITADO: [501, 'Recuperação por e-mail ainda não configurada.'],
         ORACLE_WALLET_INVALIDA: [503, 'A carteira Oracle não foi encontrada ou está incompleta.'],

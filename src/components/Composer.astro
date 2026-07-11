@@ -7,9 +7,12 @@ const t = getMessages(locale);
   <div class="avatar" data-user-avatar>MU</div>
   <form data-composer>
     <label id="composer-title" for="murmur-text">{t.feed.composerLabel}</label>
-    <textarea id="murmur-text" name="text" maxlength="420" placeholder={t.feed.composerPlaceholder} required></textarea>
+    <textarea id="murmur-text" name="text" maxlength="256" placeholder={t.feed.composerPlaceholder} required></textarea>
     <div class="composer-footer">
-      <span class="char-count"><strong data-char-count>0</strong>/420</span>
+      <div class="murmur-progress" data-murmur-progress aria-label="0% do limite de 256 caracteres">
+        <span class="murmur-progress-track"><span class="murmur-progress-fill" data-progress-fill></span></span>
+        <span class="murmur-progress-value" data-progress-value>0%</span>
+      </div>
       <button class="button primary" type="submit">{t.feed.publish}</button>
     </div>
   </form>

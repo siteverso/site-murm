@@ -145,6 +145,28 @@ async function loadFeed() {
   feed.innerHTML = posts.map(renderPost).join('') || '<p class="empty-state">Ainda não há murmúrios.</p>';
 }
 
+
+function updateMurmurProgress(textarea) {
+  if (!textarea) return;
+  const form = textarea.closest('[data-composer], [data-floating-composer]');
+  const progress = form?.querySelector('[data-murmur-progress]');
+  if (!progress) return;
+
+  const limit = Number(textarea.maxLength) || 256;
+  const length = textarea.value.length;
+  const percent = Math.min(100, Math.round((length / limit) * 100));
+  const fill = progress.querySelector('[data-progress-fill]');
+  const value = progress.querySelector('[data-progress-value]');
+
+  fill?.style.setProperty('--progress', `${percent}%`);
+  if (value) value.textContent = `${percent}%`;
+  progress.setAttribute('aria-label', `${percent}% do limite de ${limit} caracteres`);
+
+  progress.classList.remove('pulse');
+  void progress.offsetWidth;
+  if (length) progress.classList.add('pulse');
+}
+
 function bindFeed() {
   document.addEventListener('click', async event => {
     const target = event.target.closest('button');
@@ -164,7 +186,7 @@ function bindFeed() {
     if (form.matches('[data-composer], [data-floating-composer]')) {
       event.preventDefault();
       const text = form.querySelector('textarea').value.trim();
-      try { await api('/api/posts', { method: 'POST', body: JSON.stringify({ text }) }); form.reset(); closeModal(); await loadFeed(); toast('Murmúrio publicado.'); } catch (error) { toast(error.message); }
+      try { await api('/api/posts', { method: 'POST', body: JSON.stringify({ text }) }); form.reset(); updateMurmurProgress(form.querySelector('textarea')); closeModal(); await loadFeed(); toast('Murmúrio publicado.'); } catch (error) { toast(error.message); }
     }
     if (form.matches('[data-reply-form]')) {
       event.preventDefault();
@@ -182,14 +204,18 @@ function modal(content, className = '') {
 }
 
 function openComposer() {
-  modal(`<h2>Novo murmúrio</h2><form data-floating-composer><textarea maxlength="420" autofocus placeholder="O que está murmurando?" required></textarea><div class="modal-actions"><span>Até 420 caracteres</span><button class="button primary">Murmurar</button></div></form>`);
+  modal(`<h2>Novo murmúrio</h2><form data-floating-composer><textarea maxlength="256" autofocus placeholder="O que está murmurando?" required></textarea><div class="modal-actions"><div class="murmur-progress" data-murmur-progress aria-label="0% do limite de 256 caracteres"><span class="murmur-progress-track"><span class="murmur-progress-fill" data-progress-fill></span></span><span class="murmur-progress-value" data-progress-value>0%</span></div><button class="button primary">Murmurar</button></div></form>`);
 }
 
 function openDirectComposer(userId, username) {
-  modal(`<h2>Enviar bilhete</h2><p class="modal-subtitle">Para @${escapeHtml(username)}</p><form data-direct-compose><input type="hidden" name="recipientId" value="${userId}"><textarea maxlength="1000" autofocus placeholder="Escreva seu bilhete…" required></textarea><div class="modal-actions"><span>Entrega discreta</span><button class="button primary">Enviar bilhete</button></div></form>`, 'direct-compose-modal');
+  modal(`<h2>Enviar bilhete</h2><p class="modal-subtitle">Para @${escapeHtml(username)}</p><form data-direct-compose><input type="hidden" name="recipientId" value="${userId}"><textarea maxlength="256" autofocus placeholder="Escreva seu bilhete…" required></textarea><div class="modal-actions"><span>Entrega discreta</span><button class="button primary">Enviar bilhete</button></div></form>`, 'direct-compose-modal');
 }
 
 function bindUi() {
+  document.addEventListener('input', event => {
+    if (event.target.matches('[data-composer] textarea, [data-floating-composer] textarea')) updateMurmurProgress(event.target);
+  });
+  $$('[data-composer] textarea').forEach(updateMurmurProgress);
   document.addEventListener('click', event => {
     if (event.target.matches('[data-modal], [data-modal-close]')) closeModal();
     if (event.target.closest('[data-new-murmur]')) openComposer();
@@ -359,24 +385,164 @@ async function pollDirects() {
   } catch {}
 }
 
+function bindLanguageSwitch() {
+  $$('[data-language]').forEach(button => {
+    button.addEventListener('click', () => {
+      const language = button.dataset.language;
+      if (!language || button.classList.contains('active')) return;
+
+      document.cookie = `murmurinho-language=${encodeURIComponent(language)}; Path=/; Max-Age=31536000; SameSite=Lax`;
+      $$('[data-language]').forEach(option => {
+        const active = option.dataset.language === language;
+        option.classList.toggle('active', active);
+        option.setAttribute('aria-pressed', String(active));
+      });
+      location.reload();
+    });
+  });
+}
+
 function bindDirectsPage() {
   const root = $('[data-directs-page]');
   if (!root) return;
-  const load = async (otherUserId = '') => {
-    const url = otherUserId ? `/api/directs?otherUserId=${otherUserId}` : '/api/directs';
-    const data = await api(url);
-    $('[data-direct-list]').innerHTML = (data.conversations || []).map(item => `<button class="direct-thread ${String(item.otherUserId) === String(otherUserId) ? 'active' : ''}" data-open-direct="${item.otherUserId}"><strong>@${escapeHtml(item.username)}</strong><span>${escapeHtml(item.lastMessage)}</span><small>${item.unreadCount ? `${item.unreadCount} novo(s)` : ''}</small></button>`).join('');
-    if (data.messages) $('[data-direct-messages]').innerHTML = data.messages.map(message => `<article class="direct-note ${message.senderId === currentUser.id ? 'sent' : 'received'}"><span>${message.senderId === currentUser.id ? 'Você' : '@' + escapeHtml(message.senderName)}</span><p>${escapeHtml(message.contents)}</p><time>${new Date(message.createdAt).toLocaleString()}</time></article>`).join('');
-    if (otherUserId) { $('[data-direct-form]').dataset.recipientId = otherUserId; $('[data-direct-empty]').hidden = true; $('[data-direct-stage]').hidden = false; }
+
+  const list = $('[data-direct-list]', root);
+  const empty = $('[data-direct-empty]', root);
+  const stage = $('[data-direct-stage]', root);
+  const messages = $('[data-direct-messages]', root);
+  const form = $('[data-direct-form]', root);
+  const textarea = form?.querySelector('textarea[name="contents"]');
+  const submit = form?.querySelector('button[type="submit"]');
+
+  if (!list || !empty || !stage || !messages || !form || !textarea || !submit) return;
+
+  let conversations = [];
+  let selectedUserId = 0;
+  let requestVersion = 0;
+
+  const setView = state => {
+    root.dataset.directState = state;
+    empty.hidden = state !== 'empty';
+    stage.hidden = state === 'empty';
   };
-  root.addEventListener('click', event => { const button = event.target.closest('[data-open-direct]'); if (button) load(button.dataset.openDirect); });
-  $('[data-direct-form]')?.addEventListener('submit', async event => {
-    event.preventDefault(); const form = event.currentTarget; const contents = form.contents.value.trim();
-    try { await api('/api/directs', { method: 'POST', body: JSON.stringify({ recipientId: Number(form.dataset.recipientId), contents }) }); form.reset(); await load(form.dataset.recipientId); } catch (error) { toast(error.message); }
+
+  const renderConversations = () => {
+    list.innerHTML = conversations.length
+      ? conversations.map(item => `
+          <button type="button" class="direct-thread ${Number(item.otherUserId) === selectedUserId ? 'active' : ''}" data-open-direct="${Number(item.otherUserId)}">
+            <strong>@${escapeHtml(item.username)}</strong>
+            <span>${escapeHtml(item.lastMessage)}</span>
+            <small>${Number(item.unreadCount) ? `${Number(item.unreadCount)} novo(s)` : ''}</small>
+          </button>`).join('')
+      : '<div class="direct-list-empty">Nenhum bilhete ainda.</div>';
+  };
+
+  const renderMessages = directMessages => {
+    messages.innerHTML = directMessages.length
+      ? directMessages.map(message => {
+          const own = Number(message.senderId) === Number(currentUser?.id);
+          return `<article class="direct-note ${own ? 'sent' : 'received'}">
+            ${own ? `<button type="button" class="direct-delete" data-delete-direct="${Number(message.id)}" aria-label="Excluir bilhete" title="Excluir bilhete">×</button>` : ''}
+            <span>${own ? 'Você' : '@' + escapeHtml(message.senderName)}</span>
+            <p>${escapeHtml(message.contents)}</p>
+            <time>${new Date(message.createdAt).toLocaleString()}</time>
+          </article>`;
+        }).join('')
+      : '<div class="direct-no-messages">Ainda não há bilhetes nesta conversa.</div>';
+  };
+
+  const refreshConversations = async () => {
+    const data = await api('/api/directs');
+    conversations = Array.isArray(data.conversations) ? data.conversations : [];
+    renderConversations();
+  };
+
+  const openConversation = async userId => {
+    const otherUserId = Number(userId);
+    if (!Number.isInteger(otherUserId) || otherUserId <= 0) return;
+
+    selectedUserId = otherUserId;
+    form.dataset.recipientId = String(otherUserId);
+    renderConversations();
+    setView('loading');
+    messages.innerHTML = '<div class="direct-loading"><span class="button-spinner" aria-hidden="true"></span><span>Carregando bilhetes…</span></div>';
+
+    const version = ++requestVersion;
+    try {
+      const data = await api(`/api/directs?otherUserId=${encodeURIComponent(otherUserId)}`);
+      if (version !== requestVersion || selectedUserId !== otherUserId) return;
+
+      conversations = Array.isArray(data.conversations) ? data.conversations : conversations;
+      renderConversations();
+      renderMessages(Array.isArray(data.messages) ? data.messages : []);
+      setView('open');
+      requestAnimationFrame(() => { messages.scrollTop = messages.scrollHeight; });
+    } catch (error) {
+      if (version !== requestVersion) return;
+      messages.innerHTML = `<div class="direct-error form-message" data-type="error">${escapeHtml(error.message)}</div>`;
+      setView('error');
+      toast(error.message);
+    }
+  };
+
+  list.addEventListener('click', event => {
+    const button = event.target instanceof Element ? event.target.closest('[data-open-direct]') : null;
+    if (!button || !list.contains(button)) return;
+    openConversation(button.dataset.openDirect);
   });
-  $$('[data-scene]').forEach(button => button.addEventListener('click', () => { root.dataset.scene = button.dataset.scene; localStorage.directScene = button.dataset.scene; }));
-  root.dataset.scene = localStorage.directScene || 'city';
-  load();
+
+  messages.addEventListener('click', async event => {
+    const button = event.target instanceof Element ? event.target.closest('[data-delete-direct]') : null;
+    if (!button || !messages.contains(button)) return;
+
+    const directId = Number(button.dataset.deleteDirect);
+    if (!Number.isInteger(directId) || directId <= 0 || !confirm('Excluir este bilhete?')) return;
+
+    button.disabled = true;
+    try {
+      await api(`/api/directs?id=${encodeURIComponent(directId)}`, { method: 'DELETE' });
+      await openConversation(selectedUserId);
+      toast('Bilhete excluído.');
+    } catch (error) {
+      button.disabled = false;
+      toast(error.message);
+    }
+  });
+
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    const contents = textarea.value.trim();
+    const recipientId = Number(form.dataset.recipientId);
+
+    if (!Number.isInteger(recipientId) || recipientId <= 0 || !contents) return;
+    if (contents.length > 256) {
+      toast('O bilhete pode ter no máximo 256 caracteres.');
+      return;
+    }
+
+    setButtonLoading(submit, true, 'Enviando…');
+    textarea.disabled = true;
+    try {
+      await api('/api/directs', {
+        method: 'POST',
+        body: JSON.stringify({ recipientId, contents }),
+      });
+      textarea.value = '';
+      await openConversation(recipientId);
+    } catch (error) {
+      toast(error.message);
+    } finally {
+      textarea.disabled = false;
+      setButtonLoading(submit, false);
+      textarea.focus();
+    }
+  });
+
+  setView('empty');
+  refreshConversations().catch(error => {
+    list.innerHTML = `<div class="direct-list-empty form-message" data-type="error">${escapeHtml(error.message)}</div>`;
+    toast(error.message);
+  });
 }
 
 document.addEventListener('submit', async event => {
@@ -387,7 +553,7 @@ document.addEventListener('submit', async event => {
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
-  bindUi(); bindAuth(); bindProfile(); bindFeed();
+  bindUi(); bindAuth(); bindProfile(); bindFeed(); bindLanguageSwitch();
   await loadUser();
   await loadFeed().catch(() => {});
   bindDirectsPage();
