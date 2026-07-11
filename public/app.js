@@ -628,9 +628,29 @@ function bindUi() {
     if (event.target.closest('[data-scroll-top]')) window.scrollTo({ top: 0, behavior: 'smooth' });
   });
   document.addEventListener('keydown', event => {
-    if (event.key !== 'Escape' || !$('[data-modal]')) return;
-    event.preventDefault();
-    closeModal();
+    const activeModal = $('[data-modal]');
+    if (!activeModal) return;
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeModal();
+      return;
+    }
+
+    if (
+      event.key === 'Enter'
+      && !event.repeat
+      && !event.isComposing
+      && !event.ctrlKey
+      && !event.altKey
+      && !event.metaKey
+      && !event.shiftKey
+    ) {
+      const confirmDeleteButton = activeModal.querySelector('[data-confirm-delete-post]');
+      if (!confirmDeleteButton || confirmDeleteButton.disabled) return;
+      event.preventDefault();
+      confirmDeleteButton.click();
+    }
   });
   window.addEventListener('scroll', () => $('[data-scroll-top]')?.classList.toggle('visible', scrollY > 500), { passive: true });
   $('[data-theme-toggle]')?.addEventListener('click', () => {

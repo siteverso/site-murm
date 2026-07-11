@@ -19,4 +19,5 @@ TODO:
 - Mudar o icone do ignorar com  um fonte de ouvido
 - Mostrar o icone de direct apenas no hover e mudar par um bilhetinho
 - mostrar 3 colunas de cadastros sem sexo ![img.png](img.png)
-- deve exibir data e hora aqui na coluna do chat esquerda ![img_1.png](img_1.png) 
+- deve exibir data e hora aqui na coluna do chat esquerda ![img_1.png](img_1.png)
+- quando o perfil for meu o termo é Observando e nao observadores ![img_2.png](img_2.png)
