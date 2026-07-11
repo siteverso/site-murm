@@ -20,6 +20,31 @@ const toast = (message) => {
   el._timer = setTimeout(() => el.classList.remove('show'), 3200);
 };
 
+
+const setFormMessage = (element, message = '', type = 'info') => {
+  if (!element) return;
+  element.textContent = message;
+  element.dataset.type = type;
+  element.hidden = !message;
+};
+
+const setButtonLoading = (button, loading, label = 'Verificando…') => {
+  if (!button) return;
+  if (loading) {
+    button.dataset.originalLabel = button.textContent.trim();
+    button.disabled = true;
+    button.classList.add('is-loading');
+    button.setAttribute('aria-busy', 'true');
+    button.innerHTML = `<span class="button-spinner" aria-hidden="true"></span><span>${label}</span>`;
+    return;
+  }
+  button.disabled = false;
+  button.classList.remove('is-loading');
+  button.removeAttribute('aria-busy');
+  button.textContent = button.dataset.originalLabel || button.textContent;
+  delete button.dataset.originalLabel;
+};
+
 const escapeHtml = (value = '') => String(value).replace(/[&<>'"]/g, char => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
 }[char]));
@@ -185,7 +210,9 @@ function bindProfile() {
   profileForm?.addEventListener('submit', async event => {
     event.preventDefault();
     const message = $('[data-form-message]', profileForm);
-    message.textContent = '';
+    setFormMessage(message);
+    const submit = $('button[type="submit"]', profileForm);
+    setButtonLoading(submit, true, 'Salvando…');
 
     try {
       await api('/api/auth/profile', {
@@ -196,10 +223,12 @@ function bindProfile() {
         }),
       });
       await loadUser();
-      message.textContent = 'Perfil salvo.';
+      setFormMessage(message, 'Perfil salvo com sucesso.', 'success');
       toast('Perfil atualizado.');
     } catch (error) {
-      message.textContent = error.message;
+      setFormMessage(message, error.message, 'error');
+    } finally {
+      setButtonLoading(submit, false);
     }
   });
 
@@ -207,7 +236,9 @@ function bindProfile() {
   passwordForm?.addEventListener('submit', async event => {
     event.preventDefault();
     const message = $('[data-form-message]', passwordForm);
-    message.textContent = '';
+    setFormMessage(message);
+    const submit = $('button[type="submit"]', passwordForm);
+    setButtonLoading(submit, true, 'Atualizando…');
 
     try {
       await api('/api/auth/password', {
@@ -219,10 +250,12 @@ function bindProfile() {
       });
       passwordForm.reset();
       await loadUser();
-      message.textContent = 'Senha atualizada.';
+      setFormMessage(message, 'Senha atualizada com sucesso.', 'success');
       toast('Senha atualizada.');
     } catch (error) {
-      message.textContent = error.message;
+      setFormMessage(message, error.message, 'error');
+    } finally {
+      setButtonLoading(submit, false);
     }
   });
 }
@@ -234,8 +267,8 @@ function bindAuth() {
     const message = $('[data-form-message]', form);
     const submit = $('button[type="submit"]', form);
 
-    message.textContent = '';
-    submit.disabled = true;
+    setFormMessage(message);
+    setButtonLoading(submit, true, 'Criando conta…');
 
     try {
       await api('/api/auth/signup', {
@@ -249,15 +282,34 @@ function bindAuth() {
       });
       location.replace('/');
     } catch (error) {
-      message.textContent = error.message;
-      submit.disabled = false;
+      setFormMessage(message, error.message, 'error');
+      setButtonLoading(submit, false);
     }
   });
 
   $('[data-login-form]')?.addEventListener('submit', async event => {
     event.preventDefault();
     const form = event.currentTarget;
-    try { await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ identifier: form.identifier.value, password: form.password.value, remember: form.remember.checked }) }); location.href = '/'; } catch (error) { $('[data-form-message]').textContent = error.message; }
+    const message = $('[data-form-message]', form);
+    const submit = $('button[type="submit"]', form);
+    setFormMessage(message);
+    setButtonLoading(submit, true, 'Verificando…');
+
+    try {
+      await api('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          identifier: form.identifier.value,
+          password: form.password.value,
+          remember: form.remember.checked,
+        }),
+      });
+      setFormMessage(message, 'Credenciais verificadas. Entrando…', 'success');
+      location.href = '/';
+    } catch (error) {
+      setFormMessage(message, error.message, 'error');
+      setButtonLoading(submit, false);
+    }
   });
 
   const googleRoot = $('[data-google-login]');
@@ -265,14 +317,24 @@ function bindAuth() {
     const start = () => {
       if (!window.google?.accounts?.id) return setTimeout(start, 100);
       google.accounts.id.initialize({ client_id: googleRoot.dataset.googleClientId, callback: async response => {
-        try { await api('/api/auth/google', { method: 'POST', body: JSON.stringify({ credential: response.credential }) }); location.href = '/'; } catch (error) { $('[data-google-message]').textContent = error.message; }
+        const message = $('[data-google-message]');
+        setFormMessage(message, 'Verificando sua conta Google…', 'info');
+        try {
+          await api('/api/auth/google', { method: 'POST', body: JSON.stringify({ credential: response.credential }) });
+          setFormMessage(message, 'Conta confirmada. Entrando…', 'success');
+          location.href = '/';
+        } catch (error) {
+          setFormMessage(message, error.message, 'error');
+        }
       }});
       const googleButton = $('[data-google-button]');
+      const availableWidth = googleButton.clientWidth || googleButton.getBoundingClientRect().width || 0;
+      const safeWidth = Math.max(220, Math.floor(Math.min(380, availableWidth - 12)));
       google.accounts.id.renderButton(googleButton, {
         theme: document.documentElement.dataset.theme === 'dark' ? 'filled_black' : 'outline',
         size: 'large',
         shape: 'pill',
-        width: Math.floor(Math.min(400, googleButton.getBoundingClientRect().width)),
+        width: safeWidth,
         text: 'continue_with',
       });
     };
