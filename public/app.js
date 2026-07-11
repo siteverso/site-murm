@@ -12,10 +12,15 @@
   const T = window.__MURMUR_I18N__ || {};
   const tr = path => path.split('.').reduce((value, key) => value?.[key], T) || path;
 
+  function newId() {
+    if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+    return `murm-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+
   const starterPosts = [
-    { id: crypto.randomUUID(), author: 'murmurinho', text: 'O primeiro murmúrio está no ar. Aqui a comunidade ajuda a destacar o que vale a conversa.', positive: 126, negative: 8, shares: 14, createdAt: Date.now() - 480000, replies: [], votes: {} },
-    { id: crypto.randomUUID(), author: 'ana', text: 'Os limites podem crescer junto com a rede, sem deixar comunidades pequenas sem voz.', positive: 58, negative: 4, shares: 6, createdAt: Date.now() - 2520000, replies: [], votes: {} },
-    { id: crypto.randomUUID(), author: 'teste', text: 'Este murmúrio demonstra o recolhimento por rejeição da comunidade.', positive: 3, negative: 112, shares: 0, createdAt: Date.now() - 5400000, replies: [], votes: {} },
+    { id: newId(), author: 'murmurinho', text: 'O primeiro murmúrio está no ar. Aqui a comunidade ajuda a destacar o que vale a conversa.', positive: 126, negative: 8, shares: 14, createdAt: Date.now() - 480000, replies: [], votes: {} },
+    { id: newId(), author: 'ana', text: 'Os limites podem crescer junto com a rede, sem deixar comunidades pequenas sem voz.', positive: 58, negative: 4, shares: 6, createdAt: Date.now() - 2520000, replies: [], votes: {} },
+    { id: newId(), author: 'teste', text: 'Este murmúrio demonstra o recolhimento por rejeição da comunidade.', positive: 3, negative: 112, shares: 0, createdAt: Date.now() - 5400000, replies: [], votes: {} },
   ];
 
   function read(key, fallback) {
@@ -27,8 +32,9 @@
   function saveAccounts(value) { write(KEYS.accounts, value); }
   function session() { return read(KEYS.session, null); }
   function currentAccount() {
-    const current = session();
-    if (!current) return null;
+    const rawCurrent = session();
+    if (!rawCurrent) return null;
+    const current = typeof rawCurrent === 'object' ? rawCurrent : {};
 
     const list = accounts();
     let account = current.accountId
@@ -45,7 +51,7 @@
 
       if (email) {
         account = {
-          id: crypto.randomUUID(),
+          id: newId(),
           username: uniqueUsername(legacyUser?.handle || email.split('@')[0], list),
           email,
           bio: legacyUser?.bio || '',
@@ -65,11 +71,35 @@
 
     return account || null;
   }
+  function normalizePost(post) {
+    const positive = Number(post?.positive) || 0;
+    const negative = Number(post?.negative) || 0;
+    return {
+      id: post?.id || newId(),
+      author: normalizeUsername(post?.author || post?.handle || 'usuario'),
+      text: String(post?.text || '').trim(),
+      positive,
+      negative,
+      shares: Number(post?.shares) || 0,
+      createdAt: Number(post?.createdAt) || Date.now(),
+      replies: Array.isArray(post?.replies) ? post.replies.map(reply => ({
+        id: reply?.id || newId(),
+        authorId: reply?.authorId || '',
+        author: normalizeUsername(reply?.author || reply?.handle || 'usuario'),
+        text: String(reply?.text || '').trim(),
+        createdAt: Number(reply?.createdAt) || Date.now(),
+      })) : [],
+      votes: post?.votes && typeof post.votes === 'object' ? post.votes : {},
+      forceShow: Boolean(post?.forceShow),
+    };
+  }
+
   function getPosts() {
     const value = read(KEYS.posts, null);
-    if (value) return value;
-    write(KEYS.posts, starterPosts);
-    return starterPosts;
+    const source = Array.isArray(value) ? value : starterPosts;
+    const normalized = source.map(normalizePost).filter(post => post.text);
+    write(KEYS.posts, normalized);
+    return normalized;
   }
   function threshold(total) { return 100 + Math.floor(total / 1000) * 10; }
   function initials(username) { return String(username || 'MU').slice(0, 2).toUpperCase(); }
@@ -87,13 +117,30 @@
     for (const char of String(value)) { hash ^= char.charCodeAt(0); hash = Math.imul(hash, 16777619); }
     return `local-${(hash >>> 0).toString(16)}`;
   }
-  function toast(message) {
+  function toast(message, action = null) {
     const el = $('[data-toast]');
     if (!el) return;
-    el.textContent = message;
+
+    el.replaceChildren();
+    const text = document.createElement('span');
+    text.textContent = message;
+    el.append(text);
+
+    if (action?.label && typeof action.onClick === 'function') {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'toast-action';
+      button.textContent = action.label;
+      button.addEventListener('click', () => {
+        action.onClick();
+        el.classList.remove('show');
+      }, { once: true });
+      el.append(button);
+    }
+
     el.classList.add('show');
     clearTimeout(window.__murmurToast);
-    window.__murmurToast = setTimeout(() => el.classList.remove('show'), 2400);
+    window.__murmurToast = setTimeout(() => el.classList.remove('show'), action ? 6000 : 2400);
   }
   function message(form, value) { const el = $('[data-form-message]', form); if (el) el.textContent = value; }
 
@@ -144,7 +191,7 @@
       if (list.some(account => account.username === username)) return message(form, tr('signup.usernameTaken'));
       if (list.some(account => account.email === email)) return message(form, tr('signup.emailTaken'));
       if (password !== confirmPassword) return message(form, tr('signup.passwordMismatch'));
-      const account = { id: crypto.randomUUID(), username, email, bio: '', avatarUrl: '', passwordHash: hashPassword(password), providers: ['password'], createdAt: Date.now() };
+      const account = { id: newId(), username, email, bio: '', avatarUrl: '', passwordHash: hashPassword(password), providers: ['password'], createdAt: Date.now() };
       list.push(account);
       saveAccounts(list);
       createSession(account, 'password');
@@ -208,7 +255,7 @@
           let account = list.find(item => item.googleSub === profile.sub || item.email === normalizeEmail(profile.email));
           if (!account) {
             account = {
-              id: crypto.randomUUID(),
+              id: newId(),
               username: uniqueUsername(profile.email.split('@')[0], list),
               email: normalizeEmail(profile.email),
               bio: '',
@@ -255,13 +302,21 @@
   }
 
   function initProfile() {
+    const form = $('[data-profile-form]');
+    if (!form) return;
+
     const account = currentAccount();
     if (!account) return;
-    $('[data-profile-avatar]').textContent = initials(account.username);
-    $('[data-profile-username]').textContent = `@${account.username}`;
-    $('[data-profile-email]').textContent = account.email;
-    $('[data-profile-bio]').textContent = account.bio || '';
-    const form = $('[data-profile-form]');
+
+    const avatar = $('[data-profile-avatar]');
+    const username = $('[data-profile-username]');
+    const email = $('[data-profile-email]');
+    const bio = $('[data-profile-bio]');
+
+    if (avatar) avatar.textContent = initials(account.username);
+    if (username) username.textContent = `@${account.username}`;
+    if (email) email.textContent = account.email;
+    if (bio) bio.textContent = account.bio || '';
     if (form) {
       form.username.value = account.username;
       form.email.value = account.email;
@@ -282,8 +337,10 @@
       });
     }
     const providers = account.providers || [];
-    $('[data-auth-methods]').textContent = providers.map(provider => provider === 'google' ? tr('profile.authGoogle') : tr('profile.authPassword')).join(' + ');
-    $('[data-auth-explanation]').textContent = providers.includes('google') && !providers.includes('password') ? tr('profile.accountGoogle') : tr('profile.accountPassword');
+    const authMethods = $('[data-auth-methods]');
+    const authExplanation = $('[data-auth-explanation]');
+    if (authMethods) authMethods.textContent = providers.map(provider => provider === 'google' ? tr('profile.authGoogle') : tr('profile.authPassword')).join(' + ');
+    if (authExplanation) authExplanation.textContent = providers.includes('google') && !providers.includes('password') ? tr('profile.accountGoogle') : tr('profile.accountPassword');
     const passwordTitle = $('[data-password-title]');
     if (passwordTitle) passwordTitle.textContent = providers.includes('password') ? tr('profile.changePassword') : tr('profile.definePassword');
     const passwordForm = $('[data-password-form]');
@@ -306,59 +363,163 @@
     $('[data-profile-shares]').textContent = ownPosts.reduce((sum, post) => sum + post.shares, 0);
   }
 
+
+  function actionIcon(type) {
+    const icons = {
+      positive: '<span class="emoji-icon emoji-smile" aria-hidden="true"><span class="emoji-face"></span><span class="emoji-eyes"></span><span class="emoji-mouth"></span></span>',
+      negative: '<span class="emoji-icon emoji-cry" aria-hidden="true"><span class="emoji-face"></span><span class="emoji-eyes"></span><span class="emoji-mouth"></span><span class="emoji-tear"></span></span>',
+      reply: '<span class="emoji-icon emoji-reply" aria-hidden="true"><span class="bubble-body"></span><span class="bubble-dot bubble-dot-a"></span><span class="bubble-dot bubble-dot-b"></span><span class="bubble-dot bubble-dot-c"></span><span class="bubble-tail"></span></span>',
+      share: '<span class="emoji-icon emoji-share" aria-hidden="true"><span class="share-line share-line-a"></span><span class="share-line share-line-b"></span><span class="share-dot share-dot-a"></span><span class="share-dot share-dot-b"></span><span class="share-dot share-dot-c"></span></span>',
+    };
+    return icons[type] || '';
+  }
+
+  function playActionAnimation(target, animationClass) {
+    if (!target || !animationClass) return;
+    target.classList.remove(animationClass);
+    void target.offsetWidth;
+    target.classList.add(animationClass);
+    target.addEventListener('animationend', () => target.classList.remove(animationClass), { once: true });
+  }
+
+  function animateRenderedAction(postId, selector, animationClass) {
+    requestAnimationFrame(() => {
+      const card = document.querySelector(`[data-post-id="${postId}"]`);
+      const target = card?.querySelector(selector);
+      playActionAnimation(target, animationClass);
+    });
+  }
+
   function renderFeed() {
     const feed = $('[data-feed]');
     if (!feed) return;
     const posts = getPosts();
+    const account = currentAccount();
     const limit = threshold(posts.length);
-    $('[data-total-murmurs]').textContent = posts.length;
-    $('[data-current-threshold]').textContent = limit;
-    $('[data-threshold-label]').textContent = `${tr('feed.currentLimit')}: ${limit}`;
+    const totalMurmurs = $('[data-total-murmurs]');
+    const currentThreshold = $('[data-current-threshold]');
+    const thresholdLabel = $('[data-threshold-label]');
+    if (totalMurmurs) totalMurmurs.textContent = posts.length;
+    if (currentThreshold) currentThreshold.textContent = limit;
+    if (thresholdLabel) thresholdLabel.textContent = `${tr('feed.currentLimit')}: ${limit}`;
     feed.innerHTML = posts.slice().sort((a, b) => b.createdAt - a.createdAt).map(post => {
       const score = post.positive - post.negative;
       const hidden = score <= -limit;
       const highlighted = score >= limit;
       if (hidden && !post.forceShow) return `<article class="panel murmur-card hidden-score" data-post-id="${post.id}"><div class="hidden-message"><div><strong>${tr('feed.hiddenTitle')}</strong><br><span>${tr('feed.hiddenText')}</span></div><button class="button secondary small" data-show-post>${tr('feed.show')}</button></div></article>`;
+
+      const replies = (post.replies || []).map(reply => {
+        const ownReply = Boolean(account && (reply.authorId === account.id || (!reply.authorId && reply.author === account.username)));
+        return `<div class="reply" data-reply-id="${reply.id}">
+          <div class="reply-content"><strong>@${escapeHtml(reply.author)}</strong> <span>${escapeHtml(reply.text)}</span></div>
+          ${ownReply ? `<div class="reply-actions"><button class="reply-delete" type="button" data-delete-reply title="${tr('feed.deleteReply')}" aria-label="${tr('feed.deleteReply')}">🗑️</button><button class="reply-confirm" type="button" data-confirm-delete-reply title="${tr('feed.confirmDeleteReplyLabel') || tr('feed.confirmDeleteReply')}" aria-label="${tr('feed.confirmDeleteReplyLabel') || tr('feed.confirmDeleteReply')}">✓</button><button class="reply-cancel" type="button" data-cancel-delete-reply title="${tr('feed.cancelDeleteReplyLabel') || 'Cancel'}" aria-label="${tr('feed.cancelDeleteReplyLabel') || 'Cancel'}">✕</button></div>` : ''}
+        </div>`;
+      }).join('');
+
       return `<article class="panel murmur-card ${highlighted ? 'highlighted' : ''}" data-post-id="${post.id}">
         <div class="murmur-head"><div class="avatar">${initials(post.author)}</div><div class="murmur-author"><strong>@${escapeHtml(post.author)}</strong><span>${ago(post.createdAt)}</span></div></div>
         <p class="murmur-text">${escapeHtml(post.text)}</p>
-        <div class="score-line"><span class="score ${score < 0 ? 'negative' : ''}">${score >= 0 ? '+' : ''}${score}</span><span class="score-rule">${post.positive} + · ${post.negative} −</span></div>
+        <div class="score-line"><span class="score ${score < 0 ? 'negative' : ''}">${score >= 0 ? '+' : ''}${score}</span></div>
         <div class="murmur-actions">
-          <button class="action-button" data-vote="positive">+ ${tr('feed.positive')} (${post.positive})</button>
-          <button class="action-button" data-vote="negative">− ${tr('feed.negative')} (${post.negative})</button>
-          <button class="action-button" data-reply-toggle>${tr('feed.reply')} (${post.replies.length})</button>
-          <button class="action-button" data-share>${tr('feed.share')} (${post.shares})</button>
+          <button class="action-button" data-vote="positive" title="${tr('feed.positive')}" aria-label="${tr('feed.positive')}">${actionIcon('positive')} <span>${post.positive}</span></button>
+          <button class="action-button" data-vote="negative" title="${tr('feed.negative')}" aria-label="${tr('feed.negative')}">${actionIcon('negative')} <span>${post.negative}</span></button>
+          <button class="action-button" data-reply-toggle title="${tr('feed.reply')}" aria-label="${tr('feed.reply')}">${actionIcon('reply')} <span>${(post.replies || []).length}</span></button>
+          <button class="action-button" data-share title="${tr('feed.share')}" aria-label="${tr('feed.share')}">${actionIcon('share')} <span>${post.shares}</span></button>
         </div>
         <form class="reply-box" data-reply-form><input name="reply" maxlength="280" placeholder="${tr('feed.replyPlaceholder')}" required><button class="button primary small">${tr('feed.send')}</button></form>
-        <div class="replies">${post.replies.map(reply => `<div class="reply"><strong>@${escapeHtml(reply.author)}</strong> ${escapeHtml(reply.text)}</div>`).join('')}</div>
+        <div class="replies">${replies}</div>
       </article>`;
     }).join('');
 
     $$('[data-show-post]', feed).forEach(button => button.addEventListener('click', () => updatePost(button, post => { post.forceShow = true; })));
     $$('[data-vote]', feed).forEach(button => button.addEventListener('click', () => {
-      const account = currentAccount();
+      const current = currentAccount();
+      if (!current) return location.href = '/login';
+      const postId = button.closest('[data-post-id]')?.dataset.postId;
+      const next = button.dataset.vote;
       updatePost(button, post => {
         post.votes ||= {};
-        const previous = post.votes[account.id];
+        const previous = post.votes[current.id];
         if (previous === 'positive') post.positive -= 1;
         if (previous === 'negative') post.negative -= 1;
-        const next = button.dataset.vote;
-        if (previous === next) delete post.votes[account.id];
-        else { post.votes[account.id] = next; post[next] += 1; }
+        if (previous === next) delete post.votes[current.id];
+        else { post.votes[current.id] = next; post[next] += 1; }
       });
+      animateRenderedAction(postId, `[data-vote="${next}"]`, next === 'positive' ? 'animate-smile' : 'animate-cry');
     }));
-    $$('[data-reply-toggle]', feed).forEach(button => button.addEventListener('click', () => $('.reply-box', button.closest('[data-post-id]')).classList.toggle('open')));
+    $$('[data-reply-toggle]', feed).forEach(button => button.addEventListener('click', () => {
+      playActionAnimation(button, 'animate-reply');
+      const form = $('.reply-box', button.closest('[data-post-id]'));
+      if (!form) return;
+      form.classList.add('open');
+      const input = $('input[name="reply"]', form);
+      if (input) {
+        input.focus();
+        input.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }));
     $$('[data-reply-form]', feed).forEach(form => form.addEventListener('submit', event => {
       event.preventDefault();
-      const account = currentAccount();
+      const current = currentAccount();
+      if (!current) return location.href = '/login';
       const data = new FormData(form);
-      updatePost(form, post => post.replies.push({ author: account.username, text: String(data.get('reply') || '').trim() }));
+      const text = String(data.get('reply') || '').trim();
+      if (!text) return;
+      updatePost(form, post => {
+        post.replies ||= [];
+        post.replies.push({ id: newId(), authorId: current.id, author: current.username, text, createdAt: Date.now() });
+      });
+    }));
+    $$('[data-delete-reply]', feed).forEach(button => button.addEventListener('click', () => {
+      const actions = button.closest('.reply-actions');
+      if (!actions) return;
+      $$('.reply-actions.is-confirming', feed).forEach(item => {
+        if (item !== actions) item.classList.remove('is-confirming');
+      });
+      actions.classList.toggle('is-confirming');
+    }));
+    $$('[data-cancel-delete-reply]', feed).forEach(button => button.addEventListener('click', () => {
+      button.closest('.reply-actions')?.classList.remove('is-confirming');
+    }));
+    $$('[data-confirm-delete-reply]', feed).forEach(button => button.addEventListener('click', () => {
+      const current = currentAccount();
+      if (!current) return location.href = '/login';
+      const card = button.closest('[data-post-id]');
+      const replyElement = button.closest('[data-reply-id]');
+      if (!card || !replyElement) return;
+      const posts = getPosts();
+      const post = posts.find(item => item.id === card.dataset.postId);
+      const replyIndex = post?.replies?.findIndex(item => item.id === replyElement.dataset.replyId) ?? -1;
+      if (!post || replyIndex < 0) return;
+      const reply = post.replies[replyIndex];
+      const ownsReply = reply.authorId === current.id || (!reply.authorId && reply.author === current.username);
+      if (!ownsReply) return;
+
+      const removed = post.replies.splice(replyIndex, 1)[0];
+      write(KEYS.posts, posts);
+      renderFeed();
+      toast(tr('feed.replyDeleted'), {
+        label: tr('feed.undo'),
+        onClick: () => {
+          const latestPosts = getPosts();
+          const latestPost = latestPosts.find(item => item.id === post.id);
+          if (!latestPost) return;
+          latestPost.replies ||= [];
+          latestPost.replies.splice(Math.min(replyIndex, latestPost.replies.length), 0, removed);
+          write(KEYS.posts, latestPosts);
+          renderFeed();
+          toast(tr('feed.replyRestored'));
+        },
+      });
     }));
     $$('[data-share]', feed).forEach(button => button.addEventListener('click', async () => {
       const card = button.closest('[data-post-id]');
-      const url = `${location.origin}/?murmur=${card.dataset.postId}`;
+      const postId = card?.dataset.postId;
+      const url = `${location.origin}/?murmur=${postId}`;
+      playActionAnimation(button, 'animate-share');
       try { if (navigator.share) await navigator.share({ title: 'Murmurinho', url }); else await navigator.clipboard.writeText(url); } catch {}
       updatePost(button, post => { post.shares += 1; });
+      animateRenderedAction(postId, '[data-share]', 'animate-share');
       toast(tr('feed.shared'));
     }));
   }
@@ -375,21 +536,58 @@
 
   function initComposer() {
     const form = $('[data-composer]');
+    if (!form) return;
+
     const account = currentAccount();
-    if (!form || !account) return;
-    $('[data-user-avatar]').textContent = initials(account.username);
     const textarea = $('textarea', form);
-    textarea.addEventListener('input', () => { $('[data-char-count]').textContent = textarea.value.length; });
+    const submit = $('button[type="submit"]', form);
+
+    if (!account) {
+      if (submit) submit.disabled = true;
+      toast(tr('login.invalid'));
+      return;
+    }
+
+    const avatar = $('[data-user-avatar]');
+    if (avatar) avatar.textContent = initials(account.username);
+    if (!textarea) return;
+
+    textarea.addEventListener('input', () => {
+      const count = $('[data-char-count]');
+      if (count) count.textContent = textarea.value.length;
+    });
+
     form.addEventListener('submit', event => {
       event.preventDefault();
       const text = textarea.value.trim();
-      if (!text) return;
-      const posts = getPosts();
-      posts.push({ id: crypto.randomUUID(), author: account.username, text, positive: 0, negative: 0, shares: 0, createdAt: Date.now(), replies: [], votes: {} });
-      write(KEYS.posts, posts);
-      form.reset();
-      $('[data-char-count]').textContent = '0';
-      renderFeed();
+      if (!text) {
+        textarea.focus();
+        return;
+      }
+
+      try {
+        const posts = getPosts();
+        posts.push({
+          id: newId(),
+          author: account.username,
+          text,
+          positive: 0,
+          negative: 0,
+          shares: 0,
+          createdAt: Date.now(),
+          replies: [],
+          votes: {},
+        });
+        write(KEYS.posts, posts);
+        form.reset();
+        const count = $('[data-char-count]');
+        if (count) count.textContent = '0';
+        renderFeed();
+        toast(tr('feed.published') === 'feed.published' ? 'Murmúrio publicado.' : tr('feed.published'));
+      } catch (error) {
+        console.error('Falha ao publicar murmúrio:', error);
+        toast('Não foi possível publicar. Atualize a página e tente novamente.');
+      }
     });
   }
 

@@ -108,5 +108,12 @@ export default {
     replyPlaceholder: 'Write a reply...',
     send: 'Send',
     shared: 'Link copied.',
+    deleteReply: 'Delete reply',
+    confirmDeleteReplyLabel: 'Confirm delete',
+    cancelDeleteReplyLabel: 'Cancel delete',
+    confirmDeleteReply: 'Delete this reply?',
+    replyDeleted: 'Reply deleted.',
+    replyRestored: 'Reply restored.',
+    undo: 'Undo',
   },
 } as const;

@@ -8,25 +8,13 @@ const t = getMessages(locale);
 ---
 <AppLayout title={`${t.site.title} — ${t.common.home}`}>
   <Header />
-  <main class="shell app-grid">
-    <aside class="sidebar">
-      <nav class="side-menu" aria-label="Menu">
-        <a class="active" href="/">{t.common.home}</a>
-        <a href="/perfil">{t.common.profile}</a>
-        <a href="#em-alta">{t.common.trending}</a>
-      </nav>
-      <section class="panel side-card"><h2>{t.feed.ruleTitle}</h2><p>{t.feed.ruleText}</p></section>
-    </aside>
-    <section class="feed-column">
-      <Composer />
-      <div class="feed-heading"><h1>{t.feed.recent}</h1><span data-threshold-label>{t.feed.currentLimit}: 100</span></div>
-      <div class="feed" data-feed></div>
-    </section>
-    <aside class="right-column">
-      <section class="panel metric"><strong data-total-murmurs>0</strong><span>{t.feed.networkMurmurs}</span></section>
-      <section class="panel metric"><strong data-current-threshold>100</strong><span>{t.feed.thresholdLabel}</span></section>
-      <section class="panel trend-list" id="em-alta"><h2>{t.feed.howWorks}</h2><ol><li>{t.feed.how1}</li><li>{t.feed.how2}</li><li>{t.feed.how3}</li></ol></section>
-    </aside>
+  <main class="shell minimal-feed-page">
+    <Composer />
+    <div class="feed-heading minimal">
+      <h1>{t.feed.recent}</h1>
+      <span data-threshold-label>{t.feed.currentLimit}: 100</span>
+    </div>
+    <div class="feed feed-grid" data-feed></div>
   </main>
   <div class="toast" data-toast></div>
 </AppLayout>

@@ -108,5 +108,12 @@ export default {
     replyPlaceholder: 'Escreva uma resposta...',
     send: 'Enviar',
     shared: 'Link copiado.',
+    deleteReply: 'Apagar resposta',
+    confirmDeleteReplyLabel: 'Confirmar exclusão',
+    cancelDeleteReplyLabel: 'Cancelar exclusão',
+    confirmDeleteReply: 'Apagar esta resposta?',
+    replyDeleted: 'Resposta apagada.',
+    replyRestored: 'Resposta restaurada.',
+    undo: 'Desfazer',
   },
 } as const;
