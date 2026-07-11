@@ -17,7 +17,7 @@ const t = getMessages(locale);
       <div class="profile-stats">
         <div><strong data-profile-posts>0</strong><span>{t.profile.murmurs}</span></div>
         <div><strong data-profile-positive>0</strong><span>{t.profile.positives}</span></div>
-        <div><strong data-profile-shares>0</strong><span>{t.profile.shares}</span></div>
+        <div><strong data-profile-negative>0</strong><span>{t.profile.negatives}</span></div>
       </div>
     </aside>
 
@@ -25,9 +25,25 @@ const t = getMessages(locale);
       <section class="panel profile-edit">
         <h2>{t.profile.editTitle}</h2>
         <form data-profile-form>
-          <div class="field"><label for="username">{t.common.username}</label><input id="username" name="username" maxlength="30" required /></div>
-          <div class="field"><label for="email">{t.common.email}</label><input id="email" name="email" type="email" readonly /></div>
-          <div class="field"><label for="sexCode">Sexo</label><select id="sexCode" name="sexCode"><option value="">Não informar</option><option value="M">Macho</option><option value="F">Fêmea</option></select></div>
+          <div class="profile-identity-grid">
+            <div class="field">
+              <label for="username">{t.common.username}</label>
+              <input id="username" name="username" maxlength="30" required />
+              <small class="field-help" data-username-rule>O usuário só pode ser corrigido uma vez, após 30 dias.</small>
+            </div>
+            <div class="field">
+              <label for="email">{t.common.email}</label>
+              <input id="email" name="email" type="email" required />
+              <small class="field-help" data-email-rule>O e-mail pode ser alterado uma vez a cada 30 dias.</small>
+            </div>
+            <div class="field sex-field">
+              <label for="sexCode">Sexo</label>
+              <div class="select-wrap">
+                <select id="sexCode" name="sexCode"><option value="">Não informar</option><option value="M">Macho</option><option value="F">Fêmea</option></select>
+              </div>
+              <small class="field-help" data-sex-rule>A primeira definição é livre. Depois, somente uma correção será permitida, após 30 dias.</small>
+            </div>
+          </div>
           <div class="field"><label for="bio">{t.profile.bio}</label><textarea id="bio" name="bio" maxlength="180" rows="5"></textarea></div>
           <button class="button primary" type="submit">{t.common.save}</button>
           <p class="form-message" data-form-message></p>

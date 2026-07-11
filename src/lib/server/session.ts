@@ -5,9 +5,20 @@ import { withConnection } from './oracle';
 export type SessionUser = {
     id: number;
     username: string;
+    usernameSetAt: number | null;
+    usernameChangeCount: number;
+    usernameCanChange: boolean;
+    usernameChangeAvailableAt: number | null;
     email: string;
+    emailSetAt: number | null;
+    emailCanChange: boolean;
+    emailChangeAvailableAt: number | null;
     bio: string;
     sexCode: string;
+    sexSetAt: number | null;
+    sexChangeCount: number;
+    sexCanChange: boolean;
+    sexChangeAvailableAt: number | null;
     avatarUrl: string;
     languageCode: string;
     themeCode: string;
@@ -15,7 +26,7 @@ export type SessionUser = {
     hasGoogle: boolean;
     postCount: number;
     positiveCount: number;
-    shareCount: number;
+    negativeCount: number;
 };
 
 function cookieName(): string {
@@ -102,9 +113,14 @@ export async function currentUser(context: APIContext): Promise<SessionUser | nu
         const result = await connection.execute<Record<string, unknown>>(
             `SELECT u.id,
                     u.username,
+                    u.username_set_at,
+                    NVL(u.username_change_count, 0) AS username_change_count,
                     u.email,
+                    u.email_set_at,
                     NVL(u.bio, '') AS bio,
                     NVL(u.sex_code, '') AS sex_code,
+                    u.sex_set_at,
+                    NVL(u.sex_change_count, 0) AS sex_change_count,
                     NVL(u.avatar_url, '') AS avatar_url,
                     u.language_code,
                     NVL(u.theme_code, 'auto') AS theme_code,
@@ -112,7 +128,7 @@ export async function currentUser(context: APIContext): Promise<SessionUser | nu
                     CASE WHEN u.google_sub IS NULL THEN 0 ELSE 1 END AS has_google,
                     (SELECT COUNT(*) FROM murm_post p WHERE p.user_id = u.id AND p.parent_post_id IS NULL AND p.status = 'published') AS post_count,
                     (SELECT NVL(SUM(p.positive_count), 0) FROM murm_post p WHERE p.user_id = u.id AND p.parent_post_id IS NULL AND p.status = 'published') AS positive_count,
-                    (SELECT NVL(SUM(p.share_count), 0) FROM murm_post p WHERE p.user_id = u.id AND p.parent_post_id IS NULL AND p.status = 'published') AS share_count
+                    (SELECT NVL(SUM(p.negative_count), 0) FROM murm_post p WHERE p.user_id = u.id AND p.parent_post_id IS NULL AND p.status = 'published') AS negative_count
              FROM murm_session s
              JOIN murm_user u
                ON u.id = s.user_id
@@ -129,12 +145,37 @@ export async function currentUser(context: APIContext): Promise<SessionUser | nu
             return null;
         }
 
+        const usernameSetAt = row.USERNAME_SET_AT ? new Date(String(row.USERNAME_SET_AT)).getTime() : null;
+        const usernameChangeCount = Number(row.USERNAME_CHANGE_COUNT || 0);
+        const usernameChangeAvailableAt = usernameSetAt ? usernameSetAt + (30 * 24 * 60 * 60 * 1000) : null;
+        const usernameCanChange = usernameChangeCount < 1 && Boolean(usernameChangeAvailableAt && Date.now() >= usernameChangeAvailableAt);
+        const emailSetAt = row.EMAIL_SET_AT ? new Date(String(row.EMAIL_SET_AT)).getTime() : null;
+        const emailChangeAvailableAt = emailSetAt ? emailSetAt + (30 * 24 * 60 * 60 * 1000) : null;
+        const emailCanChange = Boolean(emailChangeAvailableAt && Date.now() >= emailChangeAvailableAt);
+
+        const sexCode = String(row.SEX_CODE || '');
+        const sexSetAt = row.SEX_SET_AT ? new Date(String(row.SEX_SET_AT)).getTime() : null;
+        const sexChangeCount = Number(row.SEX_CHANGE_COUNT || 0);
+        const sexChangeAvailableAt = sexSetAt ? sexSetAt + (30 * 24 * 60 * 60 * 1000) : null;
+        const sexCanChange = !sexCode || (sexChangeCount < 1 && Boolean(sexChangeAvailableAt && Date.now() >= sexChangeAvailableAt));
+
         return {
             id: Number(row.ID),
             username: String(row.USERNAME),
+            usernameSetAt,
+            usernameChangeCount,
+            usernameCanChange,
+            usernameChangeAvailableAt,
             email: String(row.EMAIL),
+            emailSetAt,
+            emailCanChange,
+            emailChangeAvailableAt,
             bio: String(row.BIO || ''),
-            sexCode: String(row.SEX_CODE || ''),
+            sexCode,
+            sexSetAt,
+            sexChangeCount,
+            sexCanChange,
+            sexChangeAvailableAt,
             avatarUrl: String(row.AVATAR_URL || ''),
             languageCode: String(row.LANGUAGE_CODE || 'pt-BR'),
             themeCode: String(row.THEME_CODE || 'auto'),
@@ -142,7 +183,7 @@ export async function currentUser(context: APIContext): Promise<SessionUser | nu
             hasGoogle: Number(row.HAS_GOOGLE) === 1,
             postCount: Number(row.POST_COUNT || 0),
             positiveCount: Number(row.POSITIVE_COUNT || 0),
-            shareCount: Number(row.SHARE_COUNT || 0),
+            negativeCount: Number(row.NEGATIVE_COUNT || 0),
         };
     });
 }

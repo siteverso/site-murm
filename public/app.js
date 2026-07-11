@@ -71,13 +71,60 @@ function renderUser(user) {
   $$('[data-profile-bio]').forEach(el => { el.textContent = user.bio || 'Sem biografia ainda.'; });
   $$('[data-profile-posts]').forEach(el => { el.textContent = user.postCount; });
   $$('[data-profile-positive]').forEach(el => { el.textContent = user.positiveCount; });
-  $$('[data-profile-shares]').forEach(el => { el.textContent = user.shareCount; });
+  $$('[data-profile-negative]').forEach(el => { el.textContent = user.negativeCount; });
 
   const profileForm = $('[data-profile-form]');
   if (profileForm) {
-    profileForm.username.value = user.username;
-    profileForm.email.value = user.email;
-    profileForm.sexCode.value = user.sexCode || '';
+    const usernameInput = profileForm.username;
+    const usernameRule = $('[data-username-rule]', profileForm);
+    usernameInput.value = user.username;
+    usernameInput.disabled = !user.usernameCanChange;
+
+    if (user.usernameChangeCount >= 1) {
+      usernameRule.textContent = 'Usuário bloqueado: a única correção permitida para esta conta já foi utilizada.';
+      usernameRule.dataset.type = 'locked';
+    } else if (!user.usernameCanChange && user.usernameChangeAvailableAt) {
+      const availableDate = new Date(user.usernameChangeAvailableAt).toLocaleDateString();
+      usernameRule.textContent = `A única correção do usuário ficará disponível em ${availableDate}.`;
+      usernameRule.dataset.type = 'waiting';
+    } else {
+      usernameRule.textContent = 'Uma única correção está disponível. Depois de salvar, o usuário ficará bloqueado definitivamente.';
+      usernameRule.dataset.type = 'warning';
+    }
+
+    const emailInput = profileForm.email;
+    const emailRule = $('[data-email-rule]', profileForm);
+    emailInput.value = user.email;
+    emailInput.disabled = !user.emailCanChange;
+
+    if (!user.emailCanChange && user.emailChangeAvailableAt) {
+      const availableDate = new Date(user.emailChangeAvailableAt).toLocaleDateString();
+      emailRule.textContent = `O e-mail poderá ser alterado novamente em ${availableDate}.`;
+      emailRule.dataset.type = 'waiting';
+    } else {
+      emailRule.textContent = 'Você pode alterar o e-mail agora. Após salvar, uma nova troca só será permitida em 30 dias.';
+      emailRule.dataset.type = 'warning';
+    }
+    const sexSelect = profileForm.sexCode;
+    const sexRule = $('[data-sex-rule]', profileForm);
+    sexSelect.value = user.sexCode || '';
+    sexSelect.disabled = Boolean(user.sexCode && !user.sexCanChange);
+
+    if (!user.sexCode) {
+      sexRule.textContent = 'Defina com atenção. Depois, apenas uma correção será permitida, após 30 dias.';
+      sexRule.dataset.type = 'info';
+    } else if (user.sexChangeCount >= 1) {
+      sexRule.textContent = 'Sexo bloqueado: a única correção permitida para esta conta já foi utilizada.';
+      sexRule.dataset.type = 'locked';
+    } else if (!user.sexCanChange && user.sexChangeAvailableAt) {
+      const availableDate = new Date(user.sexChangeAvailableAt).toLocaleDateString();
+      sexRule.textContent = `Você poderá fazer a única correção a partir de ${availableDate}.`;
+      sexRule.dataset.type = 'waiting';
+    } else {
+      sexRule.textContent = 'Uma única correção está disponível. Depois de salvar, o sexo ficará bloqueado definitivamente.';
+      sexRule.dataset.type = 'warning';
+    }
+
     profileForm.bio.value = user.bio || '';
   }
 
@@ -132,8 +179,8 @@ function renderPost(post) {
     <p class="murmur-text">${escapeHtml(post.text)}</p>
     <div class="score-line"><span class="score ${score < 0 ? 'negative' : ''}">${score}</span></div>
     <div class="murmur-actions">
-      <button class="action-button ${post.myVote === 1 ? 'active' : ''}" data-vote="1">☺ <span>${post.positive}</span></button>
-      <button class="action-button ${post.myVote === -1 ? 'active' : ''}" data-vote="-1">☹ <span>${post.negative}</span></button>
+      <button class="action-button ${post.myVote === 1 ? 'active' : ''}" data-vote="1" title="Ecoar" aria-label="Ecoar este murmúrio">☺ <span>${post.positive}</span></button>
+      <button class="action-button ${post.myVote === -1 ? 'active' : ''}" data-vote="-1" title="Ignorar" aria-label="Ignorar este murmúrio">☹ <span>${post.negative}</span></button>
       <button class="action-button" data-reply>↩ <span>${post.replies?.length || 0}</span></button>
       <button class="action-button" data-share>↗ <span>${post.shares}</span></button>
     </div>
@@ -262,6 +309,16 @@ async function loadFeed(force = false) {
   }
 }
 
+function pinCardActions(postId) {
+  const card = document.querySelector(`[data-post-id="${postId}"]`);
+  if (!card) return;
+
+  card.classList.add('actions-pinned');
+  card.addEventListener('pointerleave', () => {
+    card.classList.remove('actions-pinned');
+  }, { once: true });
+}
+
 function startFeedPolling() {
   if (!$('[data-feed-male]') && !$('[data-feed-female]') && !$('[data-feed-other-info]')) return;
 
@@ -282,7 +339,16 @@ function bindFeed() {
     const card = target.closest('[data-post-id]');
     try {
       if (target.matches('[data-reply]')) card.querySelector('[data-reply-form]').classList.toggle('open');
-      if (target.matches('[data-vote]')) { await api(`/api/posts/${card.dataset.postId}/vote`, { method: 'POST', body: JSON.stringify({ value: Number(target.dataset.vote) }) }); await loadFeed(); }
+      if (target.matches('[data-vote]')) {
+        const postId = card.dataset.postId;
+        card.classList.add('actions-pinned');
+        await api(`/api/posts/${postId}/vote`, {
+          method: 'POST',
+          body: JSON.stringify({ value: Number(target.dataset.vote) }),
+        });
+        await loadFeed();
+        pinCardActions(postId);
+      }
       if (target.matches('[data-share]')) { await api(`/api/posts/${card.dataset.postId}/share`, { method: 'POST' }); await navigator.clipboard?.writeText(`${location.origin}/#murmurio-${card.dataset.postId}`); toast('Link copiado.'); await loadFeed(); }
       if (target.matches('[data-delete-reply]')) { await api(`/api/replies/${target.dataset.deleteReply}`, { method: 'DELETE' }); await loadFeed(); }
       if (target.matches('[data-direct-user]')) openDirectComposer(Number(target.dataset.directUser), target.dataset.directName);
@@ -371,6 +437,7 @@ function bindProfile() {
         method: 'PATCH',
         body: JSON.stringify({
           username: profileForm.username.value,
+          email: profileForm.email.value,
           sexCode: profileForm.sexCode.value,
           bio: profileForm.bio.value,
         }),
