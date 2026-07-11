@@ -77,6 +77,17 @@ ssh \
     cd '$REMOTE_DIR'
     echo \"Diretório: \$(pwd)\"
 
+    if [ -f .env ]; then
+      echo
+      echo 'Carregando variáveis de .env...'
+      set -a
+      source .env
+      set +a
+    else
+      echo 'ERRO: arquivo .env não encontrado no servidor.'
+      exit 1
+    fi
+
     echo
     echo 'Informações do ambiente:'
     echo \"Node: \$(node --version)\"

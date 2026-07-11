@@ -1,29 +1,17 @@
 #!/usr/bin/env bash
-# cd /home/daniel/Code/site-murm/deploy/
-set -euo pipefail
+set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-ENV_FILE="$APP_DIR/.env"
+cd "$(dirname "$0")/.."
 
-cd "$APP_DIR"
+[ -f .env ] && set -a && source .env && set +a
 
-if [ -f "$ENV_FILE" ]; then
-  set -a
-  source "$ENV_FILE"
-  set +a
-fi
+PORT="${DEV_PORT:-4321}"
 
-DEV_PORT="${DEV_PORT:-4324}"
-
-echo "────────────────────────────────────────"
-echo "Projeto:    $APP_DIR"
-echo "Env file:   $ENV_FILE"
-echo "Dev port:   $DEV_PORT"
-echo "URL local:  http://localhost:$DEV_PORT"
-echo "────────────────────────────────────────"
-
+echo "Limpando cache..."
 rm -rf node_modules/.astro node_modules/.vite dist .astro
 
-npm install
-npm run dev -- --host 0.0.0.0 --port "$DEV_PORT" --force
+echo "Instalando dependências..."
+npm install --loglevel info
+
+echo "Iniciando em http://localhost:$PORT"
+npm run dev -- --host 0.0.0.0 --port "$PORT" --force
