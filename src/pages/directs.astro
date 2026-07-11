@@ -1,0 +1,24 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+import Header from '../components/Header.astro';
+---
+<AppLayout title="Directs — Murmurinho">
+  <Header />
+  <main class="directs-page" data-directs-page data-scene="city">
+    <aside class="directs-sidebar panel">
+      <div class="directs-sidebar-head"><h1>Bilhetes</h1><span>Directs</span></div>
+      <div class="scene-picker" aria-label="Escolher cenário">
+        <button data-scene="city">Cidade</button><button data-scene="mars">Marte</button><button data-scene="field">Campo</button>
+      </div>
+      <div class="direct-list" data-direct-list></div>
+    </aside>
+    <section class="directs-stage panel">
+      <div class="direct-empty" data-direct-empty><strong>Escolha um bilhete</strong><span>As conversas chegam como correspondência, sem cara de chat.</span></div>
+      <div class="direct-stage" data-direct-stage hidden>
+        <div class="direct-messages" data-direct-messages></div>
+        <form class="direct-form" data-direct-form><textarea name="contents" maxlength="1000" placeholder="Responder com outro bilhete…" required></textarea><button class="button primary">Enviar</button></form>
+      </div>
+    </section>
+  </main>
+  <div class="toast" data-toast></div>
+</AppLayout>

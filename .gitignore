@@ -1,6 +1,6 @@
-node_modules/
-dist/
-.astro/
 .idea/
-.env
+.astro/
 .DS_Store
+dist/
+node_modules/
+/.env*

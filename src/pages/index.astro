@@ -9,12 +9,14 @@ const t = getMessages(locale);
 <AppLayout title={`${t.site.title} — ${t.common.home}`}>
   <Header />
   <main class="shell minimal-feed-page">
-    <Composer />
     <div class="feed-heading minimal">
       <h1>{t.feed.recent}</h1>
       <span data-threshold-label>{t.feed.currentLimit}: 100</span>
     </div>
     <div class="feed feed-grid" data-feed></div>
   </main>
+  <button class="floating-action" type="button" data-new-murmur aria-label="Novo murmúrio">＋</button>
+  <button class="scroll-top" type="button" data-scroll-top aria-label="Voltar ao topo">↑</button>
+  <div class="mail-pigeon" aria-hidden="true">✉</div>
   <div class="toast" data-toast></div>
 </AppLayout>

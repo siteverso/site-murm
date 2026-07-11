@@ -12,7 +12,11 @@ const t = getMessages(locale);
   </a>
   <nav class="topbar-actions" aria-label="Navigation">
     <a class="nav-link" href="/">{t.common.home}</a>
-    <a class="nav-link" href="/perfil">{t.common.profile}</a>
+    <a class="nav-link direct-nav" href="/directs">Bilhetes <span class="direct-badge" data-direct-badge hidden></span></a>
+    <a class="header-user" href="/perfil" aria-label={t.common.profile}>
+      <span class="avatar header-user-avatar" data-user-avatar>MU</span>
+      <span class="header-user-name" data-user-name>{t.common.profile}</span>
+    </a>
     <LanguageSwitch />
     <button class="icon-button" type="button" data-theme-toggle aria-label="Theme">◐</button>
     <button class="button ghost small" type="button" data-logout>{t.common.logout}</button>

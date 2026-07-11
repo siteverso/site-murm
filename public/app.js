@@ -1,425 +1,327 @@
-(() => {
-  const $ = (selector, root = document) => root.querySelector(selector);
-  const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-  const T = window.__MURMUR_I18N__ || {};
-  const tr = path => path.split('.').reduce((value, key) => value?.[key], T) || path;
-  let currentUser = null;
-  let posts = [];
+const $ = (selector, root = document) => root.querySelector(selector);
+const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
-  async function api(url, options = {}) {
-    const response = await fetch(url, {
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-      ...options,
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || 'Erro ao comunicar com o servidor.');
-    return data;
+const api = async (url, options = {}) => {
+  const response = await fetch(url, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || 'Erro inesperado.');
+  return data;
+};
+
+const toast = (message) => {
+  const el = $('[data-toast]');
+  if (!el) return;
+  el.textContent = message;
+  el.classList.add('show');
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => el.classList.remove('show'), 3200);
+};
+
+const escapeHtml = (value = '') => String(value).replace(/[&<>'"]/g, char => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+}[char]));
+
+let currentUser = null;
+let posts = [];
+
+function userInitials(username = '') {
+  return String(username).trim().slice(0, 2).toUpperCase() || 'MU';
+}
+
+function renderUser(user) {
+  if (!user) return;
+
+  $$('[data-user-avatar]').forEach(el => { el.textContent = userInitials(user.username); });
+  $$('[data-user-name]').forEach(el => { el.textContent = `@${user.username}`; });
+  $$('[data-profile-avatar]').forEach(el => { el.textContent = userInitials(user.username); });
+  $$('[data-profile-username]').forEach(el => { el.textContent = `@${user.username}`; });
+  $$('[data-profile-email]').forEach(el => { el.textContent = user.email; });
+  $$('[data-profile-bio]').forEach(el => { el.textContent = user.bio || 'Sem biografia ainda.'; });
+  $$('[data-profile-posts]').forEach(el => { el.textContent = user.postCount; });
+  $$('[data-profile-positive]').forEach(el => { el.textContent = user.positiveCount; });
+  $$('[data-profile-shares]').forEach(el => { el.textContent = user.shareCount; });
+
+  const profileForm = $('[data-profile-form]');
+  if (profileForm) {
+    profileForm.username.value = user.username;
+    profileForm.email.value = user.email;
+    profileForm.bio.value = user.bio || '';
   }
 
-  function escapeHtml(value) {
-    return String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
+  const methods = [];
+  if (user.hasPassword) methods.push('Senha');
+  if (user.hasGoogle) methods.push('Google');
+  const methodsEl = $('[data-auth-methods]');
+  if (methodsEl) methodsEl.textContent = methods.join(' + ') || 'Nenhum';
+
+  const explanation = $('[data-auth-explanation]');
+  if (explanation) {
+    explanation.textContent = user.hasGoogle
+      ? 'Sua conta pode ser acessada pelo Google. Você também pode definir ou trocar uma senha abaixo.'
+      : 'Sua conta usa acesso por usuário/e-mail e senha.';
   }
 
-  function initials(username) {
-    return String(username || 'MU').slice(0, 2).toUpperCase();
-  }
+  const passwordTitle = $('[data-password-title]');
+  if (passwordTitle) passwordTitle.textContent = user.hasPassword ? 'Trocar senha' : 'Definir senha';
+  const passwordButton = $('[data-password-form] button[type="submit"]');
+  if (passwordButton) passwordButton.textContent = user.hasPassword ? 'Trocar senha' : 'Definir senha';
+}
 
-  function ago(timestamp) {
-    const minutes = Math.max(1, Math.floor((Date.now() - Number(timestamp)) / 60000));
-    if (minutes < 60) return `${minutes} min`;
-    const hours = Math.floor(minutes / 60);
-    return hours < 24 ? `${hours} h` : `${Math.floor(hours / 24)} d`;
-  }
-
-  function toast(message, action = null) {
-    const el = $('[data-toast]');
-    if (!el) return;
-    el.replaceChildren();
-    const text = document.createElement('span');
-    text.textContent = message;
-    el.append(text);
-    if (action?.label && typeof action.onClick === 'function') {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'toast-action';
-      button.textContent = action.label;
-      button.addEventListener('click', async () => {
-        await action.onClick();
-        el.classList.remove('show');
-      }, { once: true });
-      el.append(button);
-    }
-    el.classList.add('show');
-    clearTimeout(window.__murmurToast);
-    window.__murmurToast = setTimeout(() => el.classList.remove('show'), action ? 6000 : 2600);
-  }
-
-  function message(form, value) {
-    const el = $('[data-form-message]', form);
-    if (el) el.textContent = value;
-  }
-
-  function actionIcon(type) {
-    const icons = {
-      positive: '<span class="emoji-icon emoji-smile" aria-hidden="true"><span class="emoji-face"></span><span class="emoji-eyes"></span><span class="emoji-mouth"></span></span>',
-      negative: '<span class="emoji-icon emoji-cry" aria-hidden="true"><span class="emoji-face"></span><span class="emoji-eyes"></span><span class="emoji-mouth"></span><span class="emoji-tear"></span></span>',
-      reply: '<span class="emoji-icon emoji-reply" aria-hidden="true"><span class="bubble-body"></span><span class="bubble-dot bubble-dot-a"></span><span class="bubble-dot bubble-dot-b"></span><span class="bubble-dot bubble-dot-c"></span><span class="bubble-tail"></span></span>',
-      share: '<span class="emoji-icon emoji-share" aria-hidden="true"><span class="share-line share-line-a"></span><span class="share-line share-line-b"></span><span class="share-dot share-dot-a"></span><span class="share-dot share-dot-b"></span><span class="share-dot share-dot-c"></span></span>',
-    };
-    return icons[type] || '';
-  }
-
-  function playActionAnimation(target, animationClass) {
-    if (!target) return;
-    target.classList.remove(animationClass);
-    void target.offsetWidth;
-    target.classList.add(animationClass);
-    target.addEventListener('animationend', () => target.classList.remove(animationClass), { once: true });
-  }
-
-  function threshold(total) {
-    return 100 + Math.floor(total / 1000) * 10;
-  }
-
-  async function loadCurrentUser() {
-    try {
-      const data = await api('/api/auth/me');
-      currentUser = data.user;
-      return currentUser;
-    } catch {
-      currentUser = null;
-      return null;
-    }
-  }
-
-  async function enforceAuth() {
-    if (document.body.dataset.authRequired !== 'true') return;
-    const user = await loadCurrentUser();
-    if (!user) location.replace('/login');
-  }
-
-  function initLanguage() {
-    $$('[data-language]').forEach(button => button.addEventListener('click', () => {
-      const language = button.dataset.language === 'en' ? 'en' : 'pt-BR';
-      document.cookie = `murmurinho-language=${language}; path=/; max-age=31536000; SameSite=Lax`;
-      location.reload();
-    }));
-  }
-
-  function initTheme() {
-    $$('[data-theme-toggle]').forEach(button => button.addEventListener('click', () => {
-      const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-      document.documentElement.dataset.theme = next;
-      document.cookie = `murmurinho-theme=${next}; path=/; max-age=31536000; SameSite=Lax`;
-    }));
-  }
-
-  function initLogout() {
-    $$('[data-logout]').forEach(button => button.addEventListener('click', async () => {
-      try { await api('/api/auth/logout', { method: 'POST', body: '{}' }); } catch {}
+async function loadUser() {
+  try {
+    const data = await api('/api/auth/me');
+    currentUser = data.user || null;
+    renderUser(currentUser);
+    return currentUser;
+  } catch {
+    currentUser = null;
+    if (document.body.dataset.authRequired === 'true' && !location.pathname.startsWith('/login')) {
       location.href = '/login';
-    }));
-  }
-
-  function initSignup() {
-    const form = $('[data-signup-form]');
-    if (!form) return;
-    form.addEventListener('submit', async event => {
-      event.preventDefault();
-      const data = Object.fromEntries(new FormData(form));
-      try {
-        await api('/api/auth/signup', { method: 'POST', body: JSON.stringify(data) });
-        message(form, tr('signup.success'));
-        location.href = '/';
-      } catch (error) {
-        message(form, error.message);
-      }
-    });
-  }
-
-  function initLogin() {
-    const form = $('[data-login-form]');
-    if (!form) return;
-    form.addEventListener('submit', async event => {
-      event.preventDefault();
-      const formData = new FormData(form);
-      const submit = $('button[type="submit"]', form);
-      const originalText = submit?.textContent || '';
-
-      message(form, 'Conectando ao Oracle...');
-      if (submit) {
-        submit.disabled = true;
-        submit.textContent = 'Entrando...';
-      }
-
-      try {
-        await api('/api/auth/login', {
-          method: 'POST',
-          body: JSON.stringify({
-            identifier: formData.get('identifier'),
-            password: formData.get('password'),
-            remember: formData.get('remember') === 'on',
-          }),
-        });
-        message(form, tr('login.authorized'));
-        location.href = '/';
-      } catch (error) {
-        message(form, error.message);
-      } finally {
-        if (submit) {
-          submit.disabled = false;
-          submit.textContent = originalText;
-        }
-      }
-    });
-  }
-
-  function initGoogleLogin() {
-    const container = $('[data-google-login]');
-    if (!container) return;
-    const clientId = container.dataset.googleClientId;
-    const messageEl = $('[data-google-message]', container);
-    let attempts = 0;
-    const timer = setInterval(() => {
-      attempts += 1;
-      if (!window.google?.accounts?.id) {
-        if (attempts > 50) {
-          clearInterval(timer);
-          if (messageEl) messageEl.textContent = tr('login.googleLoadingError');
-        }
-        return;
-      }
-      clearInterval(timer);
-      window.google.accounts.id.initialize({
-        client_id: clientId,
-        callback: async response => {
-          try {
-            await api('/api/auth/google', { method: 'POST', body: JSON.stringify({ credential: response.credential }) });
-            location.href = '/';
-          } catch (error) {
-            if (messageEl) messageEl.textContent = error.message;
-          }
-        },
-      });
-      window.google.accounts.id.renderButton($('[data-google-button]', container), {
-        theme: document.documentElement.dataset.theme === 'dark' ? 'filled_black' : 'outline',
-        size: 'large',
-        width: Math.min(380, container.clientWidth || 380),
-        text: 'continue_with',
-      });
-    }, 100);
-  }
-
-  function initRecovery() {
-    const form = $('[data-recovery-form]');
-    if (!form) return;
-    form.addEventListener('submit', async event => {
-      event.preventDefault();
-      try {
-        await api('/api/auth/reset-password', { method: 'POST', body: JSON.stringify(Object.fromEntries(new FormData(form))) });
-      } catch (error) {
-        message(form, error.message);
-      }
-    });
-  }
-
-  async function initProfile() {
-    const form = $('[data-profile-form]');
-    if (!form) return;
-    const user = currentUser || await loadCurrentUser();
-    if (!user) return location.replace('/login');
-
-    $('[data-profile-avatar]').textContent = initials(user.username);
-    $('[data-profile-username]').textContent = `@${user.username}`;
-    $('[data-profile-email]').textContent = user.email;
-    $('[data-profile-bio]').textContent = user.bio || '';
-    $('[data-profile-posts]').textContent = user.postCount || 0;
-    $('[data-profile-positive]').textContent = user.positiveCount || 0;
-    $('[data-profile-shares]').textContent = user.shareCount || 0;
-    form.username.value = user.username;
-    form.email.value = user.email;
-    form.bio.value = user.bio || '';
-
-    const methods = [];
-    if (user.hasGoogle) methods.push(tr('profile.authGoogle'));
-    if (user.hasPassword) methods.push(tr('profile.authPassword'));
-    $('[data-auth-methods]').textContent = methods.join(' + ');
-    $('[data-auth-explanation]').textContent = user.hasGoogle && !user.hasPassword ? tr('profile.accountGoogle') : tr('profile.accountPassword');
-    $('[data-password-title]').textContent = user.hasPassword ? tr('profile.changePassword') : tr('profile.definePassword');
-
-    form.addEventListener('submit', async event => {
-      event.preventDefault();
-      try {
-        await api('/api/auth/profile', { method: 'PATCH', body: JSON.stringify(Object.fromEntries(new FormData(form))) });
-        message(form, tr('profile.profileSaved'));
-        setTimeout(() => location.reload(), 300);
-      } catch (error) {
-        message(form, error.message);
-      }
-    });
-
-    const passwordForm = $('[data-password-form]');
-    passwordForm?.addEventListener('submit', async event => {
-      event.preventDefault();
-      try {
-        await api('/api/auth/password', { method: 'PATCH', body: JSON.stringify(Object.fromEntries(new FormData(passwordForm))) });
-        message(passwordForm, tr('profile.passwordSaved'));
-        passwordForm.reset();
-      } catch (error) {
-        message(passwordForm, error.message);
-      }
-    });
-  }
-
-  async function loadPosts() {
-    const data = await api('/api/posts');
-    posts = data.posts || [];
-    renderFeed();
-  }
-
-  function renderFeed() {
-    const feed = $('[data-feed]');
-    if (!feed) return;
-    const limit = threshold(posts.length);
-    const label = $('[data-threshold-label]');
-    if (label) label.textContent = `${tr('feed.currentLimit')}: ${limit}`;
-
-    feed.innerHTML = posts.map(post => {
-      const score = post.positive - post.negative;
-      const hidden = score <= -limit;
-      const highlighted = score >= limit;
-      if (hidden) return `<article class="panel murmur-card hidden-score" data-post-id="${post.id}"><div class="hidden-message"><div><strong>${tr('feed.hiddenTitle')}</strong><br><span>${tr('feed.hiddenText')}</span></div><button class="button secondary small" data-show-post>${tr('feed.show')}</button></div></article>`;
-
-      const replies = (post.replies || []).map(reply => {
-        const own = currentUser && reply.userId === currentUser.id;
-        return `<div class="reply" data-reply-id="${reply.id}"><div class="reply-content"><strong>@${escapeHtml(reply.author)}</strong> <span>${escapeHtml(reply.text)}</span></div>${own ? `<div class="reply-actions"><button class="reply-delete" type="button" data-delete-reply aria-label="${tr('feed.deleteReply')}">🗑️</button><button class="reply-confirm" type="button" data-confirm-delete-reply aria-label="${tr('feed.confirmDeleteReplyLabel')}">✓</button><button class="reply-cancel" type="button" data-cancel-delete-reply aria-label="${tr('feed.cancelDeleteReplyLabel')}">✕</button></div>` : ''}</div>`;
-      }).join('');
-
-      return `<article class="panel murmur-card ${highlighted ? 'highlighted' : ''}" data-post-id="${post.id}">
-        <div class="murmur-head"><div class="avatar">${initials(post.author)}</div><div class="murmur-author"><strong>@${escapeHtml(post.author)}</strong><span>${ago(post.createdAt)}</span></div></div>
-        <p class="murmur-text">${escapeHtml(post.text)}</p>
-        <div class="score-line"><span class="score ${score < 0 ? 'negative' : ''}">${score >= 0 ? '+' : ''}${score}</span></div>
-        <div class="murmur-actions">
-          <button class="action-button ${post.myVote === 1 ? 'active' : ''}" data-vote="1" aria-label="${tr('feed.positive')}">${actionIcon('positive')} <span>${post.positive}</span></button>
-          <button class="action-button ${post.myVote === -1 ? 'active' : ''}" data-vote="-1" aria-label="${tr('feed.negative')}">${actionIcon('negative')} <span>${post.negative}</span></button>
-          <button class="action-button" data-reply-toggle aria-label="${tr('feed.reply')}">${actionIcon('reply')} <span>${post.replies?.length || 0}</span></button>
-          <button class="action-button" data-share aria-label="${tr('feed.share')}">${actionIcon('share')} <span>${post.shares}</span></button>
-        </div>
-        <form class="reply-box" data-reply-form><input name="reply" maxlength="280" placeholder="${tr('feed.replyPlaceholder')}" required><button class="button primary small">${tr('feed.send')}</button></form>
-        <div class="replies">${replies}</div>
-      </article>`;
-    }).join('');
-
-    bindFeedActions();
-  }
-
-  function bindFeedActions() {
-    const feed = $('[data-feed]');
-    $$('[data-show-post]', feed).forEach(button => button.addEventListener('click', () => button.closest('.murmur-card').classList.remove('hidden-score')));
-
-    $$('[data-vote]', feed).forEach(button => button.addEventListener('click', async () => {
-      const postId = button.closest('[data-post-id]').dataset.postId;
-      const value = Number(button.dataset.vote);
-      try {
-        await api(`/api/posts/${postId}/vote`, { method: 'POST', body: JSON.stringify({ value }) });
-        playActionAnimation(button, value === 1 ? 'animate-smile' : 'animate-cry');
-        await loadPosts();
-      } catch (error) { toast(error.message); }
-    }));
-
-    $$('[data-reply-toggle]', feed).forEach(button => button.addEventListener('click', () => {
-      playActionAnimation(button, 'animate-reply');
-      const form = $('.reply-box', button.closest('[data-post-id]'));
-      form.classList.add('open');
-      const input = $('input', form);
-      input.focus();
-      input.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }));
-
-    $$('[data-reply-form]', feed).forEach(form => form.addEventListener('submit', async event => {
-      event.preventDefault();
-      const postId = form.closest('[data-post-id]').dataset.postId;
-      const text = new FormData(form).get('reply');
-      try {
-        await api(`/api/posts/${postId}/reply`, { method: 'POST', body: JSON.stringify({ text }) });
-        await loadPosts();
-      } catch (error) { toast(error.message); }
-    }));
-
-    $$('[data-delete-reply]', feed).forEach(button => button.addEventListener('click', () => {
-      const actions = button.closest('.reply-actions');
-      $$('.reply-actions.is-confirming', feed).forEach(item => item !== actions && item.classList.remove('is-confirming'));
-      actions.classList.toggle('is-confirming');
-    }));
-    $$('[data-cancel-delete-reply]', feed).forEach(button => button.addEventListener('click', () => button.closest('.reply-actions').classList.remove('is-confirming')));
-    $$('[data-confirm-delete-reply]', feed).forEach(button => button.addEventListener('click', async () => {
-      const replyId = button.closest('[data-reply-id]').dataset.replyId;
-      try {
-        await api(`/api/replies/${replyId}`, { method: 'DELETE' });
-        await loadPosts();
-        toast(tr('feed.replyDeleted'), {
-          label: tr('feed.undo'),
-          onClick: async () => {
-            await api(`/api/replies/${replyId}`, { method: 'PATCH', body: '{}' });
-            await loadPosts();
-            toast(tr('feed.replyRestored'));
-          },
-        });
-      } catch (error) { toast(error.message); }
-    }));
-
-    $$('[data-share]', feed).forEach(button => button.addEventListener('click', async () => {
-      const postId = button.closest('[data-post-id]').dataset.postId;
-      const url = `${location.origin}/?murmur=${postId}`;
-      playActionAnimation(button, 'animate-share');
-      try {
-        if (navigator.share) await navigator.share({ title: 'Murmurinho', url });
-        else await navigator.clipboard.writeText(url);
-        await api(`/api/posts/${postId}/share`, { method: 'POST', body: '{}' });
-        await loadPosts();
-        toast(tr('feed.shared'));
-      } catch (error) {
-        if (error.name !== 'AbortError') toast(error.message);
-      }
-    }));
-  }
-
-  function initComposer() {
-    const form = $('[data-composer]');
-    if (!form) return;
-    const textarea = $('textarea', form);
-    textarea.addEventListener('input', () => $('[data-char-count]').textContent = textarea.value.length);
-    form.addEventListener('submit', async event => {
-      event.preventDefault();
-      try {
-        await api('/api/posts', { method: 'POST', body: JSON.stringify({ text: textarea.value.trim() }) });
-        form.reset();
-        $('[data-char-count]').textContent = '0';
-        await loadPosts();
-        toast(tr('feed.published') === 'feed.published' ? 'Murmúrio publicado.' : tr('feed.published'));
-      } catch (error) { toast(error.message); }
-    });
-  }
-
-  async function init() {
-    initLanguage();
-    initTheme();
-    initLogout();
-    initSignup();
-    initLogin();
-    initGoogleLogin();
-    initRecovery();
-    await enforceAuth();
-    if (!currentUser) await loadCurrentUser();
-    const avatar = $('[data-user-avatar]');
-    if (avatar && currentUser) avatar.textContent = initials(currentUser.username);
-    initComposer();
-    await initProfile();
-    if ($('[data-feed]')) {
-      try { await loadPosts(); } catch (error) { toast(error.message); }
     }
+    return null;
   }
+}
 
-  init();
-})();
+function renderPost(post) {
+  const score = post.positive - post.negative;
+  const replies = (post.replies || []).map(reply => `
+    <div class="reply">
+      <div class="reply-content"><strong>@${escapeHtml(reply.author)}</strong> ${escapeHtml(reply.text)}</div>
+      ${currentUser?.id === reply.userId ? `<button class="reply-delete" data-delete-reply="${reply.id}" aria-label="Excluir resposta">×</button>` : ''}
+    </div>`).join('');
+
+  return `<article class="panel murmur-card" data-post-id="${post.id}">
+    <div class="murmur-head">
+      <div class="avatar">${escapeHtml(post.author.slice(0, 2).toUpperCase())}</div>
+      <div class="murmur-author"><strong>@${escapeHtml(post.author)}</strong><span>${new Date(post.createdAt).toLocaleString()}</span></div>
+      <button class="letter-button" data-direct-user="${post.userId}" data-direct-name="${escapeHtml(post.author)}" title="Enviar bilhete" aria-label="Enviar bilhete">✉</button>
+    </div>
+    <p class="murmur-text">${escapeHtml(post.text)}</p>
+    <div class="score-line"><span class="score ${score < 0 ? 'negative' : ''}">${score}</span></div>
+    <div class="murmur-actions">
+      <button class="action-button ${post.myVote === 1 ? 'active' : ''}" data-vote="1">☺ <span>${post.positive}</span></button>
+      <button class="action-button ${post.myVote === -1 ? 'active' : ''}" data-vote="-1">☹ <span>${post.negative}</span></button>
+      <button class="action-button" data-reply>↩ <span>${post.replies?.length || 0}</span></button>
+      <button class="action-button" data-share>↗ <span>${post.shares}</span></button>
+    </div>
+    <form class="reply-box" data-reply-form><input maxlength="280" placeholder="Responder sem fazer barulho…" required><button class="button primary small">Enviar</button></form>
+    <div class="replies">${replies}</div>
+  </article>`;
+}
+
+async function loadFeed() {
+  const feed = $('[data-feed]');
+  if (!feed) return;
+  const data = await api('/api/posts');
+  posts = data.posts || [];
+  feed.innerHTML = posts.map(renderPost).join('') || '<p class="empty-state">Ainda não há murmúrios.</p>';
+}
+
+function bindFeed() {
+  document.addEventListener('click', async event => {
+    const target = event.target.closest('button');
+    if (!target) return;
+    const card = target.closest('[data-post-id]');
+    try {
+      if (target.matches('[data-reply]')) card.querySelector('[data-reply-form]').classList.toggle('open');
+      if (target.matches('[data-vote]')) { await api(`/api/posts/${card.dataset.postId}/vote`, { method: 'POST', body: JSON.stringify({ value: Number(target.dataset.vote) }) }); await loadFeed(); }
+      if (target.matches('[data-share]')) { await api(`/api/posts/${card.dataset.postId}/share`, { method: 'POST' }); await navigator.clipboard?.writeText(`${location.origin}/#murmurio-${card.dataset.postId}`); toast('Link copiado.'); await loadFeed(); }
+      if (target.matches('[data-delete-reply]')) { await api(`/api/replies/${target.dataset.deleteReply}`, { method: 'DELETE' }); await loadFeed(); }
+      if (target.matches('[data-direct-user]')) openDirectComposer(Number(target.dataset.directUser), target.dataset.directName);
+    } catch (error) { toast(error.message); }
+  });
+
+  document.addEventListener('submit', async event => {
+    const form = event.target;
+    if (form.matches('[data-composer], [data-floating-composer]')) {
+      event.preventDefault();
+      const text = form.querySelector('textarea').value.trim();
+      try { await api('/api/posts', { method: 'POST', body: JSON.stringify({ text }) }); form.reset(); closeModal(); await loadFeed(); toast('Murmúrio publicado.'); } catch (error) { toast(error.message); }
+    }
+    if (form.matches('[data-reply-form]')) {
+      event.preventDefault();
+      const card = form.closest('[data-post-id]');
+      const text = form.querySelector('input').value.trim();
+      try { await api(`/api/posts/${card.dataset.postId}/reply`, { method: 'POST', body: JSON.stringify({ text }) }); await loadFeed(); } catch (error) { toast(error.message); }
+    }
+  });
+}
+
+function closeModal() { $('[data-modal]')?.remove(); }
+function modal(content, className = '') {
+  closeModal();
+  document.body.insertAdjacentHTML('beforeend', `<div class="modal-backdrop" data-modal><div class="panel modal-card ${className}"><button class="modal-close" data-modal-close aria-label="Fechar">×</button>${content}</div></div>`);
+}
+
+function openComposer() {
+  modal(`<h2>Novo murmúrio</h2><form data-floating-composer><textarea maxlength="420" autofocus placeholder="O que está murmurando?" required></textarea><div class="modal-actions"><span>Até 420 caracteres</span><button class="button primary">Murmurar</button></div></form>`);
+}
+
+function openDirectComposer(userId, username) {
+  modal(`<h2>Enviar bilhete</h2><p class="modal-subtitle">Para @${escapeHtml(username)}</p><form data-direct-compose><input type="hidden" name="recipientId" value="${userId}"><textarea maxlength="1000" autofocus placeholder="Escreva seu bilhete…" required></textarea><div class="modal-actions"><span>Entrega discreta</span><button class="button primary">Enviar bilhete</button></div></form>`, 'direct-compose-modal');
+}
+
+function bindUi() {
+  document.addEventListener('click', event => {
+    if (event.target.matches('[data-modal], [data-modal-close]')) closeModal();
+    if (event.target.closest('[data-new-murmur]')) openComposer();
+    if (event.target.closest('[data-scroll-top]')) window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+  window.addEventListener('scroll', () => $('[data-scroll-top]')?.classList.toggle('visible', scrollY > 500), { passive: true });
+  $('[data-theme-toggle]')?.addEventListener('click', () => {
+    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    document.cookie = `murmurinho-theme=${next};path=/;max-age=31536000`;
+  });
+  $('[data-logout]')?.addEventListener('click', async () => { await api('/api/auth/logout', { method: 'POST' }); location.href = '/login'; });
+}
+
+
+function bindProfile() {
+  const profileForm = $('[data-profile-form]');
+  profileForm?.addEventListener('submit', async event => {
+    event.preventDefault();
+    const message = $('[data-form-message]', profileForm);
+    message.textContent = '';
+
+    try {
+      await api('/api/auth/profile', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          username: profileForm.username.value,
+          bio: profileForm.bio.value,
+        }),
+      });
+      await loadUser();
+      message.textContent = 'Perfil salvo.';
+      toast('Perfil atualizado.');
+    } catch (error) {
+      message.textContent = error.message;
+    }
+  });
+
+  const passwordForm = $('[data-password-form]');
+  passwordForm?.addEventListener('submit', async event => {
+    event.preventDefault();
+    const message = $('[data-form-message]', passwordForm);
+    message.textContent = '';
+
+    try {
+      await api('/api/auth/password', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          password: passwordForm.password.value,
+          confirmPassword: passwordForm.confirmPassword.value,
+        }),
+      });
+      passwordForm.reset();
+      await loadUser();
+      message.textContent = 'Senha atualizada.';
+      toast('Senha atualizada.');
+    } catch (error) {
+      message.textContent = error.message;
+    }
+  });
+}
+
+function bindAuth() {
+  $('[data-signup-form]')?.addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const message = $('[data-form-message]', form);
+    const submit = $('button[type="submit"]', form);
+
+    message.textContent = '';
+    submit.disabled = true;
+
+    try {
+      await api('/api/auth/signup', {
+        method: 'POST',
+        body: JSON.stringify({
+          username: form.username.value,
+          email: form.email.value,
+          password: form.password.value,
+          confirmPassword: form.confirmPassword.value,
+        }),
+      });
+      location.replace('/');
+    } catch (error) {
+      message.textContent = error.message;
+      submit.disabled = false;
+    }
+  });
+
+  $('[data-login-form]')?.addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    try { await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ identifier: form.identifier.value, password: form.password.value, remember: form.remember.checked }) }); location.href = '/'; } catch (error) { $('[data-form-message]').textContent = error.message; }
+  });
+
+  const googleRoot = $('[data-google-login]');
+  if (googleRoot) {
+    const start = () => {
+      if (!window.google?.accounts?.id) return setTimeout(start, 100);
+      google.accounts.id.initialize({ client_id: googleRoot.dataset.googleClientId, callback: async response => {
+        try { await api('/api/auth/google', { method: 'POST', body: JSON.stringify({ credential: response.credential }) }); location.href = '/'; } catch (error) { $('[data-google-message]').textContent = error.message; }
+      }});
+      google.accounts.id.renderButton($('[data-google-button]'), { theme: document.documentElement.dataset.theme === 'dark' ? 'filled_black' : 'outline', size: 'large', width: Math.min(376, googleRoot.clientWidth), text: 'continue_with' });
+    };
+    start();
+  }
+}
+
+async function pollDirects() {
+  if (!currentUser) return;
+  try {
+    const data = await api('/api/directs/unread');
+    const badge = $('[data-direct-badge]');
+    if (badge) { badge.textContent = data.count || ''; badge.hidden = !data.count; }
+    if (data.latestId && Number(sessionStorage.lastDirectId || 0) < data.latestId) {
+      if (sessionStorage.lastDirectId) {
+        document.body.classList.add('letter-arriving');
+        setTimeout(() => document.body.classList.remove('letter-arriving'), 1800);
+        toast('Um novo bilhete chegou.');
+      }
+      sessionStorage.lastDirectId = data.latestId;
+    }
+  } catch {}
+}
+
+function bindDirectsPage() {
+  const root = $('[data-directs-page]');
+  if (!root) return;
+  const load = async (otherUserId = '') => {
+    const url = otherUserId ? `/api/directs?otherUserId=${otherUserId}` : '/api/directs';
+    const data = await api(url);
+    $('[data-direct-list]').innerHTML = (data.conversations || []).map(item => `<button class="direct-thread ${String(item.otherUserId) === String(otherUserId) ? 'active' : ''}" data-open-direct="${item.otherUserId}"><strong>@${escapeHtml(item.username)}</strong><span>${escapeHtml(item.lastMessage)}</span><small>${item.unreadCount ? `${item.unreadCount} novo(s)` : ''}</small></button>`).join('');
+    if (data.messages) $('[data-direct-messages]').innerHTML = data.messages.map(message => `<article class="direct-note ${message.senderId === currentUser.id ? 'sent' : 'received'}"><span>${message.senderId === currentUser.id ? 'Você' : '@' + escapeHtml(message.senderName)}</span><p>${escapeHtml(message.contents)}</p><time>${new Date(message.createdAt).toLocaleString()}</time></article>`).join('');
+    if (otherUserId) { $('[data-direct-form]').dataset.recipientId = otherUserId; $('[data-direct-empty]').hidden = true; $('[data-direct-stage]').hidden = false; }
+  };
+  root.addEventListener('click', event => { const button = event.target.closest('[data-open-direct]'); if (button) load(button.dataset.openDirect); });
+  $('[data-direct-form]')?.addEventListener('submit', async event => {
+    event.preventDefault(); const form = event.currentTarget; const contents = form.contents.value.trim();
+    try { await api('/api/directs', { method: 'POST', body: JSON.stringify({ recipientId: Number(form.dataset.recipientId), contents }) }); form.reset(); await load(form.dataset.recipientId); } catch (error) { toast(error.message); }
+  });
+  $$('[data-scene]').forEach(button => button.addEventListener('click', () => { root.dataset.scene = button.dataset.scene; localStorage.directScene = button.dataset.scene; }));
+  root.dataset.scene = localStorage.directScene || 'city';
+  load();
+}
+
+document.addEventListener('submit', async event => {
+  if (!event.target.matches('[data-direct-compose]')) return;
+  event.preventDefault();
+  const form = event.target;
+  try { await api('/api/directs', { method: 'POST', body: JSON.stringify({ recipientId: Number(form.recipientId.value), contents: form.querySelector('textarea').value.trim() }) }); closeModal(); toast('Bilhete enviado.'); } catch (error) { toast(error.message); }
+});
+
+document.addEventListener('DOMContentLoaded', async () => {
+  bindUi(); bindAuth(); bindProfile(); bindFeed();
+  await loadUser();
+  await loadFeed().catch(() => {});
+  bindDirectsPage();
+  pollDirects();
+  setInterval(pollDirects, 7000);
+});

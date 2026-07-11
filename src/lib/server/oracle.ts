@@ -21,8 +21,8 @@ function numberEnv(name: string, fallback: number): number {
 
 async function validateWallet(walletDir: string): Promise<void> {
     try {
-        await access(walletDir);
         await access(join(walletDir, 'tnsnames.ora'));
+        await access(join(walletDir, 'ewallet.pem'));
     } catch {
         throw new Error('ORACLE_WALLET_INVALIDA');
     }
@@ -40,6 +40,9 @@ async function createPool(): Promise<Pool> {
         connectString: required('ORACLE_CONNECT_STRING'),
         configDir: walletDir,
         walletLocation: walletDir,
+        walletPassword: required('ORACLE_WALLET_PASSWORD'),
+        connectTimeout: numberEnv('ORACLE_CONNECT_TIMEOUT_SECONDS', 5),
+        transportConnectTimeout: numberEnv('ORACLE_TRANSPORT_TIMEOUT_SECONDS', 3),
         poolMin: numberEnv('ORACLE_POOL_MIN', 0),
         poolMax: numberEnv('ORACLE_POOL_MAX', 4),
         poolIncrement: numberEnv('ORACLE_POOL_INCREMENT', 1),

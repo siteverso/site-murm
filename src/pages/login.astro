@@ -30,7 +30,7 @@ const googleEnabled = googleClientId.endsWith('.apps.googleusercontent.com');
         {googleEnabled ? (
           <>
             <div class="google-login" data-google-login data-google-client-id={googleClientId}>
-              <div data-google-button></div>
+              <div class="google-button-frame" data-google-button></div>
               <p class="form-message" data-google-message></p>
             </div>
             <div class="auth-divider"><span>{t.login.or}</span></div>
