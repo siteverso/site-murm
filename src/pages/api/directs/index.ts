@@ -33,9 +33,9 @@ export const POST: APIRoute = async context => {
 export const DELETE: APIRoute = async context => {
     try {
         const user = await requireUser(context);
-        const directId = Number(context.url.searchParams.get('id') || 0);
-        if (!Number.isInteger(directId) || directId <= 0) throw new Error('DIRECT_INVALIDO');
-        await deleteDirect(user.id, directId);
+        const messageId = Number(context.url.searchParams.get('messageId') || 0);
+        if (!Number.isInteger(messageId) || messageId <= 0) throw new Error('DIRECT_INVALIDO');
+        await deleteDirect(messageId, user.id);
         return json({ ok: true });
     } catch (error) {
         return errorResponse(error);

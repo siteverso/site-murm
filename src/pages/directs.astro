@@ -7,13 +7,16 @@ import Header from '../components/Header.astro';
   <main class="directs-page" data-directs-page>
     <aside class="directs-sidebar panel">
       <div class="directs-sidebar-head"><h1>Bilhetes</h1><span>Directs</span></div>
-      <div class="direct-list" data-direct-list aria-live="polite"></div>
+      <div class="direct-list" data-direct-list></div>
     </aside>
     <section class="directs-stage panel">
       <div class="direct-empty" data-direct-empty><strong>Escolha um bilhete</strong><span>As conversas chegam como correspondência, sem cara de chat.</span></div>
       <div class="direct-stage" data-direct-stage hidden>
-        <div class="direct-messages" data-direct-messages aria-live="polite"></div>
-        <form class="direct-form" data-direct-form><textarea name="contents" maxlength="256" placeholder="Responder com outro bilhete…" required></textarea><button class="button primary" type="submit">Enviar</button></form>
+        <div class="direct-messages" data-direct-messages></div>
+        <form class="direct-form" data-direct-form>
+          <textarea name="contents" maxlength="256" placeholder="Responder com outro bilhete…" required></textarea>
+          <button class="button primary" type="submit">Enviar</button>
+        </form>
       </div>
     </section>
   </main>

@@ -105,6 +105,21 @@ export async function sendDirect(senderId: number, recipientId: number, contents
     });
 }
 
+
+export async function deleteDirect(messageId: number, userId: number): Promise<void> {
+    await withConnection(async connection => {
+        const result = await connection.execute(
+            `DELETE FROM murm_direct
+              WHERE id = :message_id
+                AND sender_user_id = :user_id`,
+            { message_id: messageId, user_id: userId },
+            { autoCommit: true },
+        );
+
+        if (!result.rowsAffected) throw new Error('DIRECT_NAO_ENCONTRADO');
+    });
+}
+
 export async function unreadDirects(userId: number): Promise<{ count: number; latestId: number }> {
     return withConnection(async connection => {
         const result = await connection.execute<Record<string, unknown>>(

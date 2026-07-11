@@ -457,7 +457,7 @@ function openComposer() {
 }
 
 function openDirectComposer(userId, username) {
-  modal(`<h2>Enviar bilhete</h2><p class="modal-subtitle">Para @${escapeHtml(username)}</p><form data-direct-compose><input type="hidden" name="recipientId" value="${userId}"><textarea maxlength="1000" autofocus placeholder="Escreva seu bilhete…" required></textarea><div class="modal-actions"><span>Entrega discreta</span><button class="button primary">Enviar bilhete</button></div></form>`, 'direct-compose-modal');
+  modal(`<h2>Enviar bilhete</h2><p class="modal-subtitle">Para @${escapeHtml(username)}</p><form data-direct-compose><input type="hidden" name="recipientId" value="${userId}"><textarea maxlength="256" autofocus placeholder="Escreva seu bilhete…" required></textarea><div class="modal-actions"><span>Entrega discreta</span><button class="button primary">Enviar bilhete</button></div></form>`, 'direct-compose-modal');
 }
 
 function bindUi() {
@@ -640,26 +640,173 @@ async function pollDirects() {
 function bindDirectsPage() {
   const root = $('[data-directs-page]');
   if (!root) return;
-  const load = async (otherUserId = '') => {
+
+  const list = $('[data-direct-list]', root);
+  const messages = $('[data-direct-messages]', root);
+  const empty = $('[data-direct-empty]', root);
+  const stage = $('[data-direct-stage]', root);
+  const form = $('[data-direct-form]', root);
+  const textarea = $('textarea[name="contents"]', form);
+  const locale = window.__MURMUR_LOCALE__ === 'en' ? 'en' : 'pt-BR';
+  const pendingDeletes = new Map();
+  let activeUserId = '';
+  let requestToken = 0;
+
+  const labels = locale === 'en'
+    ? { remove: 'Delete', confirm: 'Confirm', cancel: 'Cancel', undo: 'Undo', deleted: 'Message deleted.' }
+    : { remove: 'Excluir', confirm: 'Confirmar', cancel: 'Cancelar', undo: 'Desfazer', deleted: 'Bilhete excluído.' };
+
+  const sexClass = value => value === 'M' ? 'sex-m' : value === 'F' ? 'sex-f' : '';
+
+  const renderConversations = conversations => {
+    list.innerHTML = (conversations || []).map(item => `
+      <button class="direct-thread ${String(item.otherUserId) === String(activeUserId) ? 'active' : ''} ${sexClass(item.sexCode)}" data-open-direct="${item.otherUserId}" type="button">
+        <strong>@${escapeHtml(item.username)}</strong>
+        <span>${escapeHtml(item.lastMessage)}</span>
+        <small>${item.unreadCount ? `${item.unreadCount} novo(s)` : ''}</small>
+      </button>
+    `).join('');
+  };
+
+  const renderMessages = items => {
+    messages.innerHTML = (items || []).map(message => {
+      const own = message.senderId === currentUser.id;
+      const senderSexCode = message.senderSexCode || (own ? currentUser?.sexCode : '');
+      return `
+        <article class="direct-note ${own ? 'sent' : 'received'} ${sexClass(senderSexCode)}" data-direct-message="${message.id}">
+          <div class="direct-note-head">
+            <span>${own ? 'Você' : '@' + escapeHtml(message.senderName)}</span>
+            ${own ? `<div class="direct-delete-zone">
+              <div class="direct-delete-confirm" data-delete-confirm hidden>
+                <button type="button" data-confirm-delete="${message.id}">${labels.confirm}</button>
+                <button type="button" data-cancel-delete>${labels.cancel}</button>
+              </div>
+              <button class="direct-delete-button" type="button" data-delete-direct="${message.id}" aria-label="${labels.remove}" title="${labels.remove}">×</button>
+            </div>` : ''}
+          </div>
+          <p>${escapeHtml(message.contents)}</p>
+          <time>${new Date(message.createdAt).toLocaleString()}</time>
+        </article>`;
+    }).join('');
+    messages.scrollTop = messages.scrollHeight;
+  };
+
+  const load = async (otherUserId = activeUserId) => {
+    const token = ++requestToken;
     const url = otherUserId ? `/api/directs?otherUserId=${otherUserId}` : '/api/directs';
     const data = await api(url);
-    $('[data-direct-list]').innerHTML = (data.conversations || []).map(item => {
-      const sexClass = item.sexCode === 'M' ? 'sex-m' : item.sexCode === 'F' ? 'sex-f' : '';
-      return `<button class="direct-thread ${String(item.otherUserId) === String(otherUserId) ? 'active' : ''} ${sexClass}" data-open-direct="${item.otherUserId}"><strong>@${escapeHtml(item.username)}</strong><span>${escapeHtml(item.lastMessage)}</span><small>${item.unreadCount ? `${item.unreadCount} novo(s)` : ''}</small></button>`;
-    }).join('');
-    if (data.messages) $('[data-direct-messages]').innerHTML = data.messages.map(message => {
-      const senderSexCode = message.senderSexCode || (message.senderId === currentUser.id ? currentUser?.sexCode : '');
-      const sexClass = senderSexCode === 'M' ? 'sex-m' : senderSexCode === 'F' ? 'sex-f' : '';
-      return `<article class="direct-note ${message.senderId === currentUser.id ? 'sent' : 'received'} ${sexClass}"><span>${message.senderId === currentUser.id ? 'Você' : '@' + escapeHtml(message.senderName)}</span><p>${escapeHtml(message.contents)}</p><time>${new Date(message.createdAt).toLocaleString()}</time></article>`;
-    }).join('');
-    if (otherUserId) { $('[data-direct-form]').dataset.recipientId = otherUserId; $('[data-direct-empty]').hidden = true; $('[data-direct-stage]').hidden = false; }
+    if (token !== requestToken) return;
+
+    activeUserId = otherUserId ? String(otherUserId) : '';
+    renderConversations(data.conversations || []);
+
+    if (activeUserId) {
+      renderMessages(data.messages || []);
+      form.dataset.recipientId = activeUserId;
+      empty.hidden = true;
+      stage.hidden = false;
+    }
   };
-  root.addEventListener('click', event => { const button = event.target.closest('[data-open-direct]'); if (button) load(button.dataset.openDirect); });
-  $('[data-direct-form]')?.addEventListener('submit', async event => {
-    event.preventDefault(); const form = event.currentTarget; const contents = form.contents.value.trim();
-    try { await api('/api/directs', { method: 'POST', body: JSON.stringify({ recipientId: Number(form.dataset.recipientId), contents }) }); form.reset(); await load(form.dataset.recipientId); } catch (error) { toast(error.message); }
+
+  const showUndo = (message, messageId) => {
+    const undo = document.createElement('div');
+    undo.className = 'direct-undo';
+    undo.innerHTML = `<span>${labels.deleted}</span><button type="button" data-undo-direct="${messageId}">${labels.undo}</button><span class="direct-undo-progress" aria-hidden="true"></span>`;
+    message.insertAdjacentElement('beforebegin', undo);
+    message.hidden = true;
+
+    const timer = setTimeout(async () => {
+      pendingDeletes.delete(String(messageId));
+      try {
+        await api(`/api/directs?messageId=${messageId}`, { method: 'DELETE' });
+        undo.remove();
+        message.remove();
+        await load(activeUserId);
+      } catch (error) {
+        message.hidden = false;
+        undo.remove();
+        toast(error.message);
+      }
+    }, 5000);
+
+    pendingDeletes.set(String(messageId), { timer, message, undo });
+  };
+
+  root.addEventListener('click', event => {
+    const open = event.target.closest('[data-open-direct]');
+    if (open) {
+      load(open.dataset.openDirect).catch(error => toast(error.message));
+      return;
+    }
+
+    const remove = event.target.closest('[data-delete-direct]');
+    if (remove) {
+      const note = remove.closest('[data-direct-message]');
+      note.querySelector('[data-delete-confirm]').hidden = false;
+      remove.hidden = true;
+      return;
+    }
+
+    const cancel = event.target.closest('[data-cancel-delete]');
+    if (cancel) {
+      const zone = cancel.closest('.direct-delete-zone');
+      zone.querySelector('[data-delete-confirm]').hidden = true;
+      zone.querySelector('[data-delete-direct]').hidden = false;
+      return;
+    }
+
+    const confirm = event.target.closest('[data-confirm-delete]');
+    if (confirm) {
+      const note = confirm.closest('[data-direct-message]');
+      showUndo(note, confirm.dataset.confirmDelete);
+      return;
+    }
+
+    const undoButton = event.target.closest('[data-undo-direct]');
+    if (undoButton) {
+      const pending = pendingDeletes.get(String(undoButton.dataset.undoDirect));
+      if (!pending) return;
+      clearTimeout(pending.timer);
+      pending.message.hidden = false;
+      pending.undo.remove();
+      const zone = pending.message.querySelector('.direct-delete-zone');
+      if (zone) {
+        zone.querySelector('[data-delete-confirm]').hidden = true;
+        zone.querySelector('[data-delete-direct]').hidden = false;
+      }
+      pendingDeletes.delete(String(undoButton.dataset.undoDirect));
+    }
   });
-  load();
+
+  form?.addEventListener('submit', async event => {
+    event.preventDefault();
+    const contents = textarea.value.trim();
+    if (!contents || !activeUserId) return;
+
+    const submit = $('button[type="submit"]', form);
+    setButtonLoading(submit, true, locale === 'en' ? 'Sending…' : 'Enviando…');
+    try {
+      await api('/api/directs', {
+        method: 'POST',
+        body: JSON.stringify({ recipientId: Number(activeUserId), contents }),
+      });
+      form.reset();
+      await load(activeUserId);
+      textarea.focus({ preventScroll: true });
+    } catch (error) {
+      toast(error.message);
+    } finally {
+      setButtonLoading(submit, false);
+    }
+  });
+
+  textarea?.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+    event.preventDefault();
+    form.requestSubmit();
+  });
+
+  load('').catch(error => toast(error.message));
 }
 
 document.addEventListener('submit', async event => {
