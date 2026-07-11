@@ -51,6 +51,9 @@ const escapeHtml = (value = '') => String(value).replace(/[&<>'"]/g, char => ({
 
 let currentUser = null;
 let posts = [];
+let feedSignature = '';
+let feedRequestRunning = false;
+let feedTimer = null;
 
 function userInitials(username = '') {
   return String(username).trim().slice(0, 2).toUpperCase() || 'MU';
@@ -171,27 +174,65 @@ function renderNetworkInfo(posts, malePosts, femalePosts, otherPosts) {
   `;
 }
 
-async function loadFeed() {
+function getFeedSignature(items) {
+  return JSON.stringify(items.map(post => [
+    post.id,
+    post.sexCode,
+    post.text,
+    post.positive,
+    post.negative,
+    post.shares,
+    post.myVote,
+    post.createdAt,
+    (post.replies || []).map(reply => [reply.id, reply.text, reply.createdAt]),
+  ]));
+}
+
+async function loadFeed(force = false) {
   const maleFeed = $('[data-feed-male]');
   const femaleFeed = $('[data-feed-female]');
   const side = $('[data-feed-other-info]');
-  if (!maleFeed && !femaleFeed && !side) return;
+  if ((!maleFeed && !femaleFeed && !side) || feedRequestRunning) return;
 
-  const data = await api('/api/posts');
-  posts = data.posts || [];
+  feedRequestRunning = true;
+  try {
+    const data = await api('/api/posts');
+    const nextPosts = data.posts || [];
+    const nextSignature = getFeedSignature(nextPosts);
 
-  const malePosts = posts.filter(post => post.sexCode === 'M');
-  const femalePosts = posts.filter(post => post.sexCode === 'F');
-  const otherPosts = posts.filter(post => post.sexCode !== 'M' && post.sexCode !== 'F');
+    if (!force && nextSignature === feedSignature) return;
 
-  renderLane(maleFeed, malePosts);
-  renderLane(femaleFeed, femalePosts);
-  renderNetworkInfo(posts, malePosts, femalePosts, otherPosts);
+    posts = nextPosts;
+    feedSignature = nextSignature;
 
-  $('[data-count-male]')?.replaceChildren(document.createTextNode(`${malePosts.length} murmúrios`));
-  $('[data-count-female]')?.replaceChildren(document.createTextNode(`${femalePosts.length} murmúrios`));
-  $('[data-count-other]')?.replaceChildren(document.createTextNode(`${otherPosts.length} sem sexo`));
-  $('[data-threshold-label]')?.replaceChildren(document.createTextNode(`Total na rede: ${posts.length}`));
+    const malePosts = posts.filter(post => post.sexCode === 'M');
+    const femalePosts = posts.filter(post => post.sexCode === 'F');
+    const otherPosts = posts.filter(post => post.sexCode !== 'M' && post.sexCode !== 'F');
+
+    renderLane(maleFeed, malePosts);
+    renderLane(femaleFeed, femalePosts);
+    renderNetworkInfo(posts, malePosts, femalePosts, otherPosts);
+
+    $('[data-count-male]')?.replaceChildren(document.createTextNode(`${malePosts.length} murmúrios`));
+    $('[data-count-female]')?.replaceChildren(document.createTextNode(`${femalePosts.length} murmúrios`));
+    $('[data-count-other]')?.replaceChildren(document.createTextNode(`${otherPosts.length} sem sexo`));
+    $('[data-threshold-label]')?.replaceChildren(document.createTextNode(`Total na rede: ${posts.length}`));
+  } finally {
+    feedRequestRunning = false;
+  }
+}
+
+function startFeedPolling() {
+  if (!$('[data-feed-male]') && !$('[data-feed-female]') && !$('[data-feed-other-info]')) return;
+
+  clearInterval(feedTimer);
+  feedTimer = setInterval(() => {
+    if (document.visibilityState === 'visible') loadFeed().catch(() => {});
+  }, 1000);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') loadFeed().catch(() => {});
+  });
 }
 
 function bindFeed() {
@@ -437,7 +478,8 @@ document.addEventListener('submit', async event => {
 document.addEventListener('DOMContentLoaded', async () => {
   bindUi(); bindAuth(); bindProfile(); bindFeed();
   await loadUser();
-  await loadFeed().catch(() => {});
+  await loadFeed(true).catch(() => {});
+  startFeedPolling();
   bindDirectsPage();
   pollDirects();
   setInterval(pollDirects, 7000);
