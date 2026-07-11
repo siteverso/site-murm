@@ -693,7 +693,7 @@ function bindDirectsPage() {
     const own = message.senderId === currentUser.id;
     const senderSexCode = message.senderSexCode || (own ? currentUser?.sexCode : '');
     return `
-      <article class="direct-note ${own ? 'sent' : 'received'} ${sexClass(senderSexCode)}" data-direct-message="${message.id}">
+      <article class="direct-note ${own ? 'sent' : 'received'} ${sexClass(senderSexCode)}" data-direct-message="${message.id}" data-direct-sender-id="${message.senderId}">
         <p>${escapeHtml(message.contents)}</p>
         <div class="direct-note-footer">
           <time>${new Date(message.createdAt).toLocaleString()}</time>
@@ -708,6 +708,30 @@ function bindDirectsPage() {
       </article>`;
   };
 
+  const syncOldestMessageId = () => {
+    const first = messageList.querySelector('[data-direct-message]:not([hidden])');
+    oldestMessageId = first ? Number(first.dataset.directMessage) : 0;
+  };
+
+  const applyDirectGrouping = () => {
+    const notes = $$('[data-direct-message]', messageList).filter(note => !note.hidden);
+    notes.forEach((note, index) => {
+      const prev = notes[index - 1];
+      const next = notes[index + 1];
+      const senderId = String(note.dataset.directSenderId || '');
+      const sameAsPrev = prev && String(prev.dataset.directSenderId || '') === senderId;
+      const sameAsNext = next && String(next.dataset.directSenderId || '') === senderId;
+
+      note.classList.remove('group-single', 'group-start', 'group-middle', 'group-end');
+      if (sameAsPrev && sameAsNext) note.classList.add('group-middle');
+      else if (sameAsPrev) note.classList.add('group-end');
+      else if (sameAsNext) note.classList.add('group-start');
+      else note.classList.add('group-single');
+    });
+
+    syncOldestMessageId();
+  };
+
   const updateLoadMore = () => {
     messagesTop.hidden = !hasMoreMessages;
     loadMoreButton.textContent = loadingOlderMessages ? labels.loadingMore : labels.loadMore;
@@ -718,9 +742,7 @@ function bindDirectsPage() {
     const html = (items || []).map(messageHtml).join('');
     if (prepend) messageList.insertAdjacentHTML('afterbegin', html);
     else messageList.innerHTML = html;
-
-    const first = messageList.querySelector('[data-direct-message]');
-    oldestMessageId = first ? Number(first.dataset.directMessage) : 0;
+    applyDirectGrouping();
   };
 
   const load = async (otherUserId = activeUserId, updateUrl = false, replaceUrl = false) => {
@@ -789,6 +811,8 @@ function bindDirectsPage() {
         else messageList.appendChild(note);
       });
 
+      applyDirectGrouping();
+
       if (hasActuallyNewMessage && nearBottom) {
         requestAnimationFrame(() => { messages.scrollTop = messages.scrollHeight; });
       }
@@ -838,6 +862,7 @@ function bindDirectsPage() {
     undo.innerHTML = `<span>${labels.deleted}</span><button type="button" data-undo-direct="${messageId}">${labels.undo}</button><span class="direct-undo-progress" aria-hidden="true"></span>`;
     message.insertAdjacentElement('beforebegin', undo);
     message.hidden = true;
+    applyDirectGrouping();
 
     const timer = setTimeout(async () => {
       pendingDeletes.delete(String(messageId));
@@ -849,6 +874,7 @@ function bindDirectsPage() {
       } catch (error) {
         message.hidden = false;
         undo.remove();
+        applyDirectGrouping();
         toast(error.message);
       }
     }, 5000);
@@ -899,6 +925,7 @@ function bindDirectsPage() {
       clearTimeout(pending.timer);
       pending.message.hidden = false;
       pending.undo.remove();
+      applyDirectGrouping();
       const zone = pending.message.querySelector('.direct-delete-zone');
       if (zone) {
         zone.querySelector('[data-delete-confirm]').hidden = true;
