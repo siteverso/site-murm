@@ -9,5 +9,9 @@ Realize testes unitarios para garantir funcionamento
 TODO, um de cada vez:
 
 - rever todos os css se estao corretos e otimizados
-- tirar titulos das colunas
-- apos envio de mensagem no chata aparecer icone enviando girando,  nunca aparecer label, hoje aparece label e tem algum bug qu eo label fica na tela
+- criar perfil publico do usuario (Perfil) onde a pessoa ve a imagem do perfil maior, nome e murmurios da pessoa
+- dois cliques no murmurio aparece pra responder
+- voltar a exibir as resposta dentro do proprio murmurio 
+- so exibir o icone remover murmurio no hover, igual o direct  ![img_6.png](img_6.png)
+- logo apos enviar um bilhete permitir desfazer ![img_5.png](img_5.png)
+- 
