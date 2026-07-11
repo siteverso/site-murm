@@ -305,14 +305,31 @@ function bindFeed() {
   });
 }
 
-function closeModal() { $('[data-modal]')?.remove(); }
+function closeModal() {
+  $('[data-modal]')?.remove();
+}
+
+function focusModalField(selector) {
+  const focus = () => {
+    const field = $(selector);
+    if (!field) return;
+    field.focus({ preventScroll: true });
+    const length = field.value.length;
+    field.setSelectionRange?.(length, length);
+  };
+
+  requestAnimationFrame(() => requestAnimationFrame(focus));
+  setTimeout(focus, 80);
+}
+
 function modal(content, className = '') {
   closeModal();
-  document.body.insertAdjacentHTML('beforeend', `<div class="modal-backdrop" data-modal><div class="panel modal-card ${className}"><button class="modal-close" data-modal-close aria-label="Fechar">×</button>${content}</div></div>`);
+  document.body.insertAdjacentHTML('beforeend', `<div class="modal-backdrop" data-modal role="dialog" aria-modal="true"><div class="panel modal-card ${className}"><button class="modal-close" type="button" data-modal-close aria-label="Fechar">×</button>${content}</div></div>`);
 }
 
 function openComposer() {
   modal(`<h2>Novo murmúrio</h2><form data-floating-composer><textarea maxlength="420" autofocus placeholder="O que está murmurando?" required></textarea><div class="modal-actions"><span>Até 420 caracteres</span><button class="button primary">Murmurar</button></div></form>`);
+  focusModalField('[data-floating-composer] textarea');
 }
 
 function openDirectComposer(userId, username) {
@@ -324,6 +341,11 @@ function bindUi() {
     if (event.target.matches('[data-modal], [data-modal-close]')) closeModal();
     if (event.target.closest('[data-new-murmur]')) openComposer();
     if (event.target.closest('[data-scroll-top]')) window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || !$('[data-modal]')) return;
+    event.preventDefault();
+    closeModal();
   });
   window.addEventListener('scroll', () => $('[data-scroll-top]')?.classList.toggle('visible', scrollY > 500), { passive: true });
   $('[data-theme-toggle]')?.addEventListener('click', () => {

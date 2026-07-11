@@ -627,7 +627,7 @@ html[data-theme="dark"] .form-message[data-type="info"] { color: #91baf0; }
 
 
 /* Ações flutuantes */
-.floating-action, .scroll-top { position: fixed; right: 24px; z-index: 80; width: 54px; height: 54px; border: 1px solid var(--line); border-radius: 50%; color: var(--inverse); background: var(--strong); box-shadow: var(--shadow); cursor: pointer; font-size: 1.55rem; }
+.floating-action, .scroll-top { position: fixed; right: 24px; z-index: 80; width: 54px; height: 54px; padding: 0; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; color: var(--inverse); background: var(--strong); box-shadow: var(--shadow); cursor: pointer; font-size: 1.55rem; line-height: 1; }
 .floating-action { bottom: 24px; }
 .scroll-top { bottom: 88px; opacity: 0; transform: translateY(12px); pointer-events: none; transition: .2s ease; }
 .scroll-top.visible { opacity: 1; transform: none; pointer-events: auto; }
