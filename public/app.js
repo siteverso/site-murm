@@ -1,4 +1,53 @@
 const $ = (selector, root = document) => root.querySelector(selector);
+
+const ICONS = {
+  direct: `
+    <span class="action-icon" aria-hidden="true">
+      <svg viewBox="0 0 20 20" fill="none">
+        <path d="M3.5 5.5H16.5V14.5H3.5V5.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+        <path d="M4.5 6.5L10 10.7L15.5 6.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </span>`,
+  echo: `
+    <span class="action-icon" aria-hidden="true">
+      <svg viewBox="0 0 20 20" fill="none">
+        <circle cx="5" cy="10" r="1.55" fill="currentColor"/>
+        <path d="M8 7.7C9.55 8.85 9.55 11.15 8 12.3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        <path d="M11.2 5.8C14.7 8.3 14.7 11.7 11.2 14.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+      </svg>
+    </span>`,
+  ignore: `
+    <span class="action-icon" aria-hidden="true">
+      <svg viewBox="0 0 20 20" fill="none">
+        <circle cx="5.4" cy="9.8" r="1.45" fill="currentColor"/>
+        <path d="M8.1 8.05C9.2 8.9 9.2 10.7 8.1 11.55" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        <path d="M4.1 4.6L15.2 15.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+      </svg>
+    </span>`,
+  reply: `
+    <span class="action-icon" aria-hidden="true">
+      <svg viewBox="0 0 20 20" fill="none">
+        <path d="M8.2 6L4.5 9.7L8.2 13.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M5.1 9.7H11.4C13.9 9.7 15.5 11 15.5 13.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </span>`,
+  share: `
+    <span class="action-icon" aria-hidden="true">
+      <svg viewBox="0 0 20 20" fill="none">
+        <path d="M6 14L14 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        <path d="M8 6H14V12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </span>`,
+  send: `
+    <span class="action-icon" aria-hidden="true">
+      <svg viewBox="0 0 20 20" fill="none">
+        <circle cx="5" cy="10" r="1.45" fill="currentColor"/>
+        <path d="M8 7.85C9.25 8.85 9.25 11.15 8 12.15" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        <path d="M11.2 5.8C14.7 8.25 14.7 11.75 11.2 14.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+      </svg>
+    </span>`,
+};
+
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
 const api = async (url, options = {}) => {
@@ -174,17 +223,20 @@ function renderPost(post) {
     <div class="murmur-head">
       <div class="avatar">${escapeHtml(post.author.slice(0, 2).toUpperCase())}</div>
       <div class="murmur-author"><strong>@${escapeHtml(post.author)}</strong><span>${new Date(post.createdAt).toLocaleString()}</span></div>
-      <button class="letter-button" data-direct-user="${post.userId}" data-direct-name="${escapeHtml(post.author)}" title="Enviar bilhete" aria-label="Enviar bilhete">✉</button>
+      <button class="letter-button" data-direct-user="${post.userId}" data-direct-name="${escapeHtml(post.author)}" title="Enviar bilhete" aria-label="Enviar bilhete">${ICONS.direct}</button>
     </div>
     <p class="murmur-text">${escapeHtml(post.text)}</p>
     <div class="score-line"><span class="score ${score < 0 ? 'negative' : ''}">${score}</span></div>
     <div class="murmur-actions">
-      <button class="action-button ${post.myVote === 1 ? 'active' : ''}" data-vote="1" title="Ecoar" aria-label="Ecoar este murmúrio">☺ <span>${post.positive}</span></button>
-      <button class="action-button ${post.myVote === -1 ? 'active' : ''}" data-vote="-1" title="Ignorar" aria-label="Ignorar este murmúrio">☹ <span>${post.negative}</span></button>
-      <button class="action-button" data-reply>↩ <span>${post.replies?.length || 0}</span></button>
-      <button class="action-button" data-share>↗ <span>${post.shares}</span></button>
+      <button class="action-button ${post.myVote === 1 ? 'active' : ''}" data-vote="1" title="Ecoar" aria-label="Ecoar este murmúrio">${ICONS.echo}<span>${post.positive}</span></button>
+      <button class="action-button ${post.myVote === -1 ? 'active' : ''}" data-vote="-1" title="Ignorar" aria-label="Ignorar este murmúrio">${ICONS.ignore}<span>${post.negative}</span></button>
+      <button class="action-button" data-reply title="Responder" aria-label="Responder a este murmúrio">${ICONS.reply}<span>${post.replies?.length || 0}</span></button>
+      <button class="action-button" data-share title="Compartilhar link" aria-label="Compartilhar link deste murmúrio">${ICONS.share}<span>${post.shares}</span></button>
     </div>
-    <form class="reply-box" data-reply-form><input maxlength="280" placeholder="Responder sem fazer barulho…" required><button class="button primary small">Enviar</button></form>
+    <form class="reply-box" data-reply-form>
+      <input maxlength="280" placeholder="Responder sem fazer barulho…" required>
+      <button class="reply-send-button" type="submit" title="Enviar resposta" aria-label="Enviar resposta">${ICONS.send}</button>
+    </form>
     <div class="replies">${replies}</div>
   </article>`;
 }
@@ -338,7 +390,13 @@ function bindFeed() {
     if (!target) return;
     const card = target.closest('[data-post-id]');
     try {
-      if (target.matches('[data-reply]')) card.querySelector('[data-reply-form]').classList.toggle('open');
+      if (target.matches('[data-reply]')) {
+        const form = card.querySelector('[data-reply-form]');
+        form.classList.toggle('open');
+        if (form.classList.contains('open')) {
+          requestAnimationFrame(() => form.querySelector('input')?.focus({ preventScroll: true }));
+        }
+      }
       if (target.matches('[data-vote]')) {
         const postId = card.dataset.postId;
         card.classList.add('actions-pinned');
