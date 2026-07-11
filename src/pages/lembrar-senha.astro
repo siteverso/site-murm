@@ -1,0 +1,28 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+---
+<AppLayout title="Recuperar senha — Murmurinho" auth={false}>
+  <main class="auth-page">
+    <section class="auth-intro">
+      <a class="brand" href="/login"><span class="brand-mark">m</span><span>Murmurinho</span></a>
+      <div>
+        <h1>Volte para a conversa.</h1>
+        <p>Informe seu e-mail. Nesta versão local, simularemos o envio das instruções de recuperação.</p>
+      </div>
+      <small>Sem complicação.</small>
+    </section>
+    <section class="auth-form-wrap">
+      <form class="panel auth-card" data-recovery-form>
+        <h2>Recuperar senha</h2>
+        <p>Você receberá uma confirmação na própria tela.</p>
+        <div class="field">
+          <label for="email">E-mail</label>
+          <input id="email" name="email" type="email" autocomplete="email" placeholder="voce@exemplo.com" required />
+        </div>
+        <button class="button primary full" type="submit">Enviar instruções</button>
+        <div class="auth-links"><a href="/login">Voltar para o login</a></div>
+        <p class="form-message" data-form-message></p>
+      </form>
+    </section>
+  </main>
+</AppLayout>

@@ -1,0 +1,41 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+import Header from '../components/Header.astro';
+---
+<AppLayout title="Perfil — Murmurinho">
+  <Header />
+  <main class="shell profile-grid">
+    <aside class="panel profile-card">
+      <div class="avatar" data-profile-avatar>DM</div>
+      <h1 data-profile-name>Daniel Maia</h1>
+      <span class="handle" data-profile-handle>@daniel</span>
+      <p class="bio" data-profile-bio>Construindo coisas simples que funcionam.</p>
+      <div class="profile-stats">
+        <div><strong data-profile-posts>0</strong><span>murmúrios</span></div>
+        <div><strong data-profile-positive>0</strong><span>positivos</span></div>
+        <div><strong data-profile-shares>0</strong><span>compart.</span></div>
+      </div>
+    </aside>
+
+    <section class="panel profile-edit">
+      <h2>Editar perfil</h2>
+      <form data-profile-form>
+        <div class="field">
+          <label for="name">Nome</label>
+          <input id="name" name="name" maxlength="60" required />
+        </div>
+        <div class="field">
+          <label for="handle">Usuário</label>
+          <input id="handle" name="handle" maxlength="30" required />
+        </div>
+        <div class="field">
+          <label for="bio">Bio</label>
+          <textarea id="bio" name="bio" maxlength="180" rows="5"></textarea>
+        </div>
+        <button class="button primary" type="submit">Salvar perfil</button>
+        <p class="form-message" data-form-message></p>
+      </form>
+    </section>
+  </main>
+  <div class="toast" data-toast></div>
+</AppLayout>

@@ -1,0 +1,15 @@
+---
+const { compact = false } = Astro.props;
+---
+<header class:list={['topbar', { compact }]}> 
+  <a class="brand" href="/" aria-label="Murmurinho, página inicial">
+    <span class="brand-mark">m</span>
+    <span>Murmurinho</span>
+  </a>
+  <nav class="topbar-actions" aria-label="Ações principais">
+    <a class="nav-link" href="/">Início</a>
+    <a class="nav-link" href="/perfil">Perfil</a>
+    <button class="icon-button" type="button" data-theme-toggle aria-label="Alternar tema">◐</button>
+    <button class="button ghost small" type="button" data-logout>Sair</button>
+  </nav>
+</header>

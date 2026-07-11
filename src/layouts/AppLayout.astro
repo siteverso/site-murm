@@ -1,0 +1,25 @@
+---
+import '../styles/global.css';
+const { title = 'Murmurinho', description = 'A rede mais fácil do mundo', auth = true } = Astro.props;
+---
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="description" content={description} />
+    <meta name="color-scheme" content="light dark" />
+    <title>{title}</title>
+    <script is:inline>
+      (() => {
+        const saved = localStorage.getItem('murmurinho-theme');
+        const theme = saved || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
+  </head>
+  <body data-auth-required={auth ? 'true' : 'false'}>
+    <slot />
+    <script is:inline src="/app.js"></script>
+  </body>
+</html>

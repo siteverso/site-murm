@@ -1,0 +1,36 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+---
+<AppLayout title="Entrar — Murmurinho" auth={false}>
+  <main class="auth-page">
+    <section class="auth-intro">
+      <a class="brand" href="/login"><span class="brand-mark">m</span><span>Murmurinho</span></a>
+      <div>
+        <h1>Menos barulho. Mais conversa.</h1>
+        <p>A rede mais fácil do mundo, onde a própria comunidade ajuda a destacar o que merece atenção.</p>
+      </div>
+      <small>Preto, branco, simples e funcional.</small>
+    </section>
+    <section class="auth-form-wrap">
+      <form class="panel auth-card" data-login-form>
+        <h2>Entrar</h2>
+        <p>Use qualquer e-mail e senha para acessar este protótipo.</p>
+        <div class="field">
+          <label for="email">E-mail</label>
+          <input id="email" name="email" type="email" autocomplete="email" placeholder="voce@exemplo.com" required />
+        </div>
+        <div class="field">
+          <label for="password">Senha</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" minlength="4" placeholder="••••••••" required />
+        </div>
+        <div class="auth-links">
+          <label><input type="checkbox" name="remember" checked /> Lembrar acesso</label>
+          <a href="/lembrar-senha">Esqueci a senha</a>
+        </div>
+        <button class="button primary full" type="submit">Entrar no Murmurinho</button>
+        <p class="form-message" data-form-message></p>
+      </form>
+    </section>
+  </main>
+  <div class="toast" data-toast></div>
+</AppLayout>
