@@ -103,6 +103,7 @@ let posts = [];
 let feedSignature = '';
 let feedRequestRunning = false;
 const MIN_SITE_REFRESH_INTERVAL_MS = 2000;
+const DIRECT_SEND_COOLDOWN_MS = 2000;
 let feedTimer = null;
 
 function userInitials(username = '') {
@@ -651,21 +652,57 @@ function bindDirectsPage() {
   const stage = $('[data-direct-stage]', root);
   const form = $('[data-direct-form]', root);
   const textarea = $('textarea[name="contents"]', form);
+  const submitButton = $('button[type="submit"]', form);
   const locale = window.__MURMUR_LOCALE__ === 'en' ? 'en' : 'pt-BR';
   const pendingDeletes = new Map();
-  let activeUserId = '';
+  const getUrlUserId = () => {
+    const value = new URLSearchParams(window.location.search).get('userId');
+    return value && /^\d+$/.test(value) ? value : '';
+  };
+
+  const setUrlUserId = (userId, replace = false) => {
+    const url = new URL(window.location.href);
+    if (userId) url.searchParams.set('userId', String(userId));
+    else url.searchParams.delete('userId');
+    window.history[replace ? 'replaceState' : 'pushState']({}, '', `${url.pathname}${url.search}${url.hash}`);
+  };
+
+  let activeUserId = getUrlUserId();
   let requestToken = 0;
   let oldestMessageId = 0;
   let hasMoreMessages = false;
   let loadingOlderMessages = false;
   let refreshingDirects = false;
   let directsRefreshTimer = null;
+  let sendingDirect = false;
+  let directSendCooldownTimer = null;
+  const directSendStorageKey = 'murmurinho:last-direct-sent-at';
 
   const labels = locale === 'en'
     ? { remove: 'Delete', confirm: 'Confirm', cancel: 'Cancel', undo: 'Undo', deleted: 'Message deleted.', loadMore: 'Load 20 earlier', loadingMore: 'Loading…' }
     : { remove: 'Excluir', confirm: 'Confirmar', cancel: 'Cancelar', undo: 'Desfazer', deleted: 'Bilhete excluído.', loadMore: 'Carregar 20 anteriores', loadingMore: 'Carregando…' };
 
   const sexClass = value => value === 'M' ? 'sex-m' : value === 'F' ? 'sex-f' : '';
+
+  const setDirectSendDisabled = disabled => {
+    if (!submitButton) return;
+    submitButton.disabled = disabled;
+    submitButton.setAttribute('aria-disabled', String(disabled));
+  };
+
+  const scheduleDirectSendUnlock = () => {
+    clearTimeout(directSendCooldownTimer);
+    const lastSentAt = Number(localStorage.getItem(directSendStorageKey) || 0);
+    const remaining = Math.max(0, DIRECT_SEND_COOLDOWN_MS - (Date.now() - lastSentAt));
+    if (!sendingDirect && remaining === 0) {
+      setDirectSendDisabled(false);
+      return;
+    }
+    setDirectSendDisabled(true);
+    if (!sendingDirect) {
+      directSendCooldownTimer = setTimeout(scheduleDirectSendUnlock, remaining + 10);
+    }
+  };
 
   const renderConversations = conversations => {
     list.innerHTML = (conversations || []).map(item => `
@@ -682,8 +719,9 @@ function bindDirectsPage() {
     const senderSexCode = message.senderSexCode || (own ? currentUser?.sexCode : '');
     return `
       <article class="direct-note ${own ? 'sent' : 'received'} ${sexClass(senderSexCode)}" data-direct-message="${message.id}">
-        <div class="direct-note-head">
-          <span>${own ? 'Você' : '@' + escapeHtml(message.senderName)}</span>
+        <p>${escapeHtml(message.contents)}</p>
+        <div class="direct-note-footer">
+          <time>${new Date(message.createdAt).toLocaleString()}</time>
           ${own ? `<div class="direct-delete-zone">
             <div class="direct-delete-confirm" data-delete-confirm hidden>
               <button type="button" data-confirm-delete="${message.id}">${labels.confirm}</button>
@@ -692,8 +730,6 @@ function bindDirectsPage() {
             <button class="direct-delete-button" type="button" data-delete-direct="${message.id}" aria-label="${labels.remove}" title="${labels.remove}">×</button>
           </div>` : ''}
         </div>
-        <p>${escapeHtml(message.contents)}</p>
-        <time>${new Date(message.createdAt).toLocaleString()}</time>
       </article>`;
   };
 
@@ -712,13 +748,14 @@ function bindDirectsPage() {
     oldestMessageId = first ? Number(first.dataset.directMessage) : 0;
   };
 
-  const load = async (otherUserId = activeUserId) => {
+  const load = async (otherUserId = activeUserId, updateUrl = false, replaceUrl = false) => {
     const token = ++requestToken;
     const url = otherUserId ? `/api/directs?otherUserId=${otherUserId}&limit=20` : '/api/directs';
     const data = await api(url);
     if (token !== requestToken) return;
 
     activeUserId = otherUserId ? String(otherUserId) : '';
+    if (updateUrl) setUrlUserId(activeUserId, replaceUrl);
     renderConversations(data.conversations || []);
 
     if (activeUserId) {
@@ -738,7 +775,9 @@ function bindDirectsPage() {
 
     try {
       const requestedUserId = activeUserId;
-      const url = requestedUserId ? `/api/directs?otherUserId=${requestedUserId}&limit=20` : '/api/directs';
+      const renderedCount = $$('[data-direct-message]', messageList).length;
+      const refreshLimit = Math.min(50, Math.max(20, renderedCount));
+      const url = requestedUserId ? `/api/directs?otherUserId=${requestedUserId}&limit=${refreshLimit}` : '/api/directs';
       const data = await api(url);
       if (requestedUserId !== activeUserId) return;
 
@@ -746,16 +785,40 @@ function bindDirectsPage() {
       if (!requestedUserId) return;
 
       const nearBottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 80;
-      const existingIds = new Set(
-        $$('[data-direct-message]', messageList).map(item => String(item.dataset.directMessage))
-      );
-      const newMessages = (data.messages || []).filter(message => !existingIds.has(String(message.id)));
+      const existingNotes = $$('[data-direct-message]', messageList);
+      const existingIds = new Set(existingNotes.map(item => String(item.dataset.directMessage)));
+      const refreshedMessages = data.messages || [];
+      const refreshedIds = new Set(refreshedMessages.map(message => String(message.id)));
+      const oldestRefreshedId = refreshedMessages.length
+        ? Math.min(...refreshedMessages.map(message => Number(message.id)))
+        : 0;
 
-      if (newMessages.length) {
-        messageList.insertAdjacentHTML('beforeend', newMessages.map(messageHtml).join(''));
-        if (nearBottom) {
-          requestAnimationFrame(() => { messages.scrollTop = messages.scrollHeight; });
+      existingNotes.forEach(note => {
+        const messageId = Number(note.dataset.directMessage);
+        if ((oldestRefreshedId === 0 || messageId >= oldestRefreshedId) && !refreshedIds.has(String(messageId))) {
+          note.remove();
         }
+      });
+
+      const newMessages = refreshedMessages.filter(message => !existingIds.has(String(message.id)));
+      const newestExistingId = existingNotes.length
+        ? Math.max(...existingNotes.map(note => Number(note.dataset.directMessage)))
+        : 0;
+      const hasActuallyNewMessage = newMessages.some(message => Number(message.id) > newestExistingId);
+
+      newMessages.forEach(message => {
+        const messageId = Number(message.id);
+        const nextNote = $$('[data-direct-message]', messageList)
+          .find(note => Number(note.dataset.directMessage) > messageId);
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = messageHtml(message).trim();
+        const note = wrapper.firstElementChild;
+        if (nextNote) messageList.insertBefore(note, nextNote);
+        else messageList.appendChild(note);
+      });
+
+      if (hasActuallyNewMessage && nearBottom) {
+        requestAnimationFrame(() => { messages.scrollTop = messages.scrollHeight; });
       }
 
       hasMoreMessages = Boolean(data.hasMore);
@@ -830,7 +893,7 @@ function bindDirectsPage() {
 
     const open = event.target.closest('[data-open-direct]');
     if (open) {
-      load(open.dataset.openDirect).catch(error => toast(error.message));
+      load(open.dataset.openDirect, true).catch(error => toast(error.message));
       return;
     }
 
@@ -876,22 +939,36 @@ function bindDirectsPage() {
   form?.addEventListener('submit', async event => {
     event.preventDefault();
     const contents = textarea.value.trim();
-    if (!contents || !activeUserId) return;
+    const lastSentAt = Number(localStorage.getItem(directSendStorageKey) || 0);
+    const cooldownRemaining = DIRECT_SEND_COOLDOWN_MS - (Date.now() - lastSentAt);
+    if (!contents || !activeUserId || sendingDirect) return;
+    if (cooldownRemaining > 0) {
+      scheduleDirectSendUnlock();
+      return;
+    }
 
-    const submit = $('button[type="submit"]', form);
-    setButtonLoading(submit, true, locale === 'en' ? 'Sending…' : 'Enviando…');
+    sendingDirect = true;
+    setDirectSendDisabled(true);
+    submitButton?.setAttribute('aria-busy', 'true');
     try {
       await api('/api/directs', {
         method: 'POST',
         body: JSON.stringify({ recipientId: Number(activeUserId), contents }),
       });
+      localStorage.setItem(directSendStorageKey, String(Date.now()));
       form.reset();
       await load(activeUserId);
       textarea.focus({ preventScroll: true });
     } catch (error) {
-      toast(error.message);
+      if (error.message === 'Aguarde 2 segundos antes de enviar outro bilhete.') {
+        localStorage.setItem(directSendStorageKey, String(Date.now()));
+      } else {
+        toast(error.message);
+      }
     } finally {
-      setButtonLoading(submit, false);
+      sendingDirect = false;
+      submitButton?.removeAttribute('aria-busy');
+      scheduleDirectSendUnlock();
     }
   });
 
@@ -901,7 +978,13 @@ function bindDirectsPage() {
     form.requestSubmit();
   });
 
-  load('').catch(error => toast(error.message));
+  window.addEventListener('popstate', () => {
+    const urlUserId = getUrlUserId();
+    load(urlUserId).catch(error => toast(error.message));
+  });
+
+  scheduleDirectSendUnlock();
+  load(activeUserId, Boolean(activeUserId), true).catch(error => toast(error.message));
   startDirectsPolling();
 }
 

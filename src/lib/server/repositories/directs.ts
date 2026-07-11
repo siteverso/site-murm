@@ -1,6 +1,9 @@
 import oracledb from 'oracledb';
 import { withConnection } from '../oracle';
 
+const DIRECT_SEND_INTERVAL_MS = 2000;
+const lastDirectSentAtByUser = new Map<number, number>();
+
 export async function listConversations(userId: number): Promise<unknown[]> {
     return withConnection(async connection => {
         const result = await connection.execute<Record<string, unknown>>(
@@ -89,8 +92,15 @@ export async function listMessages(
 
 export async function sendDirect(senderId: number, recipientId: number, contents: string): Promise<number> {
     if (senderId === recipientId) throw new Error('DIRECT_INVALIDO');
-    return withConnection(async connection => {
-        const recipient = await connection.execute<Record<string, unknown>>(
+
+    const now = Date.now();
+    const lastSentAt = lastDirectSentAtByUser.get(senderId) || 0;
+    if (now - lastSentAt < DIRECT_SEND_INTERVAL_MS) throw new Error('DIRECT_AGUARDE');
+    lastDirectSentAtByUser.set(senderId, now);
+
+    try {
+        return await withConnection(async connection => {
+            const recipient = await connection.execute<Record<string, unknown>>(
             `SELECT id
                FROM murm_user
               WHERE id = :recipient_user_id
@@ -121,8 +131,14 @@ export async function sendDirect(senderId: number, recipientId: number, contents
             },
             { autoCommit: true },
         );
-        return Number((result.outBinds as { id: number[] }).id[0]);
-    });
+            return Number((result.outBinds as { id: number[] }).id[0]);
+        });
+    } catch (error) {
+        if (lastDirectSentAtByUser.get(senderId) === now) {
+            lastDirectSentAtByUser.delete(senderId);
+        }
+        throw error;
+    }
 }
 
 
