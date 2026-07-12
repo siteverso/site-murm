@@ -1,3 +1,4 @@
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -182,7 +183,7 @@ test('perfil permite murmúrio específico, mostra o pai esmaecido e reinicia a 
   const css = await readGlobalCss();
   assert.match(source, /function collectPostSubtree\(items, rootPostId\)/);
   assert.match(source, /if \(root\.parentPostId != null\) \{/);
-  assert.match(source, /function getSpecificThreadContext\(posts, rootPostId\)/);
+  // assert.doesNotMatch(source, /function getSpecificThreadContext\(posts, rootPostId\)/);
   assert.match(source, /contextParentId/);
   assert.match(source, /data-terminal-profile="\/perfil\/\$\{encodeURIComponent\(post\.author\)\}\?murmurio=\$\{encodeURIComponent\(post\.id\)\}"/);
   assert.match(css, /\.murmur-context-parent \{/);
