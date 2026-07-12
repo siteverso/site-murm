@@ -7,25 +7,17 @@ const {
 } = Astro.props;
 
 const normalizedGroups = replyGroups.map(group => {
-  const parentDeleted = !group.parent.exists || group.parent.isDeleted;
-  const parentId = Number(group.parent.id || group.parentPostId);
-  const replies = group.replies.map(reply => ({
-    ...reply,
-    parentPostId: parentId,
-    replyCount: 0,
-    myVote: 0,
-    isDeleted: false,
-  }));
+  const posts = Array.isArray(group?.posts)
+    ? group.posts.map(post => ({
+        ...post,
+        myVote: Number(post?.myVote || 0),
+        replyCount: Number(post?.replyCount || 0),
+      }))
+    : [];
 
   return {
-    parent: {
-      ...group.parent,
-      id: parentId,
-      replyCount: replies.length,
-      myVote: 0,
-      isDeleted: parentDeleted,
-    },
-    replies,
+    rootPostId: Number(group?.rootPostId || 0),
+    posts,
   };
 });
 

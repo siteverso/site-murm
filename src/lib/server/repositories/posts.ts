@@ -412,137 +412,202 @@ export async function restoreReply(replyId: number, userId: number): Promise<voi
 }
 
 
-type ReplyHistoryParent = {
-    id: number | null;
-    userId: number | null;
-    author: string;
-    sexCode: string;
-    avatarUrl: string;
-    text: string;
-    positive: number;
-    negative: number;
-    shares: number;
-    createdAt: number | null;
-    exists: boolean;
-    isDeleted: boolean;
-};
 
-type ReplyHistoryReply = {
+type ReplyHistoryPost = {
     id: number;
     userId: number;
+    parentPostId: number | null;
+    parentAuthor: string;
     author: string;
+    isDeleted: boolean;
     sexCode: string;
+    regionCode: string;
     avatarUrl: string;
     text: string;
     positive: number;
     negative: number;
     shares: number;
+    myVote: number;
     createdAt: number;
+    replyCount: number;
 };
 
 export type ReplyHistoryGroup = {
-    parentPostId: number;
-    parent: ReplyHistoryParent;
-    replies: ReplyHistoryReply[];
+    rootPostId: number;
+    posts: ReplyHistoryPost[];
 };
+
+function mapReplyHistoryRows(rows: PostRow[]): ReplyHistoryPost[] {
+    const uniqueRows = new Map<number, PostRow>();
+    rows.forEach(row => {
+        const id = Number(row.ID || 0);
+        if (!id) return;
+        uniqueRows.set(id, row);
+    });
+
+    const dedupedRows = [...uniqueRows.values()];
+    const replyCounts = new Map<number, number>();
+    dedupedRows.forEach(row => {
+        if (row.PARENT_POST_ID == null) return;
+        const parentId = Number(row.PARENT_POST_ID);
+        replyCounts.set(parentId, (replyCounts.get(parentId) || 0) + 1);
+    });
+
+    return dedupedRows.map(row => ({
+        id: Number(row.ID),
+        userId: Number(row.USER_ID || 0),
+        parentPostId: row.PARENT_POST_ID == null ? null : Number(row.PARENT_POST_ID),
+        parentAuthor: String(row.PARENT_USERNAME || ''),
+        author: String(row.USERNAME || ''),
+        isDeleted: String(row.STATUS || '').trim().toLowerCase() === 'deleted',
+        sexCode: String(row.SEX_CODE || '').trim().toUpperCase(),
+        regionCode: '',
+        avatarUrl: String(row.AVATAR_URL || ''),
+        text: String(row.CONTENTS || ''),
+        positive: Number(row.POSITIVE_COUNT || 0),
+        negative: Number(row.NEGATIVE_COUNT || 0),
+        shares: Number(row.SHARE_COUNT || 0),
+        myVote: 0,
+        createdAt: new Date(String(row.CREATED_AT)).getTime(),
+        replyCount: replyCounts.get(Number(row.ID)) || 0,
+    }));
+}
+
+async function fetchReplyHistoryBranch(connection: oracledb.Connection, replyId: number): Promise<ReplyHistoryPost[]> {
+    const result = await connection.execute<PostRow>(
+        `SELECT p.id,
+                p.user_id,
+                p.parent_post_id,
+                p.contents,
+                NVL(p.positive_count, 0) AS positive_count,
+                NVL(p.negative_count, 0) AS negative_count,
+                NVL(p.share_count, 0) AS share_count,
+                p.created_at,
+                p.status,
+                u.username,
+                NVL(u.sex_code, '') AS sex_code,
+                CASE
+                    WHEN u.avatar_image IS NOT NULL THEN
+                        '/api/users/' || u.id || '/avatar?v=' ||
+                        TO_CHAR(NVL(u.avatar_updated_at, u.updated_at), 'YYYYMMDDHH24MISSFF6')
+                    ELSE NVL(u.avatar_url, '')
+                END AS avatar_url,
+                parent_user.username AS parent_username
+           FROM murm_post p
+           JOIN murm_user u
+             ON u.id = p.user_id
+           LEFT JOIN murm_post parent_post
+             ON parent_post.id = p.parent_post_id
+           LEFT JOIN murm_user parent_user
+             ON parent_user.id = parent_post.user_id
+          WHERE LOWER(TRIM(p.post_type)) = 'murmur'
+            AND (
+                (p.id = :reply_id AND LOWER(TRIM(p.status)) IN ('published', 'deleted'))
+                OR p.id IN (
+                    SELECT id
+                      FROM murm_post
+                     WHERE LOWER(TRIM(post_type)) = 'murmur'
+                       AND LOWER(TRIM(status)) IN ('published', 'deleted')
+                     START WITH id = :reply_id
+                     CONNECT BY PRIOR parent_post_id = id
+                )
+                OR p.id IN (
+                    SELECT id
+                      FROM murm_post
+                     WHERE LOWER(TRIM(post_type)) = 'murmur'
+                       AND LOWER(TRIM(status)) = 'published'
+                     START WITH parent_post_id = :reply_id
+                     CONNECT BY PRIOR id = parent_post_id
+                )
+            )
+          ORDER BY p.created_at ASC, p.id ASC`,
+        {reply_id: replyId},
+    );
+
+    const mappedPosts = mapReplyHistoryRows(result.rows || []);
+    const byId = new Map(mappedPosts.map(post => [String(post.id), post]));
+    const selectedPost = byId.get(String(replyId));
+    if (!selectedPost) return mappedPosts;
+
+    if (selectedPost.parentPostId != null && !byId.has(String(selectedPost.parentPostId))) {
+        mappedPosts.unshift({
+            id: Number(selectedPost.parentPostId),
+            userId: 0,
+            parentPostId: null,
+            parentAuthor: '',
+            author: '',
+            isDeleted: true,
+            sexCode: '',
+            regionCode: '',
+            avatarUrl: '',
+            text: '',
+            positive: 0,
+            negative: 0,
+            shares: 0,
+            myVote: 0,
+            createdAt: Number(selectedPost.createdAt || Date.now()),
+            replyCount: mappedPosts.filter(post => Number(post.parentPostId) === Number(selectedPost.parentPostId)).length,
+        });
+    }
+
+    return mappedPosts;
+}
+
+function findReplyHistoryRootId(posts: ReplyHistoryPost[], selectedReplyId: number): number | null {
+    const byId = new Map(posts.map(post => [String(post.id), post]));
+    let current = byId.get(String(selectedReplyId));
+    if (!current) return null;
+
+    while (current?.parentPostId != null) {
+        const parent = byId.get(String(current.parentPostId));
+        if (!parent) return Number(current.parentPostId);
+        current = parent;
+    }
+
+    return current ? Number(current.id) : null;
+}
 
 export async function listReplyHistoryByUser(userId: number): Promise<ReplyHistoryGroup[]> {
     return withConnection(async connection => {
         const result = await connection.execute<PostRow>(
-            `SELECT r.id AS reply_id,
-                    r.user_id AS reply_user_id,
-                    r.parent_post_id,
-                    r.contents AS reply_contents,
-                    NVL(r.positive_count, 0) AS reply_positive_count,
-                    NVL(r.negative_count, 0) AS reply_negative_count,
-                    NVL(r.share_count, 0) AS reply_share_count,
-                    r.created_at AS reply_created_at,
-                    ru.username AS reply_username,
-                    NVL(ru.sex_code, '') AS reply_sex_code,
-                    CASE
-                        WHEN ru.avatar_image IS NOT NULL THEN
-                            '/api/users/' || ru.id || '/avatar?v=' ||
-                            TO_CHAR(NVL(ru.avatar_updated_at, ru.updated_at), 'YYYYMMDDHH24MISSFF6')
-                        ELSE NVL(ru.avatar_url, '')
-                    END AS reply_avatar_url,
-                    p.id AS parent_id,
-                    p.user_id AS parent_user_id,
-                    p.contents AS parent_contents,
-                    NVL(p.positive_count, 0) AS parent_positive_count,
-                    NVL(p.negative_count, 0) AS parent_negative_count,
-                    NVL(p.share_count, 0) AS parent_share_count,
-                    p.created_at AS parent_created_at,
-                    NVL(p.status, 'deleted') AS parent_status,
-                    pu.username AS parent_username,
-                    NVL(pu.sex_code, '') AS parent_sex_code,
-                    CASE
-                        WHEN pu.avatar_image IS NOT NULL THEN
-                            '/api/users/' || pu.id || '/avatar?v=' ||
-                            TO_CHAR(NVL(pu.avatar_updated_at, pu.updated_at), 'YYYYMMDDHH24MISSFF6')
-                        ELSE NVL(pu.avatar_url, '')
-                    END AS parent_avatar_url
+            `SELECT r.id AS reply_id
                FROM murm_post r
-               JOIN murm_user ru
-                 ON ru.id = r.user_id
-               LEFT JOIN murm_post p
-                 ON p.id = r.parent_post_id
-               LEFT JOIN murm_user pu
-                 ON pu.id = p.user_id
               WHERE r.user_id = :user_id
                 AND r.parent_post_id IS NOT NULL
                 AND LOWER(TRIM(r.status)) = 'published'
                 AND LOWER(TRIM(r.post_type)) = 'murmur'
-              ORDER BY NVL(p.created_at, r.created_at) DESC,
-                       NVL(p.id, r.parent_post_id) DESC,
-                       r.created_at ASC,
-                       r.id ASC`,
+              ORDER BY r.created_at DESC, r.id DESC`,
             {user_id: userId},
         );
 
-        const groups = new Map<number, ReplyHistoryGroup>();
+        const groups = new Map<number, { rootPostId: number; posts: Map<string, ReplyHistoryPost>; latestActivity: number }>();
         for (const row of result.rows || []) {
-            const parentPostId = Number(row.PARENT_POST_ID || 0);
-            if (!parentPostId) continue;
+            const replyId = Number(row.REPLY_ID || 0);
+            if (!replyId) continue;
 
-            let group = groups.get(parentPostId);
-            if (!group) {
-                const parentExists = row.PARENT_ID != null;
-                const parentStatus = String(row.PARENT_STATUS || '').trim().toLowerCase();
-                group = {
-                    parentPostId,
-                    parent: {
-                        id: parentExists ? Number(row.PARENT_ID) : null,
-                        userId: row.PARENT_USER_ID == null ? null : Number(row.PARENT_USER_ID),
-                        author: String(row.PARENT_USERNAME || ''),
-                        sexCode: String(row.PARENT_SEX_CODE || '').trim().toUpperCase(),
-                        avatarUrl: String(row.PARENT_AVATAR_URL || ''),
-                        text: String(row.PARENT_CONTENTS || ''),
-                        positive: Number(row.PARENT_POSITIVE_COUNT || 0),
-                        negative: Number(row.PARENT_NEGATIVE_COUNT || 0),
-                        shares: Number(row.PARENT_SHARE_COUNT || 0),
-                        createdAt: row.PARENT_CREATED_AT == null ? null : new Date(String(row.PARENT_CREATED_AT)).getTime(),
-                        exists: parentExists,
-                        isDeleted: !parentExists || parentStatus != 'published',
-                    },
-                    replies: [],
-                };
-                groups.set(parentPostId, group);
-            }
+            const branchPosts = await fetchReplyHistoryBranch(connection, replyId);
+            if (!branchPosts.length) continue;
 
-            group.replies.push({
-                id: Number(row.REPLY_ID),
-                userId: Number(row.REPLY_USER_ID),
-                author: String(row.REPLY_USERNAME || ''),
-                sexCode: String(row.REPLY_SEX_CODE || '').trim().toUpperCase(),
-                avatarUrl: String(row.REPLY_AVATAR_URL || ''),
-                text: String(row.REPLY_CONTENTS || ''),
-                positive: Number(row.REPLY_POSITIVE_COUNT || 0),
-                negative: Number(row.REPLY_NEGATIVE_COUNT || 0),
-                shares: Number(row.REPLY_SHARE_COUNT || 0),
-                createdAt: new Date(String(row.REPLY_CREATED_AT)).getTime(),
-            });
+            const rootPostId = findReplyHistoryRootId(branchPosts, replyId);
+            if (!rootPostId) continue;
+
+            const latestActivity = Math.max(...branchPosts.map(post => Number(post.createdAt || 0)), 0);
+            const existing = groups.get(rootPostId) || {
+                rootPostId,
+                posts: new Map<string, ReplyHistoryPost>(),
+                latestActivity,
+            };
+            branchPosts.forEach(post => existing.posts.set(String(post.id), post));
+            existing.latestActivity = Math.max(existing.latestActivity, latestActivity);
+            groups.set(rootPostId, existing);
         }
 
-        return Array.from(groups.values());
+        return [...groups.values()]
+            .sort((left, right) => right.latestActivity - left.latestActivity || right.rootPostId - left.rootPostId)
+            .map(group => ({
+                rootPostId: group.rootPostId,
+                posts: [...group.posts.values()].sort((left, right) => left.createdAt - right.createdAt || left.id - right.id),
+            }));
     });
 }
+

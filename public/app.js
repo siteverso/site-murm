@@ -620,15 +620,20 @@ function renderReplyHistory() {
   }
 
   feed.innerHTML = groups.map(group => {
-    const parent = group?.parent;
-    const replies = Array.isArray(group?.replies) ? group.replies : [];
-    if (!parent) return '';
-    const childrenByParent = new Map([[String(parent.id), replies]]);
-    return renderPost(parent, childrenByParent, new Set(), {
+    const threadPosts = Array.isArray(group?.posts) ? group.posts : [];
+    if (!threadPosts.length) return '';
+
+    const rootId = String(group?.rootPostId || '');
+    const byId = new Map(threadPosts.map(post => [String(post.id), post]));
+    const root = byId.get(rootId) || getRootPosts(threadPosts)[0] || null;
+    if (!root) return '';
+
+    const childrenByParent = groupPostsByParent(threadPosts);
+    return renderPost(root, childrenByParent, new Set(), {
       repliesMode: 'recursive',
       depth: 1,
       maxDepth: 5,
-      contextParentId: String(parent.id),
+      contextParentId: String(root.id),
     });
   }).join('');
 
