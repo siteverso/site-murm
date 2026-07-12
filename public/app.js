@@ -1021,30 +1021,22 @@ function closeReplyDeleteConfirm(exceptButton = null) {
 
 const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 
-function animateInflatedCard(element, fromHeight = 36) {
+function animateInflatedCard(element, _fromHeight = 36) {
   if (!element) return Promise.resolve();
-  const content = element.firstElementChild;
-  const contentHeight = content?.getBoundingClientRect().height || content?.scrollHeight || element.scrollHeight;
-  const targetHeight = Math.max(fromHeight, Math.ceil(contentHeight));
-  element.style.overflow = 'hidden';
-  element.style.height = `${fromHeight}px`;
-  element.style.opacity = '0.45';
-  const animation = element.animate([
-    { height: `${fromHeight}px`, opacity: 0.45, transform: 'translateY(-6px)' },
-    { height: `${Math.min(targetHeight, fromHeight + 40)}px`, opacity: 0.72, transform: 'translateY(-2px)', offset: 0.28 },
-    { height: `${targetHeight}px`, opacity: 1, transform: 'translateY(0)' },
+  const content = element.firstElementChild || element;
+
+  // O wrapper já entra com a altura natural do card. Assim, durante a abertura,
+  // nunca existe uma área vazia reservada por uma altura animada maior que o conteúdo.
+  const animation = content.animate([
+    { opacity: 0.38, transform: 'translateY(-7px) scaleY(.985)', clipPath: 'inset(0 0 10% 0 round 16px)' },
+    { opacity: 0.78, transform: 'translateY(-2px) scaleY(.995)', clipPath: 'inset(0 0 2% 0 round 16px)', offset: 0.42 },
+    { opacity: 1, transform: 'translateY(0) scaleY(1)', clipPath: 'inset(0 0 0 0 round 16px)' },
   ], {
-    duration: 680,
+    duration: 420,
     easing: 'cubic-bezier(.16, 1, .3, 1)',
-    fill: 'forwards',
   });
-  return animation.finished.catch(() => {}).finally(() => {
-    animation.cancel();
-    element.style.removeProperty('overflow');
-    element.style.removeProperty('height');
-    element.style.removeProperty('opacity');
-    element.style.removeProperty('transform');
-  });
+
+  return animation.finished.catch(() => {}).finally(() => animation.cancel());
 }
 
 async function loadAndExpandSpecificPost(rootId, inflateId) {

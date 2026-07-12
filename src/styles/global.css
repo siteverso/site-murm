@@ -1036,10 +1036,13 @@ html[data-theme="dark"] .field-help[data-type="waiting"] { color: #91baf0; }
 @keyframes siblingVacuumShimmer { to { background-position: -220% 0; } }
 .thread-expanded-card {
   min-height: 0;
+  height: auto;
   transform-origin: center top;
-  will-change: height, opacity, transform;
 }
-.thread-expanded-card:not([style*="height"]) { height: auto; }
+.thread-expanded-card > .murmur-card {
+  transform-origin: center top;
+  will-change: opacity, transform, clip-path;
+}
 .thread-selected-card > .murmur-card,
 .thread-expanded-card > .murmur-card {
   margin: 0;
