@@ -65,6 +65,140 @@ export async function listPosts(_currentUserId: number | null, profileUsername: 
     });
 }
 
+
+type PostRow = Record<string, unknown>;
+
+function mapPostRows(rows: PostRow[]): unknown[] {
+    const replyCounts = new Map<number, number>();
+    rows.forEach(row => {
+        if (row.PARENT_POST_ID == null) return;
+        const parentId = Number(row.PARENT_POST_ID);
+        replyCounts.set(parentId, (replyCounts.get(parentId) || 0) + 1);
+    });
+    return rows.map(row => ({
+        id: Number(row.ID),
+        userId: Number(row.USER_ID || 0),
+        parentPostId: row.PARENT_POST_ID == null ? null : Number(row.PARENT_POST_ID),
+        parentAuthor: String(row.PARENT_USERNAME || ''),
+        author: String(row.USERNAME || ''),
+        sexCode: String(row.SEX_CODE || '').trim().toUpperCase(),
+        regionCode: '',
+        avatarUrl: '',
+        text: String(row.CONTENTS || ''),
+        positive: Number(row.POSITIVE_COUNT || 0),
+        negative: Number(row.NEGATIVE_COUNT || 0),
+        shares: Number(row.SHARE_COUNT || 0),
+        myVote: 0,
+        createdAt: new Date(String(row.CREATED_AT)).getTime(),
+        replyCount: replyCounts.get(Number(row.ID)) || 0,
+    }));
+}
+
+export async function listSpecificThread(postId: number): Promise<{ posts: unknown[]; siblingStubs: unknown[] }> {
+    return withConnection(async connection => {
+        const rootResult = await connection.execute<PostRow>(
+            `SELECT parent_post_id FROM murm_post WHERE id = :post_id AND LOWER(TRIM(status)) = 'published'`,
+            {post_id: postId},
+        );
+        const rootRow = rootResult.rows?.[0];
+        if (!rootRow) throw new Error('POST_NAO_ENCONTRADO');
+        const parentId = rootRow.PARENT_POST_ID == null ? null : Number(rootRow.PARENT_POST_ID);
+
+        const fullResult = await connection.execute<PostRow>(
+            `SELECT p.id,
+                    p.user_id,
+                    p.parent_post_id,
+                    p.contents,
+                    NVL(p.positive_count, 0) AS positive_count,
+                    NVL(p.negative_count, 0) AS negative_count,
+                    NVL(p.share_count, 0) AS share_count,
+                    p.created_at,
+                    u.username,
+                    NVL(u.sex_code, '') AS sex_code,
+                    parent_user.username AS parent_username
+               FROM murm_post p
+               JOIN murm_user u ON u.id = p.user_id
+               LEFT JOIN murm_post parent_post ON parent_post.id = p.parent_post_id
+               LEFT JOIN murm_user parent_user ON parent_user.id = parent_post.user_id
+              WHERE LOWER(TRIM(p.status)) = 'published'
+                AND (
+                    p.id = :post_id
+                    OR p.id = :parent_id
+                    OR p.id IN (
+                        SELECT id
+                          FROM murm_post
+                         WHERE LOWER(TRIM(status)) = 'published'
+                         START WITH parent_post_id = :post_id
+                         CONNECT BY PRIOR id = parent_post_id
+                    )
+                )
+              ORDER BY p.created_at ASC`,
+            {post_id: postId, parent_id: parentId},
+        );
+
+        let siblingStubs: unknown[] = [];
+        if (parentId != null) {
+            const siblingResult = await connection.execute<PostRow>(
+                `SELECT p.id,
+                        p.parent_post_id,
+                        p.created_at,
+                        p.contents,
+                        NVL(u.sex_code, '') AS sex_code
+                   FROM murm_post p
+                   JOIN murm_user u ON u.id = p.user_id
+                  WHERE p.parent_post_id = :parent_id
+                    AND p.id <> :post_id
+                    AND LOWER(TRIM(p.status)) = 'published'
+                  ORDER BY p.created_at ASC, p.id ASC`,
+                {parent_id: parentId, post_id: postId},
+            );
+            siblingStubs = (siblingResult.rows || []).map(row => ({
+                id: Number(row.ID),
+                parentPostId: Number(row.PARENT_POST_ID),
+                createdAt: new Date(String(row.CREATED_AT)).getTime(),
+                textPreview: String(row.CONTENTS || '').slice(0, 140),
+                sexCode: String(row.SEX_CODE || '').trim().toUpperCase(),
+                isStub: true,
+            }));
+        }
+        return {posts: mapPostRows(fullResult.rows || []), siblingStubs};
+    });
+}
+
+export async function getPostBranch(postId: number): Promise<unknown[]> {
+    return withConnection(async connection => {
+        const result = await connection.execute<PostRow>(
+            `SELECT p.id,
+                    p.user_id,
+                    p.parent_post_id,
+                    p.contents,
+                    NVL(p.positive_count, 0) AS positive_count,
+                    NVL(p.negative_count, 0) AS negative_count,
+                    NVL(p.share_count, 0) AS share_count,
+                    p.created_at,
+                    u.username,
+                    NVL(u.sex_code, '') AS sex_code,
+                    parent_user.username AS parent_username
+               FROM murm_post p
+               JOIN murm_user u ON u.id = p.user_id
+               LEFT JOIN murm_post parent_post ON parent_post.id = p.parent_post_id
+               LEFT JOIN murm_user parent_user ON parent_user.id = parent_post.user_id
+              WHERE LOWER(TRIM(p.status)) = 'published'
+                AND p.id IN (
+                    SELECT id
+                      FROM murm_post
+                     WHERE LOWER(TRIM(status)) = 'published'
+                     START WITH id = :post_id
+                     CONNECT BY PRIOR id = parent_post_id
+                )
+              ORDER BY p.created_at ASC`,
+            {post_id: postId},
+        );
+        if (!result.rows?.length) throw new Error('POST_NAO_ENCONTRADO');
+        return mapPostRows(result.rows);
+    });
+}
+
 export async function createPost(userId: number, contents: string, parentPostId: number | null = null,): Promise<number> {
     return withConnection(async connection => {
         const result = await connection.execute(

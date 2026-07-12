@@ -70,7 +70,7 @@ test('respostas são agrupadas e renderizadas em lista compacta dentro do murmú
   assert.match(source, /closeReplyDeleteConfirm\(/);
   assert.match(css, /\.reply-preview-item \{/);
   assert.match(css, /\.reply-inline-delete-confirm \{/);
-  assert.match(source, /roots\.map\(post => renderPost\(post, childrenByParent, new Set\(\), \{ repliesMode, contextParentId \}\)\)/);
+  assert.match(source, /roots\.map\(post => renderPost\(post, childrenByParent, new Set\(\), \{ repliesMode, contextParentId: '' \}\)\)/);
 });
 
 test('ícones de direct e exclusão do murmúrio aparecem juntos apenas no hover ou foco', () => {
@@ -188,6 +188,32 @@ test('perfil permite murmúrio específico, mostra o pai esmaecido e reinicia a 
   assert.match(profile, /Ver todos os murmúrios/);
 });
 
+test('interna específica renderiza linhas de irmãs e permite inflar card por clique', async () => {
+  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const css = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/styles/global.css', import.meta.url), 'utf8'));
+  assert.match(source, /const SPECIFIC_SIBLING_WINDOW = 5/);
+  assert.match(source, /function renderSpecificThread\(parentPost, rootPost, allPosts, siblingStubs = \[\]\)/);
+  assert.match(source, /data-inflate-post=/);
+  assert.match(source, /data-thread-load-direction="before"/);
+  assert.match(source, /data-thread-load-direction="after"/);
+  assert.match(source, /state\.beforeExtra \+= SPECIFIC_SIBLING_WINDOW/);
+  assert.match(source, /state\.afterExtra \+= SPECIFIC_SIBLING_WINDOW/);
+  assert.match(source, /state\.expandedIds\.add\(String\(inflateId\)\)/);
+  assert.match(css, /\.thread-sibling-line,/);
+  assert.match(source, /function animateInflatedCard\(element, fromHeight = 36\)/);
+  assert.match(source, /element\.animate\(\[/);
+  assert.match(source, /height: `\$\{targetHeight\}px`/);
+});
+
+test('stub lazy é substituído pelos dados completos antes de inflar o card', async () => {
+  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  assert.match(source, /const safePosts = Array\.isArray\(allPosts\) \? allPosts : \[\]/);
+  assert.match(source, /const loadedById = new Map\(safePosts\.map\(post => \[String\(post\.id\), post\]\)\)/);
+  assert.match(source, /\.map\(post => loadedById\.get\(String\(post\.id\)\) \|\| post\)/);
+  assert.match(source, /const loadedPosts = Array\.isArray\(data\?\.posts\) \? data\.posts : \[\]/);
+  assert.match(source, /if \(!loadedPosts\.length\) throw new Error\('Murmúrio não encontrado\.'\)/);
+});
+
 test('murmúrio específico mostra somente o pai direto e a mensagem selecionada, sem irmãos', async () => {
   const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
   assert.match(source, /visited\.add\(String\(parent\.id\)\);/);
@@ -201,4 +227,42 @@ test('texto de cada mensagem abre o perfil no modo da própria mensagem e não e
   assert.match(source, /class="murmur-text-link" href="\/perfil\/\$\{encodeURIComponent\(post\.author\)\}\?murmurio=\$\{encodeURIComponent\(post\.id\)\}"/);
   assert.doesNotMatch(source, /Resposta para @/);
   assert.doesNotMatch(source, /murmur-reply-context/);
+});
+
+
+test('irmãs minimizadas exibem somente data e prévia truncada e carregam o card no clique', async () => {
+  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const repository = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/lib/server/repositories/posts.ts', import.meta.url), 'utf8'));
+  const css = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/styles/global.css', import.meta.url), 'utf8'));
+  assert.match(source, /thread-sibling-line__time/);
+  assert.match(source, /thread-sibling-line__preview/);
+  assert.match(repository, /textPreview: String\(row\.CONTENTS \|\| ''\)\.slice\(0, 140\)/);
+  assert.match(css, /text-overflow: ellipsis/);
+  assert.match(source, /loadAndExpandSpecificPost\(rootId, inflateId\)/);
+  assert.match(source, /beforeExtra \+= SPECIFIC_SIBLING_WINDOW/);
+  assert.match(source, /afterExtra \+= SPECIFIC_SIBLING_WINDOW/);
+});
+
+test('um clique expande automaticamente o contexto acima e abaixo a cada 300ms', async () => {
+  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  assert.match(source, /async function expandSpecificContext\(rootId, clickedId, orderedVisibleIds\)/);
+  assert.match(source, /await loadAndExpandSpecificPost\(rootId, String\(clickedId\)\)/);
+  assert.match(source, /await wait\(300\)/);
+  assert.match(source, /const aboveId = orderedVisibleIds\[clickedIndex - distance\]/);
+  assert.match(source, /const belowId = orderedVisibleIds\[clickedIndex \+ distance\]/);
+  assert.match(source, /await Promise\.all\(pair\.map\(id => loadAndExpandSpecificPost\(rootId, id\)\)\)/);
+});
+
+
+test('slide de inflação usa altura real e mantém estilo por sexo', async () => {
+  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const css = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/styles/global.css', import.meta.url), 'utf8'));
+  const repository = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/lib/server/repositories/posts.ts', import.meta.url), 'utf8'));
+  assert.match(source, /sourceLine\?\.getBoundingClientRect\(\)\.height/);
+  assert.match(source, /await animateInflatedCard\(expandedCard, sourceHeight\)/);
+  assert.match(source, /const sexClass = post\.sexCode === 'M' \? ' sex-m'/);
+  assert.match(css, /\.thread-sibling-line\.sex-m \{/);
+  assert.match(css, /\.thread-sibling-line\.sex-f \{/);
+  assert.doesNotMatch(css, /\.murmur-context-parent \{[\s\S]*?opacity: \.8;/);
+  assert.match(repository, /NVL\(u\.sex_code, ''\) AS sex_code/);
 });

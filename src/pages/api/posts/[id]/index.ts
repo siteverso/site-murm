@@ -1,7 +1,19 @@
 import type { APIRoute } from 'astro';
 import { errorResponse, json } from '../../../../lib/server/http';
-import { deletePost } from '../../../../lib/server/repositories/posts';
+import { deletePost, getPostBranch } from '../../../../lib/server/repositories/posts';
 import { requireUser } from '../../../../lib/server/session';
+
+
+export const GET: APIRoute = async context => {
+    try {
+        await requireUser(context);
+        const postId = Number(context.params.id);
+        if (!Number.isInteger(postId) || postId <= 0) throw new Error('POST_NAO_ENCONTRADO');
+        return json({ ok: true, posts: await getPostBranch(postId) });
+    } catch (error) {
+        return errorResponse(error);
+    }
+};
 
 export const DELETE: APIRoute = async context => {
     try {

@@ -3,6 +3,8 @@ import { formatDateTime, getSexColumnDefinitions, hasUnreadMessages } from '/app
 const $ = (selector, root = document) => root?.querySelector?.(selector) ?? null;
 const configuredTextLimit = Number.parseInt(String(window.__MURMUR_TEXT_LIMIT__ ?? ''), 10);
 const TEXT_LIMIT = Number.isInteger(configuredTextLimit) && configuredTextLimit > 0 ? configuredTextLimit : 256;
+const SPECIFIC_SIBLING_WINDOW = 5;
+const specificThreadStates = new Map();
 
 const ICONS = {
   direct: `
@@ -182,6 +184,7 @@ const escapeHtml = (value = '') => String(value).replace(/[&<>'"]/g, char => ({
 
 let currentUser = null;
 let posts = [];
+let specificSiblingStubs = [];
 let feedSignature = '';
 let feedRequestRunning = false;
 const MIN_SITE_REFRESH_INTERVAL_MS = 2000;
@@ -365,6 +368,91 @@ function compareRepliesByNewest(left, right) {
   return Number(right.id || 0) - Number(left.id || 0);
 }
 
+function compareRepliesByOldest(left, right) {
+  const timeDifference = new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
+  if (timeDifference !== 0) return timeDifference;
+  return Number(left.id || 0) - Number(right.id || 0);
+}
+
+function getSpecificThreadState(rootPostId) {
+  const key = String(rootPostId || '');
+  if (!specificThreadStates.has(key)) {
+    specificThreadStates.set(key, {
+      expandedIds: new Set(),
+      beforeExtra: 0,
+      afterExtra: 0,
+      animatePostIds: new Set(),
+      autoExpanding: false,
+    });
+  }
+  return specificThreadStates.get(key);
+}
+
+function renderSiblingVacuumLine(post, direction = '') {
+  const label = direction === 'before'
+    ? 'Carregar murmúrio anterior'
+    : direction === 'after'
+      ? 'Carregar próximo murmúrio'
+      : 'Carregar murmúrio';
+  const dateTime = post.createdAt ? new Date(post.createdAt).toLocaleString() : '';
+  const preview = String(post.textPreview || '').trim();
+  const sexClass = post.sexCode === 'M' ? ' sex-m' : post.sexCode === 'F' ? ' sex-f' : ' sex-u';
+  return `<button class="thread-sibling-line${sexClass}" type="button" data-inflate-post="${post.id}" aria-label="${label}">
+    <span class="thread-sibling-line__pulse" aria-hidden="true"></span>
+    <time class="thread-sibling-line__time">${escapeHtml(dateTime)}</time>
+    <span class="thread-sibling-line__preview">${escapeHtml(preview)}</span>
+  </button>`;
+}
+
+function renderSpecificThread(parentPost, rootPost, allPosts, siblingStubs = []) {
+  const rootId = String(rootPost.id);
+  const state = getSpecificThreadState(rootId);
+  const safePosts = Array.isArray(allPosts) ? allPosts : [];
+  const safeSiblingStubs = Array.isArray(siblingStubs) ? siblingStubs : [];
+  const loadedById = new Map(safePosts.map(post => [String(post.id), post]));
+  const byParent = groupPostsByParent(safePosts);
+  const siblings = [...safeSiblingStubs, rootPost]
+    .map(post => loadedById.get(String(post.id)) || post)
+    .sort(compareRepliesByOldest);
+  const selectedIndex = siblings.findIndex(post => sameId(post.id, rootId));
+  const beforeAll = selectedIndex > 0 ? siblings.slice(0, selectedIndex) : [];
+  const afterAll = selectedIndex >= 0 ? siblings.slice(selectedIndex + 1) : [];
+  const beforeVisible = beforeAll.slice(Math.max(0, beforeAll.length - (SPECIFIC_SIBLING_WINDOW + state.beforeExtra)));
+  const afterVisible = afterAll.slice(0, SPECIFIC_SIBLING_WINDOW + state.afterExtra);
+  const hiddenBeforeCount = Math.max(0, beforeAll.length - beforeVisible.length);
+  const hiddenAfterCount = Math.max(0, afterAll.length - afterVisible.length);
+
+  const renderSpecificItem = (post, direction = '') => {
+    const isExpanded = state.expandedIds.has(String(post.id));
+    if (!isExpanded) return renderSiblingVacuumLine(post, direction);
+    const animationClass = state.animatePostIds.has(String(post.id)) ? ' murmur-card-arriving' : '';
+    return `<div class="thread-expanded-card${animationClass}" data-expanded-post="${post.id}">${renderPost(post, byParent, new Set([String(parentPost.id)]), {
+      repliesMode: 'recursive',
+      depth: 2,
+      maxDepth: 5,
+      contextParentId: String(parentPost.id),
+    })}</div>`;
+  };
+
+  const beforeHtml = beforeVisible.map(post => renderSpecificItem(post, 'before')).join('');
+  const afterHtml = afterVisible.map(post => renderSpecificItem(post, 'after')).join('');
+  const loadBefore = hiddenBeforeCount > 0
+    ? `<button class="thread-sibling-load thread-sibling-load--before" type="button" data-thread-load-direction="before" data-thread-root-id="${rootId}">Mostrar mais 5 acima · restam ${hiddenBeforeCount}</button>`
+    : '';
+  const loadAfter = hiddenAfterCount > 0
+    ? `<button class="thread-sibling-load thread-sibling-load--after" type="button" data-thread-load-direction="after" data-thread-root-id="${rootId}">Mostrar mais 5 abaixo · restam ${hiddenAfterCount}</button>`
+    : '';
+  const selectedCard = renderPost(rootPost, byParent, new Set([String(parentPost.id)]), {
+    repliesMode: 'recursive',
+    depth: 2,
+    maxDepth: 5,
+    contextParentId: String(parentPost.id),
+  });
+  const parentShell = renderPost(parentPost, new Map([[String(parentPost.id), []]]), new Set(), { repliesMode: 'none', contextParentId: String(parentPost.id) });
+  const specificReplies = `${loadBefore}<div class="thread-sibling-stack thread-sibling-stack--before">${beforeHtml}</div><div class="thread-selected-card">${selectedCard}</div><div class="thread-sibling-stack thread-sibling-stack--after">${afterHtml}</div>${loadAfter}`;
+  return parentShell.replace('</article>', `<div class="replies replies-recursive replies-specific-thread" data-specific-thread-root="${rootId}">${specificReplies}</div></article>`);
+}
+
 function selectVisibleReplies(replies, limit = 3) {
   const newest = [...replies].sort(compareRepliesByNewest);
   if (newest.length <= limit) return newest;
@@ -504,16 +592,30 @@ function getSpecificThreadContext(posts, rootPostId) {
 
 function renderLane(feed, posts, repliesMode = 'none', rootPostId = '') {
   if (!feed) return;
-  const visiblePosts = rootPostId ? collectPostSubtree(posts, rootPostId) : posts;
-  const childrenByParent = groupPostsByParent(visiblePosts);
-  const { contextRootId, contextParentId } = rootPostId
-    ? getSpecificThreadContext(visiblePosts, rootPostId)
-    : { contextRootId: '', contextParentId: '' };
-  const roots = rootPostId
-    ? visiblePosts.filter(post => sameId(post.id, contextRootId || rootPostId))
-    : getRootPosts(visiblePosts);
+  if (rootPostId) {
+    const byId = new Map(posts.map(post => [String(post.id), post]));
+    const root = byId.get(String(rootPostId));
+    if (!root) {
+      feed.innerHTML = '<p class="empty-state">Murmúrio não encontrado.</p>';
+      return;
+    }
+    const parent = root.parentPostId == null ? null : byId.get(String(root.parentPostId));
+    if (parent) {
+      feed.innerHTML = renderSpecificThread(parent, root, posts, specificSiblingStubs);
+      return;
+    }
+    const visiblePosts = collectPostSubtree(posts, rootPostId);
+    const childrenByParent = groupPostsByParent(visiblePosts);
+    const roots = visiblePosts.filter(post => sameId(post.id, rootPostId));
+    feed.innerHTML = roots.length
+      ? roots.map(post => renderPost(post, childrenByParent, new Set(), { repliesMode, contextParentId: '' })).join('')
+      : '<p class="empty-state">Murmúrio não encontrado.</p>';
+    return;
+  }
+  const childrenByParent = groupPostsByParent(posts);
+  const roots = getRootPosts(posts);
   feed.innerHTML = roots.length
-    ? roots.map(post => renderPost(post, childrenByParent, new Set(), { repliesMode, contextParentId })).join('')
+    ? roots.map(post => renderPost(post, childrenByParent, new Set(), { repliesMode, contextParentId: '' })).join('')
     : '<p class="empty-state">Murmúrio não encontrado.</p>';
 }
 
@@ -643,12 +745,13 @@ async function loadFeed(force = false) {
     const profileUsername = profileFeed?.dataset.profileUsername || '';
     const profilePostId = profileFeed?.dataset.profilePostId || '';
     const endpoint = profilePostId
-      ? '/api/posts'
+      ? `/api/posts?specificId=${encodeURIComponent(profilePostId)}`
       : profileUsername
         ? `/api/posts?username=${encodeURIComponent(profileUsername)}`
         : '/api/posts';
     const data = await api(endpoint);
     const nextPosts = data.posts || [];
+    specificSiblingStubs = profilePostId ? (data.siblingStubs || []) : [];
     const nextSignature = getFeedSignature(nextPosts);
     if (!force && nextSignature === feedSignature) return;
 
@@ -799,6 +902,74 @@ function closeReplyDeleteConfirm(exceptButton = null) {
   });
 }
 
+const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
+
+function animateInflatedCard(element, fromHeight = 36) {
+  if (!element) return Promise.resolve();
+  const targetHeight = Math.max(fromHeight, element.scrollHeight);
+  element.style.overflow = 'hidden';
+  element.style.height = `${fromHeight}px`;
+  element.style.opacity = '0.45';
+  const animation = element.animate([
+    { height: `${fromHeight}px`, opacity: 0.45, transform: 'translateY(-6px)' },
+    { height: `${Math.min(targetHeight, fromHeight + 40)}px`, opacity: 0.72, transform: 'translateY(-2px)', offset: 0.28 },
+    { height: `${targetHeight}px`, opacity: 1, transform: 'translateY(0)' },
+  ], {
+    duration: 680,
+    easing: 'cubic-bezier(.16, 1, .3, 1)',
+    fill: 'forwards',
+  });
+  return animation.finished.catch(() => {}).finally(() => {
+    element.style.removeProperty('overflow');
+    element.style.removeProperty('height');
+    element.style.removeProperty('opacity');
+    element.style.removeProperty('transform');
+  });
+}
+
+async function loadAndExpandSpecificPost(rootId, inflateId) {
+  const profileFeed = $('[data-profile-feed]');
+  if (!profileFeed || !rootId || !inflateId) return;
+  const sourceLine = profileFeed.querySelector(`[data-inflate-post="${CSS.escape(String(inflateId))}"]`);
+  const sourceHeight = Math.max(32, Math.round(sourceLine?.getBoundingClientRect().height || 36));
+  const state = getSpecificThreadState(rootId);
+  const data = await api(`/api/posts/${encodeURIComponent(inflateId)}`);
+  const loadedPosts = Array.isArray(data?.posts) ? data.posts : [];
+  if (!loadedPosts.length) throw new Error('Murmúrio não encontrado.');
+  const byId = new Map((Array.isArray(posts) ? posts : []).map(post => [String(post.id), post]));
+  loadedPosts.forEach(post => byId.set(String(post.id), post));
+  posts = [...byId.values()];
+  state.expandedIds.add(String(inflateId));
+  renderLane(profileFeed, posts, 'recursive', rootId);
+  await new Promise(resolve => requestAnimationFrame(resolve));
+  const expandedCard = profileFeed.querySelector(`[data-expanded-post="${CSS.escape(String(inflateId))}"]`);
+  expandedCard?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  await animateInflatedCard(expandedCard, sourceHeight);
+}
+
+async function expandSpecificContext(rootId, clickedId, orderedVisibleIds) {
+  const state = getSpecificThreadState(rootId);
+  if (state.autoExpanding) return;
+  state.autoExpanding = true;
+  try {
+    const clickedIndex = orderedVisibleIds.indexOf(String(clickedId));
+    if (clickedIndex < 0) return;
+    await loadAndExpandSpecificPost(rootId, String(clickedId));
+    for (let distance = 1; distance < orderedVisibleIds.length; distance += 1) {
+      const pair = [];
+      const aboveId = orderedVisibleIds[clickedIndex - distance];
+      const belowId = orderedVisibleIds[clickedIndex + distance];
+      if (aboveId && !state.expandedIds.has(String(aboveId))) pair.push(String(aboveId));
+      if (belowId && !state.expandedIds.has(String(belowId))) pair.push(String(belowId));
+      if (!pair.length) continue;
+      await wait(300);
+      await Promise.all(pair.map(id => loadAndExpandSpecificPost(rootId, id)));
+    }
+  } finally {
+    state.autoExpanding = false;
+  }
+}
+
 function bindFeed() {
   document.addEventListener('click', async event => {
     const target = event.target.closest('button');
@@ -850,6 +1021,26 @@ function bindFeed() {
         toast('Murmúrio apagado.');
       }
       if (target.matches('[data-feed-more]')) { expandSplitFeed(target.dataset.feedMore); }
+      if (target.matches('[data-thread-load-direction]')) {
+        const profileFeed = $('[data-profile-feed]');
+        const rootId = profileFeed?.dataset.profilePostId || target.dataset.threadRootId || '';
+        if (rootId) {
+          const state = getSpecificThreadState(rootId);
+          if (target.dataset.threadLoadDirection === 'before') state.beforeExtra += SPECIFIC_SIBLING_WINDOW;
+          if (target.dataset.threadLoadDirection === 'after') state.afterExtra += SPECIFIC_SIBLING_WINDOW;
+          renderLane(profileFeed, posts, 'recursive', rootId);
+        }
+      }
+      if (target.matches('[data-inflate-post]')) {
+        const profileFeed = $('[data-profile-feed]');
+        const rootId = profileFeed?.dataset.profilePostId || '';
+        if (rootId) {
+          const inflateId = String(target.dataset.inflatePost);
+          const visibleIds = $$('[data-inflate-post]', profileFeed).map(line => String(line.dataset.inflatePost));
+          target.classList.add('is-loading');
+          await expandSpecificContext(rootId, inflateId, visibleIds);
+        }
+      }
       const directButton = target.closest('[data-direct-user]');
       if (directButton) openDirectComposer(Number(directButton.dataset.directUser), directButton.dataset.directName);
     } catch (error) { toast(error.message); }
