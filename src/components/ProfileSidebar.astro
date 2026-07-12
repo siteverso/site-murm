@@ -26,9 +26,24 @@ const regionLabel = regionLabels[profile?.regionCode || ''] || '';
       </form>
     </div>
   ) : (
-    <div class="avatar public-profile-avatar" data-profile-avatar={dynamic || undefined}>
-      {profile?.avatarUrl ? <img src={profile.avatarUrl} alt={`Foto de @${username}`} /> : initials}
-    </div>
+    <>
+      <button
+        class="avatar public-profile-avatar public-profile-avatar-button"
+        type="button"
+        aria-label={`Ampliar foto de @${username}`}
+        data-profile-avatar={dynamic || undefined}
+        data-profile-photo-open
+      >
+        {profile?.avatarUrl ? <img src={profile.avatarUrl} alt={`Foto de @${username}`} /> : initials}
+      </button>
+      <div class="profile-photo-viewer" data-profile-photo-viewer hidden>
+        <button class="profile-photo-viewer__backdrop" type="button" aria-label="Fechar imagem ampliada" data-profile-photo-close></button>
+        <figure class="profile-photo-viewer__content" role="dialog" aria-modal="true" aria-label={`Foto de @${username}`}>
+          <button class="profile-photo-viewer__close" type="button" aria-label="Fechar" title="Fechar" data-profile-photo-close>×</button>
+          <img data-profile-photo-large alt={`Foto ampliada de @${username}`} />
+        </figure>
+      </div>
+    </>
   )}
 
   <h1 data-profile-username={dynamic || undefined}>@{username}</h1>

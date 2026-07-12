@@ -925,3 +925,63 @@ html[data-theme="dark"] .field-help[data-type="waiting"] { color: #91baf0; }
 .profile-feed-heading h2 { margin: 0; }
 .profile-feed { display: grid; gap: 16px; }
 .profile-feed > .murmur-card { margin: 0; }
+
+/* Visualização simples da foto do perfil público. */
+.public-profile-avatar-button {
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: inherit;
+  cursor: zoom-in;
+}
+.public-profile-avatar-button:not(:has(img)) { cursor: default; }
+.profile-photo-viewer[hidden] { display: none; }
+.profile-photo-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 180;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.profile-photo-viewer__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgb(0 0 0 / 78%);
+  cursor: default;
+}
+.profile-photo-viewer__content {
+  position: relative;
+  z-index: 1;
+  width: min(760px, 92vw);
+  max-height: 88vh;
+  margin: 0;
+  padding: 5px;
+  border: 1px solid rgb(255 255 255 / 45%);
+  background: #080808;
+  box-shadow: 0 20px 70px rgb(0 0 0 / 55%);
+}
+.profile-photo-viewer__content img {
+  display: block;
+  width: 100%;
+  max-height: calc(88vh - 10px);
+  object-fit: contain;
+}
+.profile-photo-viewer__close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 55%);
+  border-radius: 50%;
+  color: #fff;
+  background: rgb(0 0 0 / 65%);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.profile-photo-viewer-open { overflow: hidden; }

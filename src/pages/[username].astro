@@ -1,0 +1,15 @@
+---
+const rawUsername = decodeURIComponent(Astro.params.username || '').trim();
+
+if (!rawUsername.startsWith('@') || rawUsername.length <= 1) {
+  return Astro.redirect('/');
+}
+
+const username = rawUsername.slice(1).trim();
+
+if (!username) {
+  return Astro.redirect('/');
+}
+
+return Astro.redirect(`/perfil/${encodeURIComponent(username)}`);
+---

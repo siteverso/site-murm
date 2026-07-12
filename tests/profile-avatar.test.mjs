@@ -56,3 +56,17 @@ test('clicar na imagem da conta abre o seletor de foto existente', async () => {
   assert.match(app, /avatarTrigger\?\.addEventListener\('click'/);
   assert.match(app, /avatarInput\?\.click\(\)/);
 });
+
+test('foto do perfil público abre visualização ampliada simples', async () => {
+  const sidebar = await read('src/components/ProfileSidebar.astro');
+  const app = await read('public/app.js');
+  const css = await read('src/styles/global.css');
+  assert.match(sidebar, /data-profile-photo-open/);
+  assert.match(sidebar, /data-profile-photo-viewer/);
+  assert.match(sidebar, /data-profile-photo-large/);
+  assert.match(app, /bindProfilePhotoViewer/);
+  assert.match(app, /event\.key === 'Escape'/);
+  assert.match(css, /profile-photo-viewer__backdrop/);
+  assert.match(css, /border: 1px solid/);
+  assert.match(css, /background: rgb\(0 0 0 \/ 78%\)/);
+});

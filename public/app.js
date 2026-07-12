@@ -916,7 +916,36 @@ function openAvatarCropper(file, message, input) {
   observer.observe(document.body, { childList: true });
 }
 
+function bindProfilePhotoViewer() {
+  const trigger = $('[data-profile-photo-open]');
+  const viewer = $('[data-profile-photo-viewer]');
+  const largeImage = $('[data-profile-photo-large]', viewer);
+  if (!trigger || !viewer || !largeImage) return;
+
+  const close = () => {
+    viewer.hidden = true;
+    document.documentElement.classList.remove('profile-photo-viewer-open');
+    trigger.focus({ preventScroll: true });
+  };
+
+  trigger.addEventListener('click', () => {
+    const image = $('img', trigger);
+    if (!image?.src) return;
+    largeImage.src = image.src;
+    largeImage.alt = image.alt || 'Foto de perfil ampliada';
+    viewer.hidden = false;
+    document.documentElement.classList.add('profile-photo-viewer-open');
+    $('[data-profile-photo-close]', viewer)?.focus({ preventScroll: true });
+  });
+
+  $$('[data-profile-photo-close]', viewer).forEach(button => button.addEventListener('click', close));
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !viewer.hidden) close();
+  });
+}
+
 function bindProfile() {
+  bindProfilePhotoViewer();
   const avatarForm = $('[data-avatar-form]');
   const avatarInput = $('[data-avatar-input]', avatarForm);
   const avatarTrigger = $('[data-avatar-trigger]');
