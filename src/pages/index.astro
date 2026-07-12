@@ -41,6 +41,14 @@ const t = getMessages(locale);
             <path d="M8.25 14.8h3.5M10 13.05v3.5" stroke="currentColor" stroke-width="1.15" stroke-linecap="round"/>
           </svg>
         </button>
+        <button class="segmented-control__button feed-view-button feed-view-button--grid" type="button" data-feed-view="grid" aria-label="Ver em grade responsiva" title="Grade responsiva">
+          <svg viewBox="0 0 20 20" aria-hidden="true" fill="none">
+            <rect x="2.5" y="2.5" width="6" height="6" rx="1.35" stroke="currentColor" stroke-width="1.5"/>
+            <rect x="11.5" y="2.5" width="6" height="6" rx="1.35" stroke="currentColor" stroke-width="1.5"/>
+            <rect x="2.5" y="11.5" width="6" height="6" rx="1.35" stroke="currentColor" stroke-width="1.5"/>
+            <rect x="11.5" y="11.5" width="6" height="6" rx="1.35" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+        </button>
         <button class="segmented-control__button feed-view-button" type="button" data-feed-view="list" aria-label="Ver em lista" title="Lista">
           <svg viewBox="0 0 20 20" aria-hidden="true" fill="none">
             <path d="M5 5.5h10M5 10h10M5 14.5h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
@@ -59,6 +67,12 @@ const t = getMessages(locale);
       <div class="feed-view-panel split-view relevance-view" data-feed-view-panel="relevance" data-feed-relevance-columns hidden></div>
 
       <div class="feed-view-panel split-view users-view" data-feed-view-panel="users" data-feed-user-columns hidden></div>
+
+      <div class="feed-view-panel grid-view" data-feed-view-panel="grid" hidden>
+        <section class="network-lane all-lane">
+          <div class="feed responsive-grid-feed" data-feed-grid></div>
+        </section>
+      </div>
 
       <div class="feed-view-panel list-view" data-feed-view-panel="list" hidden>
         <section class="network-lane all-lane">

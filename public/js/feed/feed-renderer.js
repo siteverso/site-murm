@@ -2,6 +2,7 @@ function renderFeedSkeletons() {
     const columns = $('[data-feed-columns]');
     const relevanceColumns = $('[data-feed-relevance-columns]');
     const userColumns = $('[data-feed-user-columns]');
+    const gridFeed = $('[data-feed-grid]');
     const allListFeed = $('[data-feed-all-list]');
     const profileFeed = $('[data-profile-feed]');
     const skeletonCard = () => `<article class="panel murmur-card skeleton-card" aria-hidden="true">
@@ -36,6 +37,7 @@ function renderFeedSkeletons() {
       <div class="feed lane-feed feed-skeleton" aria-label="Carregando murmúrios">${cards(3)}</div>
     </section>`).join('');
     });
+    if (gridFeed) gridFeed.innerHTML = cards(8);
     if (allListFeed) allListFeed.innerHTML = `<div class="feed-skeleton" aria-label="Carregando murmúrios">${cards(4)}</div>`;
     if (profileFeed) profileFeed.innerHTML = `<div class="feed-skeleton" aria-label="Carregando murmúrios">${cards(3)}</div>`;
 }
@@ -250,9 +252,10 @@ async function loadFeed(force = false) {
     const columns = $('[data-feed-columns]');
     const relevanceColumns = $('[data-feed-relevance-columns]');
     const userColumns = $('[data-feed-user-columns]');
+    const gridFeed = $('[data-feed-grid]');
     const allListFeed = $('[data-feed-all-list]');
     const profileFeed = $('[data-profile-feed]');
-    if ((!columns && !relevanceColumns && !userColumns && !allListFeed && !profileFeed) || feedRequestRunning) return;
+    if ((!columns && !relevanceColumns && !userColumns && !gridFeed && !allListFeed && !profileFeed) || feedRequestRunning) return;
 
     feedRequestRunning = true;
     if (!hasRenderedFeed) renderFeedSkeletons();
@@ -278,6 +281,7 @@ async function loadFeed(force = false) {
         if (typeof syncRandomMurmur === 'function') syncRandomMurmur();
         feedBuckets.all = posts;
         renderSplitFeeds();
+        renderLane(gridFeed, feedBuckets.all, 'compact');
         renderLane(allListFeed, feedBuckets.all, 'compact');
         const profileRepliesMode = profilePostId
             ? 'recursive'
@@ -304,7 +308,7 @@ function pinCardActions(postId) {
 }
 
 function startFeedPolling() {
-    if (!$('[data-feed-columns]') && !$('[data-feed-relevance-columns]') && !$('[data-feed-user-columns]') && !$('[data-feed-all-list]') && !$('[data-profile-feed]')) return;
+    if (!$('[data-feed-columns]') && !$('[data-feed-relevance-columns]') && !$('[data-feed-user-columns]') && !$('[data-feed-grid]') && !$('[data-feed-all-list]') && !$('[data-profile-feed]')) return;
 
     bindFeedSyncEvents();
     clearInterval(feedTimer);
