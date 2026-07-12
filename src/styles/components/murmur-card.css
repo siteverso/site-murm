@@ -137,6 +137,8 @@
 .murmur-pulse--low { --pulse-strength: 34%; }
 .murmur-pulse--medium { --pulse-strength: 62%; border-color: color-mix(in srgb, var(--line) 68%, var(--text) 32%); }
 .murmur-pulse--high { --pulse-strength: 88%; border-color: color-mix(in srgb, var(--line) 48%, var(--text) 52%); box-shadow: 0 0 14px color-mix(in srgb, var(--text) 9%, transparent), inset 0 1px 0 rgb(255 255 255 / 9%); }
+.murmur-pulse--negative .murmur-pulse__value { color: color-mix(in srgb, var(--danger, #ef5350) 72%, var(--text)); }
+.murmur-pulse--negative .murmur-pulse__icon { color: color-mix(in srgb, var(--danger, #ef5350) 58%, var(--muted)); }
 
 @media (max-width: 520px) {
   .murmur-pulse { padding-inline: 7px 9px; }

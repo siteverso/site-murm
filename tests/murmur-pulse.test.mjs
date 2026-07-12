@@ -12,11 +12,12 @@ function loadPulseComponent() {
   return window.MurmurPulse;
 }
 
-test('Pulso soma ecos e silenciamentos sem duplicar regra no card', () => {
+test('Pulso calcula ecos menos silenciamentos sem duplicar regra no card', () => {
   const pulse = loadPulseComponent();
   const renderer = read('public/js/posts/posts-and-replies.js');
 
-  assert.equal(pulse.getValue({ positive: 4, negative: 3 }), 7);
+  assert.equal(pulse.getValue({ positive: 4, negative: 3 }), 1);
+  assert.equal(pulse.getValue({ positive: 2, negative: 5 }), -3);
   assert.equal(pulse.getValue({ positive: -2, negative: null }), 0);
   assert.match(renderer, /MurmurPulse\.render\(post\)/);
   assert.doesNotMatch(renderer, /post\.positive\s*[+-]\s*post\.negative/);
@@ -29,11 +30,20 @@ test('Pulso classifica intensidade e produz marcação acessível', () => {
   assert.equal(pulse.getLevel(1), 'low');
   assert.equal(pulse.getLevel(5), 'medium');
   assert.equal(pulse.getLevel(15), 'high');
+  assert.equal(pulse.getLevel(-15), 'high');
+  assert.equal(pulse.getDirection(3), 'positive');
+  assert.equal(pulse.getDirection(-1), 'negative');
+  assert.equal(pulse.getDirection(0), 'neutral');
 
   const html = pulse.render({ positive: 2, negative: 1 });
   assert.match(html, /murmur-pulse--low/);
-  assert.match(html, /data-pulse-value="3"/);
-  assert.match(html, /Pulso do murmúrio: 3 reações entre ecos e silenciamentos/);
+  assert.match(html, /data-pulse-value="1"/);
+  assert.match(html, /murmur-pulse--positive/);
+  assert.match(html, /Pulso do murmúrio: saldo de 1: ecos menos silenciamentos/);
+
+  const negativeHtml = pulse.render({ positive: 2, negative: 3 });
+  assert.match(negativeHtml, /data-pulse-value="-1"/);
+  assert.match(negativeHtml, /murmur-pulse--negative/);
 });
 
 test('carregador registra o componente antes do renderizador de posts', () => {
