@@ -394,9 +394,10 @@ function bindFeed() {
         if (form.matches('[data-reply-form]')) {
             event.preventDefault();
             const card = form.closest('[data-post-id]');
-            const text = form.querySelector('input').value.trim();
+            const text = form.querySelector('input:not([type="checkbox"])').value.trim();
+            const isPrivate = Boolean(form.querySelector('input[name="private"]')?.checked);
             try {
-                await api(`/api/posts/${card.dataset.postId}/reply`, {method: 'POST', body: JSON.stringify({text})});
+                await api(`/api/posts/${card.dataset.postId}/reply`, {method: 'POST', body: JSON.stringify({text, private: isPrivate})});
                 announceFeedChanged();
                 if (!(await refreshReplyHistoryPage(card.dataset.postId))) await loadFeed(true);
             } catch (error) {

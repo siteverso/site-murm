@@ -18,7 +18,7 @@ const isOwnProfile = currentUser.id === profile.id;
 const profilePostId = String(Astro.url.searchParams.get('murmurio') || '').trim();
 const profileTab = String(Astro.url.searchParams.get('aba') || '').trim().toLowerCase();
 const showRepliesPage = profileTab === 'respostas';
-const replyGroups = showRepliesPage ? await listReplyHistoryByUser(profile.id) : [];
+const replyGroups = showRepliesPage ? await listReplyHistoryByUser(profile.id, currentUser.id) : [];
 ---
 <AppLayout title={`@${profile.username} — ${t.site.title}`}>
   <Header />

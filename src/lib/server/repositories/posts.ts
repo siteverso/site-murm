@@ -22,6 +22,7 @@ export async function listPosts(currentUserId: number | null, profileUsername: s
                  nvl(p.share_count, 0) AS share_count,
                  p.created_at,
                  p.status,
+                 nvl(p.visibility_code, 'public') AS visibility_code,
                  nvl(p.language_code, nvl(u.language_code, 'pt-BR')) AS language_code,
                  u.username,
                  nvl(u.sex_code, '') AS sex_code,
@@ -81,6 +82,7 @@ export async function listPosts(currentUserId: number | null, profileUsername: s
             myVote: Number(row.MY_VOTE || 0),
             hasMyReply: Number(row.HAS_MY_REPLY || 0) === 1,
             createdAt: new Date(String(row.CREATED_AT)).getTime(),
+            isPrivate: String(row.VISIBILITY_CODE || 'public').trim().toLowerCase() === 'private',
             replyCount: Number(row.REPLY_COUNT || 0),
         }));
     });
@@ -112,6 +114,7 @@ function mapPostRows(rows: PostRow[]): unknown[] {
         myVote: Number(row.MY_VOTE || 0),
         hasMyReply: Number(row.HAS_MY_REPLY || 0) === 1,
         createdAt: new Date(String(row.CREATED_AT)).getTime(),
+        isPrivate: String(row.VISIBILITY_CODE || 'public').trim().toLowerCase() === 'private',
         replyCount: replyCounts.get(Number(row.ID)) || 0,
     }));
 }
@@ -143,6 +146,7 @@ export async function listSpecificThread(postId: number, currentUserId: number |
                  nvl(p.share_count, 0) AS share_count,
                  p.created_at,
                  p.status,
+                 nvl(p.visibility_code, 'public') AS visibility_code,
                  u.username,
                  nvl(u.sex_code, '') AS sex_code,
                  ${userAvatarSql} AS avatar_url,
@@ -176,6 +180,10 @@ export async function listSpecificThread(postId: number, currentUserId: number |
                                  WITH parent_post_id = :post_id
                                      CONNECT BY PRIOR id = parent_post_id)
                  )
+             AND (p.parent_post_id IS NULL
+                  OR nvl(p.visibility_code, 'public') = 'public'
+                  OR p.user_id = :current_user_id
+                  OR parent_post.user_id = :current_user_id)
              ORDER BY p.created_at ASC`,
             {post_id: postId, current_user_id: currentUserId},
         );
@@ -228,7 +236,8 @@ export async function listSpecificThread(postId: number, currentUserId: number |
                 myVote: 0,
                 hasMyReply: false,
                 createdAt: Number(selectedPost?.createdAt || Date.now()),
-                replyCount: mappedPosts.filter(post => Number(post.parentPostId) === parentId).length,
+                isPrivate: false,
+            replyCount: mappedPosts.filter(post => Number(post.parentPostId) === parentId).length,
             });
         }
 
@@ -250,6 +259,7 @@ export async function getPostBranch(postId: number, currentUserId: number | null
                  nvl(p.share_count, 0) AS share_count,
                  p.created_at,
                  p.status,
+                 nvl(p.visibility_code, 'public') AS visibility_code,
                  u.username,
                  nvl(u.sex_code, '') AS sex_code,
                  ${userAvatarSql} AS avatar_url,
@@ -268,6 +278,10 @@ export async function getPostBranch(postId: number, currentUserId: number | null
              LEFT JOIN murm_user parent_user ON parent_user.id = parent_post.user_id
              WHERE lower(trim(p.status)) = 'published'
                  AND lower(trim(p.post_type)) = 'murmur'
+                 AND (p.parent_post_id IS NULL
+                      OR nvl(p.visibility_code, 'public') = 'public'
+                      OR p.user_id = :current_user_id
+                      OR parent_post.user_id = :current_user_id)
                  AND p.id IN (SELECT id
                               FROM murm_post
                               WHERE lower(trim(status)) = 'published'
@@ -283,7 +297,7 @@ export async function getPostBranch(postId: number, currentUserId: number | null
     });
 }
 
-export async function createPost(userId: number, contents: string, parentPostId: number | null = null,): Promise<number> {
+export async function createPost(userId: number, contents: string, parentPostId: number | null = null, isPrivate = false): Promise<number> {
     return withConnection(async connection => {
         const result = await connection.execute(
             `
@@ -294,7 +308,9 @@ export async function createPost(userId: number, contents: string, parentPostId:
                         parent_post_id,
                         contents,
                         post_type,
-                        language_code
+                        language_code,
+                        visibility_code,
+                        recipient_user_id
                     )
                     VALUES
                     (
@@ -302,7 +318,11 @@ export async function createPost(userId: number, contents: string, parentPostId:
                         :parent_post_id,
                         :contents,
                         'murmur',
-                        (SELECT NVL(language_code, 'pt-BR') FROM murm_user WHERE id = :user_id)
+                        (SELECT NVL(language_code, 'pt-BR') FROM murm_user WHERE id = :user_id),
+                        CASE WHEN :is_private = 1 AND :parent_post_id IS NOT NULL THEN 'private' ELSE 'public' END,
+                        CASE WHEN :is_private = 1 AND :parent_post_id IS NOT NULL
+                             THEN (SELECT user_id FROM murm_post WHERE id = :parent_post_id)
+                             ELSE NULL END
                     )
                     RETURNING id INTO :id;
                 END;
@@ -311,6 +331,7 @@ export async function createPost(userId: number, contents: string, parentPostId:
                 user_id: userId,
                 parent_post_id: parentPostId,
                 contents,
+                is_private: isPrivate ? 1 : 0,
                 id: {
                     dir: oracledb.BIND_OUT,
                     type: oracledb.NUMBER,
@@ -476,6 +497,7 @@ type ReplyHistoryPost = {
     myVote: number;
     createdAt: number;
     replyCount: number;
+    isPrivate: boolean;
 };
 
 export type ReplyHistoryGroup = {
@@ -515,11 +537,12 @@ function mapReplyHistoryRows(rows: PostRow[]): ReplyHistoryPost[] {
         myVote: Number(row.MY_VOTE || 0),
         hasMyReply: Number(row.HAS_MY_REPLY || 0) === 1,
         createdAt: new Date(String(row.CREATED_AT)).getTime(),
+        isPrivate: String(row.VISIBILITY_CODE || 'public').trim().toLowerCase() === 'private',
         replyCount: replyCounts.get(Number(row.ID)) || 0,
     }));
 }
 
-async function fetchReplyHistoryBranch(connection: oracledb.Connection, replyId: number): Promise<ReplyHistoryPost[]> {
+async function fetchReplyHistoryBranch(connection: oracledb.Connection, replyId: number, viewerUserId: number): Promise<ReplyHistoryPost[]> {
     const userSchema = await getUserSchema(connection);
     const userAvatarSql = avatarSql(userSchema, 'u');
     const result = await connection.execute<PostRow>(
@@ -532,6 +555,7 @@ async function fetchReplyHistoryBranch(connection: oracledb.Connection, replyId:
              nvl(p.share_count, 0) AS share_count,
              p.created_at,
              p.status,
+             nvl(p.visibility_code, 'public') AS visibility_code,
              u.username,
              nvl(u.sex_code, '') AS sex_code,
              ${userAvatarSql} AS avatar_url,
@@ -544,6 +568,10 @@ async function fetchReplyHistoryBranch(connection: oracledb.Connection, replyId:
          LEFT JOIN murm_user parent_user
                    ON parent_user.id = parent_post.user_id
          WHERE lower(trim(p.post_type)) = 'murmur'
+             AND (p.parent_post_id IS NULL
+                  OR nvl(p.visibility_code, 'public') = 'public'
+                  OR p.user_id = :viewer_user_id
+                  OR parent_post.user_id = :viewer_user_id)
              AND (
              (p.id = :reply_id AND lower(trim(p.status)) IN ('published', 'deleted'))
                  OR p.id IN (SELECT id
@@ -562,7 +590,7 @@ async function fetchReplyHistoryBranch(connection: oracledb.Connection, replyId:
                                  CONNECT BY PRIOR id = parent_post_id)
              )
          ORDER BY p.created_at ASC, p.id ASC`,
-        {reply_id: replyId},
+        {reply_id: replyId, viewer_user_id: viewerUserId},
     );
 
     const mappedPosts = mapReplyHistoryRows(result.rows || []);
@@ -586,6 +614,7 @@ async function fetchReplyHistoryBranch(connection: oracledb.Connection, replyId:
             shares: 0,
             myVote: 0,
             createdAt: Number(selectedPost.createdAt || Date.now()),
+            isPrivate: false,
             replyCount: mappedPosts.filter(post => Number(post.parentPostId) === Number(selectedPost.parentPostId)).length,
         });
     }
@@ -607,7 +636,7 @@ function findReplyHistoryRootId(posts: ReplyHistoryPost[], selectedReplyId: numb
     return current ? Number(current.id) : null;
 }
 
-export async function listReplyHistoryByUser(userId: number): Promise<ReplyHistoryGroup[]> {
+export async function listReplyHistoryByUser(userId: number, viewerUserId: number = userId): Promise<ReplyHistoryGroup[]> {
     return withConnection(async connection => {
         const result = await connection.execute<PostRow>(
             `SELECT r.id AS reply_id
@@ -625,7 +654,7 @@ export async function listReplyHistoryByUser(userId: number): Promise<ReplyHisto
             const replyId = Number(row.REPLY_ID || 0);
             if (!replyId) continue;
 
-            const branchPosts = await fetchReplyHistoryBranch(connection, replyId);
+            const branchPosts = await fetchReplyHistoryBranch(connection, replyId, viewerUserId);
             if (!branchPosts.length) continue;
 
             const rootPostId = findReplyHistoryRootId(branchPosts, replyId);

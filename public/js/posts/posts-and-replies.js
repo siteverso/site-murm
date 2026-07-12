@@ -181,6 +181,7 @@ function renderReplyPreview(reply) {
     return `<li class="reply-preview-item${sameId(currentUser?.id, reply.userId) ? ' is-own-reply' : ''}" data-reply-preview-id="${reply.id}">
     <a class="reply-preview-content" href="${replyProfileUrl}" aria-label="Abrir esta resposta no perfil de @${escapeHtml(reply.author)}">
       <strong>@${escapeHtml(reply.author)}</strong>
+      ${reply.isPrivate ? '<em class="reply-private-mini" title="Resposta privada"><i aria-hidden="true"></i></em>' : ''}
       <span>${escapeHtml(reply.text)}</span>
     </a>
     ${deleteControls}
@@ -241,6 +242,7 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
     <div class="murmur-head">
       <a class="avatar murmur-profile-link" href="/perfil/${encodeURIComponent(post.author)}" aria-label="Abrir perfil de @${escapeHtml(post.author)}">${post.avatarUrl ? `<img class="lazy-media" src="${escapeHtml(post.avatarUrl)}" alt="Foto de @${escapeHtml(post.author)}" loading="lazy" decoding="async">` : escapeHtml(userInitials(post.author))}</a>
       <div class="murmur-author"><a href="/perfil/${encodeURIComponent(post.author)}"><strong>@${escapeHtml(post.author)}</strong></a><span>${new Date(post.createdAt).toLocaleString()}</span></div>
+      ${post.isPrivate ? '<span class="reply-private-badge" title="Resposta privada"><i aria-hidden="true"></i>Privada</span>' : ''}
       ${renderPostHeaderActions(post)}
     </div>
     <a class="murmur-text-link" href="/perfil/${encodeURIComponent(post.author)}?murmurio=${encodeURIComponent(post.id)}" aria-label="Abrir esta mensagem no perfil de @${escapeHtml(post.author)}"><p class="murmur-text">${escapeHtml(post.text)}</p></a>
@@ -255,6 +257,10 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
     </div>
     <form class="reply-box" data-reply-form>
       <input maxlength="${TEXT_LIMIT}" placeholder="Responder sem fazer barulho…" required>
+      <label class="reply-private-toggle" title="Somente você e @${escapeHtml(post.author)} poderão ver esta resposta">
+        <input type="checkbox" name="private">
+        <span><i aria-hidden="true"></i><b class="reply-private-public">Pública</b><b class="reply-private-active">Privada</b></span>
+      </label>
       <button class="reply-send-button" type="submit" title="Enviar resposta" aria-label="Enviar resposta">${ICONS.send}</button>
     </form>
     ${nestedReplies}

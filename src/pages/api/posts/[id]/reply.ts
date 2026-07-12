@@ -8,10 +8,10 @@ export const POST: APIRoute = async context => {
     try {
         const user = await requireUser(context);
         const postId = Number(context.params.id);
-        const input = await body<{ text?: string }>(context.request);
+        const input = await body<{ text?: string; private?: boolean }>(context.request);
         const text = String(input.text || '').trim();
         if (!Number.isInteger(postId) || !text || text.length > TEXT_LIMIT) throw new Error('JSON_INVALIDO');
-        const id = await createPost(user.id, text, postId);
+        const id = await createPost(user.id, text, postId, input.private === true);
         return json({ ok: true, id }, 201);
     } catch (error) {
         return errorResponse(error);
