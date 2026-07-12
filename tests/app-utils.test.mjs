@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { readGlobalCss, readGlobalCssSync } from './css-test-utils.mjs';
-import { formatDateTime, getSexColumnDefinitions, hasUnreadMessages } from '../public/app-utils.mjs';
+import { formatDateTime, getRelevanceColumnDefinitions, getSexColumnDefinitions, hasUnreadMessages } from '../public/app-utils.mjs';
 import { readAppSource } from './js-source-test-utils.mjs';
 
 test('agrupamento por sexo inclui a terceira coluna para cadastros sem sexo', () => {
@@ -327,4 +327,10 @@ test('feed força leitura sem cache e sincroniza exclusões entre abas', async (
   assert.match(source, /event\.data\?\.type === 'feed-changed'/);
   assert.match(source, /window\.addEventListener\('focus', refresh\)/);
   assert.match(source, /window\.addEventListener\('pageshow', refresh\)/);
+});
+
+
+test('define as três colunas independentes de relevância', () => {
+  assert.deepEqual(getRelevanceColumnDefinitions().map(item => item.code), ['pulse', 'echoes', 'silences']);
+  assert.deepEqual(getRelevanceColumnDefinitions().map(item => item.label), ['Mais pulsos', 'Mais ecos', 'Mais silenciados']);
 });

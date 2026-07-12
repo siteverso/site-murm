@@ -5,7 +5,7 @@ function bindFeedView() {
 
     const panels = $$('[data-feed-view-panel]', board);
     const buttons = $$('[data-feed-view]', switcher);
-    const validViews = new Set(['split', 'list']);
+    const validViews = new Set(['split', 'relevance', 'list']);
 
     const applyView = view => {
         const mode = validViews.has(view) ? view : 'split';
@@ -18,7 +18,7 @@ function bindFeedView() {
         panels.forEach(panel => {
             panel.hidden = panel.dataset.feedViewPanel !== mode;
         });
-        if (mode === 'split') requestAnimationFrame(setupFeedColumnAutoload);
+        if (mode === 'split' || mode === 'relevance') requestAnimationFrame(setupFeedColumnAutoload);
         try {
             localStorage.setItem('murmur_feed_view', mode);
         } catch {

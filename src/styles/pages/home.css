@@ -181,3 +181,37 @@
 .empty-state.compact {
   padding: 0;
 }
+
+.feed-view-button--relevance svg {
+  width: 20px;
+  height: 20px;
+}
+.feed-view-button--relevance:hover svg,
+.feed-view-button--relevance.active svg {
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 70%, transparent));
+}
+.relevance-view .network-lane {
+  padding-top: 0;
+}
+.relevance-lane-heading {
+  min-height: 42px;
+  padding: 4px 4px 10px;
+  border-bottom: 0;
+  align-items: center;
+}
+.relevance-lane-heading h2 {
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 900;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+.relevance-view .pulse-lane .relevance-lane-heading h2 {
+  color: color-mix(in srgb, var(--accent) 76%, var(--text));
+}
+.relevance-view .echoes-lane .relevance-lane-heading h2 {
+  color: color-mix(in srgb, #64a8ff 76%, var(--text));
+}
+.relevance-view .silences-lane .relevance-lane-heading h2 {
+  color: color-mix(in srgb, #ff759d 74%, var(--text));
+}

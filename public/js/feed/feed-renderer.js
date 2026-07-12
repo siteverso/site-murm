@@ -1,5 +1,6 @@
 function renderFeedSkeletons() {
     const columns = $('[data-feed-columns]');
+    const relevanceColumns = $('[data-feed-relevance-columns]');
     const allListFeed = $('[data-feed-all-list]');
     const profileFeed = $('[data-profile-feed]');
     const skeletonCard = () => `<article class="panel murmur-card skeleton-card" aria-hidden="true">
@@ -21,13 +22,18 @@ function renderFeedSkeletons() {
   </article>`;
     const cards = (count = 3) => Array.from({length: count}, skeletonCard).join('');
 
-    if (columns) {
-        const definitions = getColumnDefinitions();
-        columns.dataset.columnCount = String(definitions.length);
-        columns.innerHTML = definitions.map(definition => `<section class="network-lane ${definition.className || ''}">
+    [
+        [columns, 'sex'],
+        [relevanceColumns, 'relevance'],
+    ].forEach(([container, mode]) => {
+        if (!container) return;
+        const definitions = getColumnDefinitions(mode);
+        container.dataset.columnCount = String(definitions.length);
+        container.innerHTML = definitions.map(definition => `<section class="network-lane ${definition.className || ''}">
+      ${mode === 'relevance' ? `<div class="lane-heading relevance-lane-heading"><h2>${definition.label}</h2></div>` : ''}
       <div class="feed lane-feed feed-skeleton" aria-label="Carregando murmúrios">${cards(3)}</div>
     </section>`).join('');
-    }
+    });
     if (allListFeed) allListFeed.innerHTML = `<div class="feed-skeleton" aria-label="Carregando murmúrios">${cards(4)}</div>`;
     if (profileFeed) profileFeed.innerHTML = `<div class="feed-skeleton" aria-label="Carregando murmúrios">${cards(3)}</div>`;
 }
@@ -65,17 +71,26 @@ function disconnectFeedColumnObservers() {
     feedColumnObservers = [];
 }
 
-function getColumnGroupMode() {
-    return 'sex';
+function getColumnDefinitions(mode = 'sex') {
+    return COLUMN_GROUPS[mode] || COLUMN_GROUPS.sex;
 }
 
-function getColumnDefinitions() {
-    return COLUMN_GROUPS[getColumnGroupMode()];
+function relevanceValue(post, code) {
+    if (code === 'pulse') return Number(post.positive || 0) - Number(post.negative || 0);
+    if (code === 'echoes') return Number(post.shares || 0);
+    if (code === 'silences') return Number(post.negative || 0);
+    return 0;
 }
 
-function getColumnItems(definition) {
+function getColumnItems(definition, mode = 'sex') {
     const roots = getRootPosts(posts);
-    return roots.filter(post => (post.sexCode || '') === definition.code);
+    if (mode === 'sex') return roots.filter(post => (post.sexCode || '') === definition.code);
+
+    return [...roots].sort((left, right) => {
+        const scoreDifference = relevanceValue(right, definition.code) - relevanceValue(left, definition.code);
+        if (scoreDifference) return scoreDifference;
+        return new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime();
+    });
 }
 
 function renderSplitLane(feed, items, kind) {
@@ -89,31 +104,37 @@ function renderSplitLane(feed, items, kind) {
         : '<p class="empty-state">Nenhum murmúrio nesta coluna.</p>';
 }
 
-function renderSplitFeeds() {
-    const columns = $('[data-feed-columns]');
-    if (!columns) return;
+function renderColumnGroup(container, mode) {
+    if (!container) return;
 
-    const definitions = getColumnDefinitions();
-    columns.dataset.columnCount = String(definitions.length);
-    columns.innerHTML = definitions.map(definition => {
-        const key = `${getColumnGroupMode()}-${definition.code || 'none'}`;
+    const definitions = getColumnDefinitions(mode);
+    container.dataset.columnCount = String(definitions.length);
+    container.innerHTML = definitions.map(definition => {
+        const key = `${mode}-${definition.code || 'none'}`;
         return `<section class="network-lane ${definition.className || ''}">
+      ${mode === 'relevance' ? `<div class="lane-heading relevance-lane-heading"><h2>${definition.label}</h2></div>` : ''}
       <div class="feed lane-feed" data-feed-column="${key}"></div>
     </section>`;
     }).join('');
 
     definitions.forEach(definition => {
-        const key = `${getColumnGroupMode()}-${definition.code || 'none'}`;
-        renderSplitLane($(`[data-feed-column="${key}"]`), getColumnItems(definition), key);
+        const key = `${mode}-${definition.code || 'none'}`;
+        renderSplitLane($(`[data-feed-column="${key}"]`, container), getColumnItems(definition, mode), key);
     });
+    setupLazyVisuals(container);
+}
+
+function renderSplitFeeds() {
+    renderColumnGroup($('[data-feed-columns]'), 'sex');
+    renderColumnGroup($('[data-feed-relevance-columns]'), 'relevance');
     setupFeedColumnAutoload();
-    setupLazyVisuals(columns);
 }
 
 function expandSplitFeed(kind) {
-    const definition = getColumnDefinitions().find(item => `${getColumnGroupMode()}-${item.code || 'none'}` === kind);
+    const [mode] = String(kind || '').split('-');
+    const definition = getColumnDefinitions(mode).find(item => `${mode}-${item.code || 'none'}` === kind);
     if (!definition) return;
-    const items = getColumnItems(definition);
+    const items = getColumnItems(definition, mode);
     splitFeedLimits[kind] = splitFeedLimits[kind] || FEED_BATCH_SIZE;
     if (splitFeedLimits[kind] >= items.length) return;
     splitFeedLimits[kind] += FEED_BATCH_SIZE;
@@ -200,9 +221,10 @@ let feedSignature = '';
 
 async function loadFeed(force = false) {
     const columns = $('[data-feed-columns]');
+    const relevanceColumns = $('[data-feed-relevance-columns]');
     const allListFeed = $('[data-feed-all-list]');
     const profileFeed = $('[data-profile-feed]');
-    if ((!columns && !allListFeed && !profileFeed) || feedRequestRunning) return;
+    if ((!columns && !relevanceColumns && !allListFeed && !profileFeed) || feedRequestRunning) return;
 
     feedRequestRunning = true;
     if (!hasRenderedFeed) renderFeedSkeletons();
@@ -253,7 +275,7 @@ function pinCardActions(postId) {
 }
 
 function startFeedPolling() {
-    if (!$('[data-feed-columns]') && !$('[data-feed-all-list]') && !$('[data-profile-feed]')) return;
+    if (!$('[data-feed-columns]') && !$('[data-feed-relevance-columns]') && !$('[data-feed-all-list]') && !$('[data-profile-feed]')) return;
 
     bindFeedSyncEvents();
     clearInterval(feedTimer);
