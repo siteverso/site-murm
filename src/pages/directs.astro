@@ -13,6 +13,16 @@ import Header from '../components/Header.astro';
     <section class="directs-stage panel">
       <div class="direct-empty" data-direct-empty><strong>Escolha um bilhete</strong><span>As conversas chegam como correspondência, sem cara de chat.</span></div>
       <div class="direct-stage" data-direct-stage hidden>
+        <header class="direct-conversation-head">
+          <div>
+            <span>Bilhete com</span>
+            <strong data-direct-active-username></strong>
+          </div>
+          <button class="direct-conversation-menu-button" type="button" data-direct-conversation-menu-button aria-label="Opções da conversa" title="Opções da conversa" aria-expanded="false">⋯</button>
+          <div class="direct-conversation-menu" data-direct-conversation-menu hidden>
+            <button type="button" data-report-direct>Denunciar conversa</button>
+          </div>
+        </header>
         <div class="direct-messages" data-direct-messages>
           <div class="direct-messages-top" data-direct-messages-top hidden>
             <button class="direct-load-more" type="button" data-load-more-direct>Carregar 20 anteriores</button>

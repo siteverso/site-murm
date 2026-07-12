@@ -188,3 +188,50 @@ export async function unreadDirects(userId: number): Promise<{ count: number; la
         return { count: Number(row?.UNREAD_COUNT || 0), latestId: Number(row?.LATEST_ID || 0) };
     });
 }
+
+export async function reportDirectConversation(
+    reporterUserId: number,
+    reportedUserId: number,
+    reason: string,
+    details: string,
+): Promise<void> {
+    if (reporterUserId === reportedUserId) throw new Error('DIRECT_INVALIDO');
+
+    await withConnection(async connection => {
+        const users = await connection.execute<Record<string, unknown>>(
+            `SELECT id, username
+               FROM murm_user
+              WHERE active = 1
+                AND (id IN (:reporter_user_id, :reported_user_id)
+                 OR LOWER(username) = 'murmurinho')`,
+            { reporter_user_id: reporterUserId, reported_user_id: reportedUserId },
+        );
+
+        const rows = users.rows || [];
+        const reporter = rows.find(row => Number(row.ID) === reporterUserId);
+        const reported = rows.find(row => Number(row.ID) === reportedUserId);
+        const moderator = rows.find(row => String(row.USERNAME || '').toLowerCase() === 'murmurinho');
+        if (!reporter || !reported || !moderator || Number(moderator.ID) === reporterUserId) {
+            throw new Error('DIRECT_INVALIDO');
+        }
+
+        const detailLine = details ? `\nDetalhes: ${details}` : '';
+        const contents = [
+            'DENÚNCIA DE CONVERSA',
+            `Denunciante: @${String(reporter.USERNAME)}`,
+            `Usuário denunciado: @${String(reported.USERNAME)}`,
+            `Motivo: ${reason}${detailLine}`,
+        ].join('\n');
+
+        await connection.execute(
+            `INSERT INTO murm_direct (sender_user_id, recipient_user_id, contents)
+             VALUES (:sender_user_id, :recipient_user_id, :contents)`,
+            {
+                sender_user_id: reporterUserId,
+                recipient_user_id: Number(moderator.ID),
+                contents,
+            },
+            { autoCommit: true },
+        );
+    });
+}

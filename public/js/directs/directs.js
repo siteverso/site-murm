@@ -33,6 +33,9 @@ function bindDirectsPage() {
     const empty = $('[data-direct-empty]', root);
     const stage = $('[data-direct-stage]', root);
     const form = $('[data-direct-form]', root);
+    const activeUsername = $('[data-direct-active-username]', root);
+    const conversationMenuButton = $('[data-direct-conversation-menu-button]', root);
+    const conversationMenu = $('[data-direct-conversation-menu]', root);
     const textarea = $('textarea[name="contents"]', form);
     const locale = window.__MURMUR_LOCALE__ === 'en' ? 'en' : 'pt-BR';
     const pendingDeletes = new Map();
@@ -55,10 +58,11 @@ function bindDirectsPage() {
     let loadingOlderMessages = false;
     let refreshingDirects = false;
     let directsRefreshTimer = null;
+    let activeConversationUsername = '';
 
     const labels = locale === 'en'
-        ? {remove: 'Delete', edit: 'Edit', save: 'Save', confirm: 'Confirm', cancel: 'Cancel', undo: 'Undo', deleted: 'Message deleted.', loadMore: 'Load 20 earlier', loadingMore: 'Loading…', edited: 'edited', pending: 'sending…'}
-        : {remove: 'Excluir', edit: 'Editar', save: 'Salvar', confirm: 'Confirmar', cancel: 'Cancelar', undo: 'Desfazer', deleted: 'Bilhete excluído.', loadMore: 'Carregar 20 anteriores', loadingMore: 'Carregando…', edited: 'editado', pending: 'enviando…'};
+        ? {remove: 'Delete', edit: 'Edit', save: 'Save', confirm: 'Confirm', cancel: 'Cancel', undo: 'Undo', deleted: 'Message deleted.', loadMore: 'Load 20 earlier', loadingMore: 'Loading…', edited: 'edited', pending: 'sending…', reportTitle: 'Report conversation', reportReason: 'Reason', reportDetails: 'Optional details', reportSubmit: 'Send report', reportSent: 'Report sent to @murmurinho.'}
+        : {remove: 'Excluir', edit: 'Editar', save: 'Salvar', confirm: 'Confirmar', cancel: 'Cancelar', undo: 'Desfazer', deleted: 'Bilhete excluído.', loadMore: 'Carregar 20 anteriores', loadingMore: 'Carregando…', edited: 'editado', pending: 'enviando…', reportTitle: 'Denunciar conversa', reportReason: 'Motivo', reportDetails: 'Detalhes opcionais', reportSubmit: 'Enviar denúncia', reportSent: 'Denúncia enviada para @murmurinho.'};
 
     const sexClass = value => value === 'M' ? 'sex-m' : value === 'F' ? 'sex-f' : '';
 
@@ -144,9 +148,14 @@ function bindDirectsPage() {
 
         activeUserId = otherUserId ? String(otherUserId) : '';
         if (updateUrl) setUrlUserId(activeUserId, replaceUrl);
-        renderConversations(data.conversations || []);
+        const conversations = data.conversations || [];
+        renderConversations(conversations);
 
         if (activeUserId) {
+            const activeConversation = conversations.find(item => String(item.otherUserId) === String(activeUserId));
+            activeConversationUsername = activeConversation?.username || '';
+            if (activeUsername) activeUsername.textContent = activeConversationUsername ? `@${activeConversationUsername}` : '';
+
             renderMessages(data.messages || []);
             hasMoreMessages = Boolean(data.hasMore);
             updateLoadMore();
@@ -283,7 +292,57 @@ function bindDirectsPage() {
         pendingDeletes.set(String(messageId), {timer, message, undo});
     };
 
+
+    const closeConversationMenu = () => {
+        if (!conversationMenu || !conversationMenuButton) return;
+        conversationMenu.hidden = true;
+        conversationMenuButton.setAttribute('aria-expanded', 'false');
+    };
+
+    const openReportDialog = () => {
+        if (!activeUserId || !activeConversationUsername) return;
+        closeConversationMenu();
+        modal(`
+          <h2>${labels.reportTitle}</h2>
+          <p class="modal-subtitle">@${escapeHtml(activeConversationUsername)} · a denúncia será enviada por bilhete para @murmurinho</p>
+          <form data-direct-report>
+            <input type="hidden" name="reportedUserId" value="${escapeHtml(activeUserId)}">
+            <label class="direct-report-field">
+              <span>${labels.reportReason}</span>
+              <select name="reason" required>
+                <option value="Assédio">Assédio</option>
+                <option value="Spam">Spam</option>
+                <option value="Ameaça">Ameaça</option>
+                <option value="Conteúdo impróprio">Conteúdo impróprio</option>
+                <option value="Outro">Outro</option>
+              </select>
+            </label>
+            <label class="direct-report-field">
+              <span>${labels.reportDetails}</span>
+              <textarea name="details" maxlength="600" placeholder="Descreva brevemente o ocorrido"></textarea>
+            </label>
+            <div class="modal-actions">
+              <span>O usuário denunciado não será avisado.</span>
+              <button class="button primary" type="submit">${labels.reportSubmit}</button>
+            </div>
+          </form>`, 'direct-report-modal');
+    };
+
     root.addEventListener('click', event => {
+        const menuToggle = event.target.closest('[data-direct-conversation-menu-button]');
+        if (menuToggle) {
+            const willOpen = conversationMenu.hidden;
+            conversationMenu.hidden = !willOpen;
+            conversationMenuButton.setAttribute('aria-expanded', String(willOpen));
+            return;
+        }
+
+        const report = event.target.closest('[data-report-direct]');
+        if (report) {
+            openReportDialog();
+            return;
+        }
+
         const loadMore = event.target.closest('[data-load-more-direct]');
         if (loadMore) {
             void loadOlderMessages();
@@ -460,3 +519,28 @@ document.addEventListener('submit', async event => {
     scheduleDirectSend({recipientId, contents});
 });
 
+
+
+document.addEventListener('submit', async event => {
+    if (!event.target.matches('[data-direct-report]')) return;
+    event.preventDefault();
+    const form = event.target;
+    const submit = form.querySelector('button[type="submit"]');
+    const reportedUserId = Number(form.reportedUserId.value);
+    const reason = String(form.reason.value || '').trim();
+    const details = String(form.details.value || '').trim();
+    if (!reportedUserId || !reason) return;
+
+    setButtonLoading(submit, true, '');
+    try {
+        await api('/api/directs/report', {
+            method: 'POST',
+            body: JSON.stringify({reportedUserId, reason, details}),
+        });
+        closeModal();
+        toast('Denúncia enviada para @murmurinho.');
+    } catch (error) {
+        toast(error.message);
+        setButtonLoading(submit, false);
+    }
+});
