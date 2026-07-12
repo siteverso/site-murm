@@ -41,7 +41,7 @@ function renderUser(user) {
         el.textContent = user.email;
     });
     $$('[data-profile-sex]').forEach(el => {
-        el.textContent = user.sexCode === 'M' ? 'Macho' : user.sexCode === 'F' ? 'Fêmea' : 'Sexo não informado';
+        el.textContent = user.sexCode === 'M' ? 'Masculino' : user.sexCode === 'F' ? 'Feminino' : 'Sexo não informado';
     });
     $$('[data-profile-country]').forEach(el => {
         el.textContent = user.countryName ? `${user.countryName}${user.countryCallingCode ? ` · ${user.countryCallingCode}` : ''}` : '';

@@ -12,7 +12,7 @@ const {
 const username = profile?.username || 'usuario';
 const initials = username.slice(0, 2).toUpperCase() || 'MU';
 const sexCode = profile?.sexCode || '';
-const sexLabel = sexCode === 'M' ? 'Macho' : sexCode === 'F' ? 'Fêmea' : 'Sexo não informado';
+const sexLabel = sexCode === 'M' ? 'Masculino' : sexCode === 'F' ? 'Feminino' : 'Sexo não informado';
 const countryLabel = profile?.countryName || '';
 const countryCallingCode = profile?.countryCallingCode || '';
 ---
