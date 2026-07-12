@@ -4,6 +4,7 @@ const DECK_SWIPE_THRESHOLD = 118;
 const DECK_DRAG_ACTIVATION = 8;
 const DECK_OPEN_THRESHOLD = 105;
 const DECK_THROW_DISTANCE = 1.2;
+const DECK_NEXT_CARD_READY_MS = 70;
 let deckOrder = [];
 let deckCursor = 0;
 let deckSignature = '';
@@ -77,10 +78,28 @@ function renderDeck(items = []) {
     setupLazyVisuals(deck);
 }
 
-function consumeDeckCard() {
+function animateFreshDeck(items = []) {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const duration = reducedMotion ? 70 : 300;
+    const easing = 'cubic-bezier(.16, 1, .3, 1)';
+    items.forEach(card => {
+        const index = Number(card.dataset.deckIndex || 0);
+        const fromIndex = index + 1;
+        card.animate([
+            {transform: deckRestTransform(fromIndex), opacity: Math.max(.18, 1 - fromIndex * .13), filter: `saturate(${Math.max(.55, 1 - fromIndex * .08)})`},
+            {transform: deckRestTransform(index), opacity: Math.max(.18, 1 - index * .13), filter: `saturate(${Math.max(.55, 1 - index * .08)})`},
+        ], {duration, easing, fill: 'none'});
+    });
+}
+
+function consumeDeckCard({animate = true} = {}) {
     if (deckCursor >= deckOrder.length) return;
     deckCursor += 1;
     renderDeck(feedBuckets.all);
+    if (animate) {
+        const deck = $('[data-feed-deck]');
+        if (deck) animateFreshDeck([...deck.querySelectorAll('[data-deck-card]')]);
+    }
 }
 
 function getDeckDisplayedY(y = 0) {
@@ -91,24 +110,33 @@ function deckRestTransform(index) {
     return `translate3d(0, ${index * 11}px, ${index * -40}px) scale(${1 - index * .024})`;
 }
 
-function animateDeckPromotion(deck) {
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const duration = reducedMotion ? 140 : 560;
-    const easing = 'cubic-bezier(.16, 1, .3, 1)';
-    const animations = [];
+function createFlyingDeckCard(card) {
+    const visual = card.querySelector('.murmur-card');
+    if (!visual) return null;
+    const rect = visual.getBoundingClientRect();
+    const clone = card.cloneNode(true);
+    clone.classList.add('deck-card--flying-clone');
+    clone.removeAttribute('data-deck-index');
+    clone.style.position = 'fixed';
+    clone.style.inset = 'auto';
+    clone.style.left = `${rect.left}px`;
+    clone.style.top = `${rect.top}px`;
+    clone.style.width = `${rect.width}px`;
+    clone.style.height = `${rect.height}px`;
+    clone.style.margin = '0';
+    clone.style.display = 'block';
+    clone.style.transform = 'none';
+    clone.style.opacity = '1';
+    clone.style.pointerEvents = 'none';
+    clone.style.zIndex = '2147483000';
+    clone.querySelector('.murmur-card')?.style.setProperty('width', '100%');
+    clone.querySelector('.murmur-card')?.style.setProperty('height', '100%');
+    document.body.append(clone);
+    return {clone, rect};
+}
 
-    deck.querySelectorAll('[data-deck-card]').forEach(card => {
-        const index = Number(card.dataset.deckIndex || 0);
-        if (index <= 0) return;
-        const nextIndex = index - 1;
-        const animation = card.animate([
-            {transform: deckRestTransform(index), opacity: 1 - index * .13, filter: `saturate(${1 - index * .08})`},
-            {transform: deckRestTransform(nextIndex), opacity: 1 - nextIndex * .13, filter: `saturate(${1 - nextIndex * .08})`},
-        ], {duration, easing, fill: 'forwards'});
-        animations.push(animation.finished.catch(() => {}));
-    });
-
-    return Promise.all(animations);
+function removeFlyingDeckCard(clone) {
+    clone?.remove();
 }
 
 function updateDeckDragState(card, x = 0, y = 0) {
@@ -173,23 +201,25 @@ function applyDeckAction(direction, postId) {
 }
 
 function animateDeckOpen(card, dragState) {
-    const deck = card.closest('[data-feed-deck]');
     const {x = 0, y = 0} = dragState || {};
-    const startY = getDeckDisplayedY(y);
-    const targetY = -Math.max(window.innerHeight * .82, card.getBoundingClientRect().height * .9);
     const href = card.querySelector('.murmur-text-link')?.href || '';
-    card.dataset.deckDirection = 'up';
-    card.dataset.deckArmed = 'true';
-    card.classList.add('is-flying');
+    const flying = createFlyingDeckCard(card);
+    if (!flying) {
+        if (href) window.location.assign(href);
+        return Promise.resolve();
+    }
 
-    const promotion = deck ? animateDeckPromotion(deck) : Promise.resolve();
-    const animation = card.animate([
-        {transform: `translate3d(${x}px, ${startY}px, 18px) rotateX(4deg) rotateY(${x / 45}deg) rotateZ(${x / 32}deg)`, opacity: 1, filter: 'blur(0px)'},
-        {transform: `translate3d(${x * .45}px, ${targetY * .42}px, 65px) rotateX(8deg) rotateY(${x / 60}deg) rotateZ(${x / 44}deg)`, opacity: 1, filter: 'blur(0px)', offset: .46},
-        {transform: `translate3d(0, ${targetY}px, -25px) rotateX(13deg) rotateY(0deg) rotateZ(0deg)`, opacity: 0, filter: 'blur(1px)'},
-    ], {duration: 980, easing: 'cubic-bezier(.16, 1, .3, 1)', fill: 'forwards'});
+    consumeDeckCard();
+    const {clone, rect} = flying;
+    const targetY = -Math.max(window.innerHeight * .95, rect.height * 1.25);
+    const animation = clone.animate([
+        {transform: 'translate3d(0,0,0) rotateX(4deg) rotateY(0deg) rotateZ(0deg)', opacity: 1, filter: 'blur(0px)'},
+        {transform: `translate3d(${x * .18}px, ${targetY * .44}px, 70px) rotateX(9deg) rotateY(${x / 70}deg) rotateZ(${x / 55}deg)`, opacity: .98, filter: 'blur(0px)', offset: .46},
+        {transform: `translate3d(${x * .08}px, ${targetY}px, -35px) rotateX(14deg) rotateY(0deg) rotateZ(0deg)`, opacity: 0, filter: 'blur(1.2px)'},
+    ], {duration: 920, easing: 'cubic-bezier(.16, 1, .3, 1)', fill: 'forwards'});
 
-    return Promise.all([animation.finished.catch(() => {}), promotion]).then(() => {
+    return animation.finished.catch(() => {}).then(() => {
+        removeFlyingDeckCard(clone);
         if (href) window.location.assign(href);
     });
 }
@@ -197,75 +227,42 @@ function animateDeckOpen(card, dragState) {
 function animateDeckThrow(card, dragState, direction) {
     const {x = 0, y = 0, history = []} = dragState || {};
     const {vx, vy} = measureDeckVelocity(history);
-    const startY = getDeckDisplayedY(y);
-    const startRotateZ = x / 24;
-    const startRotateY = Math.max(-9, Math.min(9, x / 34));
-    const startRotateX = Math.max(-5, Math.min(5, -y / 45));
     const speed = Math.max(.35, Math.min(2.2, Math.abs(vx)));
-    const travel = Math.max(window.innerWidth * 1.16, card.getBoundingClientRect().width * 1.45);
-    const targetX = x + direction * travel;
-    const windLift = Math.max(-150, Math.min(150, (vy * 150) + (y * .12)));
-    const targetY = startY + windLift;
-    const targetRotateZ = startRotateZ + direction * (20 + speed * 9) + (vy * 5);
-    const targetRotateY = direction * (22 + speed * 7);
-    const targetRotateX = Math.max(-18, Math.min(18, startRotateX - vy * 9));
-    const duration = Math.round(Math.max(1500, Math.min(2200, 2050 - speed * 210)));
+    const flying = createFlyingDeckCard(card);
     const postId = card.dataset.deckPostId || card.querySelector('[data-post-id]')?.dataset.postId || '';
-
-    card.dataset.deckDirection = direction > 0 ? 'right' : 'left';
-    card.dataset.deckArmed = 'true';
-    card.classList.add('is-flying');
-
-    const p1x = x + (targetX - x) * .18;
-    const p2x = x + (targetX - x) * .48;
-    const p3x = x + (targetX - x) * .76;
-    const p1y = startY + windLift * .08 - 14;
-    const p2y = startY + windLift * .34 + 10;
-    const p3y = startY + windLift * .70 - 8;
-    const deck = card.closest('[data-feed-deck]');
-    const promotion = deck ? animateDeckPromotion(deck) : Promise.resolve();
-
-    const animation = card.animate([
-        {
-            transform: `translate3d(${x}px, ${startY}px, -18px) rotateX(${startRotateX}deg) rotateY(${startRotateY}deg) rotateZ(${startRotateZ}deg)`,
-            opacity: 1,
-            filter: 'blur(0px)',
-            offset: 0,
-        },
-        {
-            transform: `translate3d(${p1x}px, ${p1y}px, 28px) rotateX(${startRotateX - 3}deg) rotateY(${startRotateY + direction * 8}deg) rotateZ(${startRotateZ + direction * 5}deg)`,
-            opacity: 1,
-            filter: 'blur(0px)',
-            offset: .24,
-        },
-        {
-            transform: `translate3d(${p2x}px, ${p2y}px, 6px) rotateX(${targetRotateX * .55}deg) rotateY(${targetRotateY * .62}deg) rotateZ(${targetRotateZ * .52}deg)`,
-            opacity: .96,
-            filter: 'blur(.2px)',
-            offset: .54,
-        },
-        {
-            transform: `translate3d(${p3x}px, ${p3y}px, -18px) rotateX(${targetRotateX * .82}deg) rotateY(${targetRotateY * .86}deg) rotateZ(${targetRotateZ * .82}deg)`,
-            opacity: .72,
-            filter: 'blur(.7px)',
-            offset: .80,
-        },
-        {
-            transform: `translate3d(${targetX}px, ${targetY}px, -70px) rotateX(${targetRotateX}deg) rotateY(${targetRotateY}deg) rotateZ(${targetRotateZ}deg)`,
-            opacity: 0,
-            filter: 'blur(1.6px)',
-            offset: 1,
-        },
-    ], {
-        duration,
-        easing: 'cubic-bezier(.18, .52, .2, 1)',
-        fill: 'forwards',
-    });
-
-    return Promise.all([animation.finished.catch(() => {}), promotion]).then(() => {
+    if (!flying) {
         consumeDeckCard();
         void applyDeckAction(direction, postId);
-    });
+        return Promise.resolve();
+    }
+
+    consumeDeckCard();
+    const {clone, rect} = flying;
+    const travel = Math.max(window.innerWidth * 1.2, rect.width * 1.65);
+    const targetX = direction * travel;
+    const windLift = Math.max(-180, Math.min(180, (vy * 165) + (y * .14)));
+    const targetRotateZ = direction * (24 + speed * 10) + (vy * 5);
+    const targetRotateY = direction * (24 + speed * 8);
+    const targetRotateX = Math.max(-20, Math.min(20, -vy * 10));
+    const duration = Math.round(Math.max(1450, Math.min(2150, 2020 - speed * 200)));
+
+    const p1x = targetX * .18;
+    const p2x = targetX * .48;
+    const p3x = targetX * .76;
+    const p1y = windLift * .08 - 14;
+    const p2y = windLift * .34 + 10;
+    const p3y = windLift * .70 - 8;
+
+    const animation = clone.animate([
+        {transform: 'translate3d(0,0,0) rotateX(0deg) rotateY(0deg) rotateZ(0deg)', opacity: 1, filter: 'blur(0px)', offset: 0},
+        {transform: `translate3d(${p1x}px, ${p1y}px, 30px) rotateX(-3deg) rotateY(${direction * 9}deg) rotateZ(${direction * 6}deg)`, opacity: 1, filter: 'blur(0px)', offset: .24},
+        {transform: `translate3d(${p2x}px, ${p2y}px, 8px) rotateX(${targetRotateX * .55}deg) rotateY(${targetRotateY * .62}deg) rotateZ(${targetRotateZ * .52}deg)`, opacity: .96, filter: 'blur(.2px)', offset: .54},
+        {transform: `translate3d(${p3x}px, ${p3y}px, -18px) rotateX(${targetRotateX * .82}deg) rotateY(${targetRotateY * .86}deg) rotateZ(${targetRotateZ * .82}deg)`, opacity: .72, filter: 'blur(.7px)', offset: .80},
+        {transform: `translate3d(${targetX}px, ${windLift}px, -75px) rotateX(${targetRotateX}deg) rotateY(${targetRotateY}deg) rotateZ(${targetRotateZ}deg)`, opacity: 0, filter: 'blur(1.6px)', offset: 1},
+    ], {duration, easing: 'cubic-bezier(.18, .52, .2, 1)', fill: 'forwards'});
+
+    void applyDeckAction(direction, postId);
+    return animation.finished.catch(() => {}).then(() => removeFlyingDeckCard(clone));
 }
 
 function bindCardDeck() {
@@ -314,13 +311,13 @@ function bindCardDeck() {
 
         const openMessage = y <= -DECK_OPEN_THRESHOLD && Math.abs(y) > Math.abs(x) * 1.08;
         if (openMessage) {
-            deckSuppressClickUntil = Date.now() + 1100;
+            deckSuppressClickUntil = Date.now() + DECK_NEXT_CARD_READY_MS;
             void animateDeckOpen(card, dragState);
             return;
         }
 
         if (Math.abs(x) >= DECK_SWIPE_THRESHOLD) {
-            deckSuppressClickUntil = Date.now() + 2300;
+            deckSuppressClickUntil = Date.now() + DECK_NEXT_CARD_READY_MS;
             void animateDeckThrow(card, dragState, x < 0 ? -1 : 1);
             return;
         }
@@ -346,7 +343,7 @@ function bindCardDeck() {
         event.preventDefault();
         const topCard = deck.querySelector('[data-deck-card=""][data-deck-index="0"]');
         if (!topCard) return;
-        deckSuppressClickUntil = Date.now() + 520;
+        deckSuppressClickUntil = Date.now() + DECK_NEXT_CARD_READY_MS;
         const direction = event.key === 'ArrowLeft' ? -1 : 1;
         void animateDeckThrow(topCard, {
             x: direction * (DECK_SWIPE_THRESHOLD + 12),

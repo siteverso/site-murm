@@ -36,7 +36,7 @@ test('deck uses 100 static cards without auto refresh and throws cards using dra
   assert.match(deck, /animateDeckThrow/);
   assert.match(deck, /targetRotateZ/);
   assert.match(deck, /rotateY/);
-  assert.match(deck, /duration = Math\.round\(Math\.max\(1500/);
+  assert.match(deck, /duration = Math\.round\(Math\.max\(1450/);
   assert.match(page, /100 murmúrios carregados sem atualização automática/);
 });
 
@@ -50,8 +50,10 @@ test('deck keeps visible action glow and commits vote after threshold release', 
 });
 
 test('deck promotes the next cards fluidly and opens the message on upward drag', () => {
-  assert.match(deck, /animateDeckPromotion/);
-  assert.match(deck, /deckRestTransform/);
+  assert.match(deck, /animateFreshDeck/);
+  assert.match(deck, /createFlyingDeckCard/);
+  assert.match(deck, /DECK_NEXT_CARD_READY_MS = 70/);
+  assert.match(deck, /consumeDeckCard\(\);/);
   assert.match(deck, /DECK_OPEN_THRESHOLD/);
   assert.match(deck, /animateDeckOpen/);
   assert.match(deck, /window\.location\.assign\(href\)/);
