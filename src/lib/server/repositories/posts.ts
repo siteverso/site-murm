@@ -1,8 +1,12 @@
 import oracledb from 'oracledb';
 import {withConnection} from '../oracle';
+import {avatarSql, getUserSchema} from '../user-schema';
 
 export async function listPosts(_currentUserId: number | null, profileUsername: string | null = null, preferredLanguageCode: string | null = null): Promise<unknown[]> {
     return withConnection(async connection => {
+        const userSchema = await getUserSchema(connection);
+        const userAvatarSql = avatarSql(userSchema, 'u');
+
         // Feed principal e listagem normal de perfil exibem somente murmúrios raiz.
         // Respostas permanecem acessíveis exclusivamente pelas páginas de thread/respostas,
         // inclusive quando o pai foi removido do banco.
@@ -19,7 +23,7 @@ export async function listPosts(_currentUserId: number | null, profileUsername: 
                     NVL(p.language_code, NVL(u.language_code, 'pt-BR')) AS language_code,
                     u.username,
                     NVL(u.sex_code, '') AS sex_code,
-                    '' AS avatar_url,
+                    ${userAvatarSql} AS avatar_url,
                     0 AS my_vote,
                     (SELECT COUNT(*)
                        FROM murm_post reply
@@ -59,7 +63,7 @@ export async function listPosts(_currentUserId: number | null, profileUsername: 
             parentAuthor: '',
             author: String(row.USERNAME || ''),
             sexCode: String(row.SEX_CODE || '').trim().toUpperCase(),
-            avatarUrl: '',
+            avatarUrl: String(row.AVATAR_URL || ''),
             text: String(row.CONTENTS || ''),
             languageCode: String(row.LANGUAGE_CODE || 'pt-BR'),
             positive: Number(row.POSITIVE_COUNT || 0),
@@ -90,7 +94,7 @@ function mapPostRows(rows: PostRow[]): unknown[] {
         author: String(row.USERNAME || ''),
         isDeleted: String(row.STATUS || '').trim().toLowerCase() === 'deleted',
         sexCode: String(row.SEX_CODE || '').trim().toUpperCase(),
-        avatarUrl: '',
+        avatarUrl: String(row.AVATAR_URL || ''),
         text: String(row.CONTENTS || ''),
         positive: Number(row.POSITIVE_COUNT || 0),
         negative: Number(row.NEGATIVE_COUNT || 0),
@@ -103,6 +107,8 @@ function mapPostRows(rows: PostRow[]): unknown[] {
 
 export async function listSpecificThread(postId: number): Promise<{ posts: unknown[]; siblingStubs: unknown[] }> {
     return withConnection(async connection => {
+        const userSchema = await getUserSchema(connection);
+        const userAvatarSql = avatarSql(userSchema, 'u');
         const rootResult = await connection.execute<PostRow>(
             `SELECT parent_post_id,
                     status
@@ -128,6 +134,7 @@ export async function listSpecificThread(postId: number): Promise<{ posts: unkno
                     p.status,
                     u.username,
                     NVL(u.sex_code, '') AS sex_code,
+                    ${userAvatarSql} AS avatar_url,
                     parent_user.username AS parent_username
                FROM murm_post p
                JOIN murm_user u ON u.id = p.user_id
@@ -213,6 +220,8 @@ export async function listSpecificThread(postId: number): Promise<{ posts: unkno
 
 export async function getPostBranch(postId: number): Promise<unknown[]> {
     return withConnection(async connection => {
+        const userSchema = await getUserSchema(connection);
+        const userAvatarSql = avatarSql(userSchema, 'u');
         const result = await connection.execute<PostRow>(
             `SELECT p.id,
                     p.user_id,
@@ -225,6 +234,7 @@ export async function getPostBranch(postId: number): Promise<unknown[]> {
                     p.status,
                     u.username,
                     NVL(u.sex_code, '') AS sex_code,
+                    ${userAvatarSql} AS avatar_url,
                     parent_user.username AS parent_username
                FROM murm_post p
                JOIN murm_user u ON u.id = p.user_id
@@ -485,6 +495,8 @@ function mapReplyHistoryRows(rows: PostRow[]): ReplyHistoryPost[] {
 }
 
 async function fetchReplyHistoryBranch(connection: oracledb.Connection, replyId: number): Promise<ReplyHistoryPost[]> {
+    const userSchema = await getUserSchema(connection);
+    const userAvatarSql = avatarSql(userSchema, 'u');
     const result = await connection.execute<PostRow>(
         `SELECT p.id,
                 p.user_id,
@@ -497,12 +509,7 @@ async function fetchReplyHistoryBranch(connection: oracledb.Connection, replyId:
                 p.status,
                 u.username,
                 NVL(u.sex_code, '') AS sex_code,
-                CASE
-                    WHEN u.avatar_image IS NOT NULL THEN
-                        '/api/users/' || u.id || '/avatar?v=' ||
-                        TO_CHAR(NVL(u.avatar_updated_at, u.updated_at), 'YYYYMMDDHH24MISSFF6')
-                    ELSE NVL(u.avatar_url, '')
-                END AS avatar_url,
+                ${userAvatarSql} AS avatar_url,
                 parent_user.username AS parent_username
            FROM murm_post p
            JOIN murm_user u
