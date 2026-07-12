@@ -7,7 +7,7 @@ Vamos fazer uma alteracao por vez e eu vou confirmar uma por uma apois vc mandar
 Realize testes unitarios para garantir funcionamento
 
 TODO, um de cada vez:
-
-- [x] dois cliques no murmurio ja abre pra responder, mais 2 cliques com a resposta aberta entra no perfil
-- [x] qd clicar aqui, ja por o foco no input![img_5.png](img_5.png)
-- aqui mostrar qts caracteres preenchido / total ![img_4.png](img_4.png) 
+ 
+- deve exibir imagem do perfil nos murmurios ![img_6.png](img_6.png)
+- se a pessoa ecoou ou ocultou tem q deixar o icone da acao daquele card com efeito blur led ligado contorno ![img_7.png](img_7.png)
+- 
