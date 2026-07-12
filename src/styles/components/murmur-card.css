@@ -104,3 +104,41 @@
 
 
 .murmur-card.is-deleting { opacity: .5; pointer-events: none; transition: opacity .18s ease; }
+
+/* Componente visual reutilizável: intensidade total de ecos + silenciamentos. */
+.murmur-pulse {
+  --pulse-strength: 0%;
+  min-height: 30px;
+  padding: 5px 10px 5px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid color-mix(in srgb, var(--line) 86%, var(--text) 14%);
+  border-radius: 999px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface-2) 78%, transparent);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 7%);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.murmur-pulse__icon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: color-mix(in srgb, var(--text) var(--pulse-strength), var(--muted));
+  background: color-mix(in srgb, currentColor 9%, transparent);
+}
+.murmur-pulse__icon svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.murmur-pulse__label { font-size: .69rem; font-weight: 800; letter-spacing: .055em; text-transform: uppercase; }
+.murmur-pulse__value { min-width: 1ch; color: var(--text); font-size: .86rem; line-height: 1; }
+.murmur-pulse--low { --pulse-strength: 34%; }
+.murmur-pulse--medium { --pulse-strength: 62%; border-color: color-mix(in srgb, var(--line) 68%, var(--text) 32%); }
+.murmur-pulse--high { --pulse-strength: 88%; border-color: color-mix(in srgb, var(--line) 48%, var(--text) 52%); box-shadow: 0 0 14px color-mix(in srgb, var(--text) 9%, transparent), inset 0 1px 0 rgb(255 255 255 / 9%); }
+
+@media (max-width: 520px) {
+  .murmur-pulse { padding-inline: 7px 9px; }
+  .murmur-pulse__label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+}

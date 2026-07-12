@@ -195,7 +195,6 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
         contextParentId = null,
         collapsibleHeader = false,
     } = options;
-    const score = post.positive - post.negative;
     const sexClass = post.sexCode === 'M' ? 'sex-m' : post.sexCode === 'F' ? 'sex-f' : 'sex-u';
     const postKey = String(post.id);
     const nextAncestry = new Set(ancestry);
@@ -246,7 +245,7 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
     </div>
     <a class="murmur-text-link" href="/perfil/${encodeURIComponent(post.author)}?murmurio=${encodeURIComponent(post.id)}" aria-label="Abrir esta mensagem no perfil de @${escapeHtml(post.author)}"><p class="murmur-text">${escapeHtml(post.text)}</p></a>
     <div class="score-line">
-      <span class="score ${score < 0 ? 'negative' : ''}">${score}</span>
+      ${MurmurPulse.render(post)}
       <div class="murmur-actions">
         <button class="action-button action-button--echo ${post.myVote === 1 ? 'active is-led-active' : ''}" data-vote="1" title="Ecoar" aria-label="Ecoar este murmúrio" aria-pressed="${post.myVote === 1 ? 'true' : 'false'}">${ICONS.echo}<span>${post.positive}</span></button>
         <button class="action-button action-button--ignore ${post.myVote === -1 ? 'active is-led-active' : ''}" data-vote="-1" title="Ignorar" aria-label="Ignorar este murmúrio" aria-pressed="${post.myVote === -1 ? 'true' : 'false'}">${ICONS.ignore}<span>${post.negative}</span></button>
