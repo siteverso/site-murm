@@ -1,0 +1,183 @@
+/* Minimalismo da home */
+.minimal-feed-page {
+  padding: 16px 0 70px;
+}
+.feed-heading.minimal {
+  margin: 0 0 14px;
+}
+.network-board-page {
+  width: min(var(--page-width), calc(100% - var(--page-gutter)));
+}
+.network-board-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.network-board-heading h1 {
+  margin: 0;
+}
+.network-board {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+}
+.feed-display-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.column-group-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: .82rem;
+  font-weight: 700;
+}
+.column-group-control select {
+  min-height: 40px;
+  padding: 0 34px 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--text);
+  background: var(--surface);
+  font: inherit;
+}
+.feed-view-switch { box-shadow: var(--shadow); }
+.feed-view-button { width: 40px; height: 40px; padding: 0; }
+.feed-view-button svg { width: 18px; height: 18px; display: block; pointer-events: none; }
+.feed-view-panel[hidden] {
+  display: none;
+}
+.split-view {
+  --column-count: 2;
+  display: grid;
+  grid-template-columns: repeat(var(--column-count, 2), minmax(260px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.split-view[data-column-count="3"] { --column-count: 3; }
+.split-view[data-column-count="5"] { --column-count: 5; }
+.network-lane {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--surface) 94%, var(--bg) 6%);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.split-view .network-lane {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+.all-lane {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+.lane-heading {
+  padding: 18px 20px 14px;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.lane-heading h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+.lane-heading span {
+  color: var(--muted);
+  font-size: .84rem;
+  font-weight: 700;
+}
+.lane-feed {
+  padding: 0 16px 16px;
+  display: grid;
+  gap: 14px;
+}
+.split-view .lane-feed {
+  padding: 0 2px 12px;
+}
+.lane-feed .murmur-card {
+  min-width: 0;
+  margin: 0;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--text) 6%, var(--line));
+  box-shadow: 0 10px 28px rgb(0 0 0 / 10%);
+}
+.split-view .lane-feed .murmur-card {
+  width: 100%;
+}
+.lane-feed .murmur-card:hover {
+  z-index: 1;
+  background: color-mix(in srgb, var(--surface) 95%, var(--strong) 5%);
+}
+.feed-more-wrap {
+  padding: 6px 0 4px;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+.feed-more-button {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--surface);
+  cursor: pointer;
+  font-weight: 800;
+}
+.feed-more-button:hover,
+.feed-more-button:focus-visible {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.feed-more-sentinel {
+  width: 100%;
+  height: 2px;
+}
+
+.minimal-feed-page .composer {
+  margin-bottom: 24px;
+}
+.minimal-feed-page .composer,
+.minimal-feed-page .feed-heading {
+  max-width: 100%;
+}
+.murmur-card.sex-m {
+  border-color: color-mix(in srgb, #4f84ff 22%, var(--line));
+  background: color-mix(in srgb, #4f84ff 4%, var(--surface));
+  box-shadow: 0 10px 26px color-mix(in srgb, #4f84ff 8%, transparent);
+}
+.murmur-card.sex-f {
+  border-color: color-mix(in srgb, #f28bb8 24%, var(--line));
+  background: color-mix(in srgb, #f28bb8 5%, var(--surface));
+  box-shadow: 0 10px 26px color-mix(in srgb, #f28bb8 9%, transparent);
+}
+.murmur-card.sex-u {
+  border-color: color-mix(in srgb, var(--text) 8%, var(--line));
+}
+.murmur-card.sex-m .avatar {
+  border: 1px solid color-mix(in srgb, #4f84ff 35%, var(--line));
+  background: color-mix(in srgb, #4f84ff 14%, var(--surface-2));
+}
+.murmur-card.sex-f .avatar {
+  border: 1px solid color-mix(in srgb, #f28bb8 38%, var(--line));
+  background: color-mix(in srgb, #f28bb8 15%, var(--surface-2));
+}
+.empty-state {
+  padding: 24px 20px;
+  color: var(--muted);
+}
+.empty-state.compact {
+  padding: 0;
+}

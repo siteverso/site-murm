@@ -459,10 +459,18 @@ function renderSpecificThread(parentPost, rootPost, allPosts, siblingStubs = [])
   const hiddenAfterCount = Math.max(0, afterAll.length - afterVisible.length);
 
   const renderSpecificItem = (post, direction = '') => {
-    const isExpanded = state.expandedIds.has(String(post.id));
-    if (!isExpanded) return renderSiblingVacuumLine(post, direction);
-    const animationClass = state.animatePostIds.has(String(post.id)) ? ' murmur-card-arriving' : '';
-    return `<div class="thread-expanded-card${animationClass}" data-expanded-post="${post.id}">${renderPost(post, byParent, new Set([String(parentPost.id)]), {
+    const postId = String(post?.id || '');
+    const loadedPost = loadedById.get(postId);
+    const isExpanded = Boolean(postId && state.expandedIds.has(postId) && loadedPost);
+    if (!isExpanded) {
+      if (postId && state.expandedIds.has(postId) && !loadedPost) {
+        state.expandedIds.delete(postId);
+        state.animatePostIds.delete(postId);
+      }
+      return renderSiblingVacuumLine(post, direction);
+    }
+    const animationClass = state.animatePostIds.has(postId) ? ' murmur-card-arriving' : '';
+    return `<div class="thread-expanded-card${animationClass}" data-expanded-post="${postId}">${renderPost(loadedPost, byParent, new Set([String(parentPost.id)]), {
       repliesMode: 'recursive',
       depth: 2,
       maxDepth: 5,
@@ -576,7 +584,7 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
 
   return `<article id="murmurio-${post.id}" class="panel murmur-card lazy-reveal ${sexClass}${post.parentPostId ? ' murmur-reply-card' : ''}${terminalClass}${contextParentClass}${collapsibleHeader ? ' murmur-card-collapsible' : ''}" data-post-id="${post.id}"${collapsibleHeader ? ` data-collapse-expanded-post="${post.id}"` : ''}${terminalAttribute}>
     <div class="murmur-head">
-      <a class="avatar murmur-profile-link" href="/perfil/${encodeURIComponent(post.author)}" aria-label="Abrir perfil de @${escapeHtml(post.author)}">${post.avatarUrl ? `<img class="lazy-media" src="${escapeHtml(post.avatarUrl)}" alt="Foto de @${escapeHtml(post.author)}" loading="lazy" decoding="async">` : escapeHtml(post.author.slice(0, 2).toUpperCase())}</a>
+      <a class="avatar murmur-profile-link" href="/perfil/${encodeURIComponent(post.author)}" aria-label="Abrir perfil de @${escapeHtml(post.author)}">${post.avatarUrl ? `<img class="lazy-media" src="${escapeHtml(post.avatarUrl)}" alt="Foto de @${escapeHtml(post.author)}" loading="lazy" decoding="async">` : escapeHtml(userInitials(post.author))}</a>
       <div class="murmur-author"><a href="/perfil/${encodeURIComponent(post.author)}"><strong>@${escapeHtml(post.author)}</strong></a><span>${new Date(post.createdAt).toLocaleString()}</span></div>
       ${renderPostHeaderActions(post)}
     </div>
@@ -596,6 +604,41 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
     </form>
     ${nestedReplies}
   </article>`;
+}
+
+function renderReplyHistory() {
+  const feed = $('[data-reply-history]');
+  const dataNode = $('[data-reply-history-data]');
+  if (!feed || !dataNode) return;
+
+  let groups = [];
+  try {
+    groups = JSON.parse(dataNode.textContent || '[]');
+  } catch (error) {
+    feed.innerHTML = `<p class="empty-state">Erro ao carregar respostas: ${escapeHtml(error?.message || String(error))}</p>`;
+    return;
+  }
+
+  feed.innerHTML = groups.map(group => {
+    const parent = group?.parent;
+    const replies = Array.isArray(group?.replies) ? group.replies : [];
+    if (!parent) return '';
+    const childrenByParent = new Map([[String(parent.id), replies]]);
+    return renderPost(parent, childrenByParent, new Set(), {
+      repliesMode: 'recursive',
+      depth: 1,
+      maxDepth: 5,
+      contextParentId: String(parent.id),
+    });
+  }).join('');
+
+  setupLazyVisuals();
+}
+
+function refreshReplyHistoryPage() {
+  if (!$('[data-reply-history]')) return false;
+  window.location.reload();
+  return true;
 }
 
 function collectPostSubtree(items, rootPostId) {
@@ -850,6 +893,28 @@ function restoreFeedAnchor(anchor) {
   if (Math.abs(delta) > 0.5) window.scrollBy(0, delta);
 }
 
+async function hydrateExpandedSpecificPosts(rootId, basePosts) {
+  if (!rootId) return Array.isArray(basePosts) ? basePosts : [];
+
+  const state = getSpecificThreadState(rootId);
+  const expandedIds = [...state.expandedIds].filter(Boolean);
+  if (!expandedIds.length) return Array.isArray(basePosts) ? basePosts : [];
+
+  const hydratedGroups = await Promise.all(expandedIds.map(async postId => {
+    try {
+      const data = await api(`/api/posts/${encodeURIComponent(postId)}`);
+      return Array.isArray(data?.posts) ? data.posts : [];
+    } catch {
+      // Uma falha isolada não deve fechar os outros cards que continuam expandidos.
+      return [];
+    }
+  }));
+
+  const byId = new Map((Array.isArray(basePosts) ? basePosts : []).map(post => [String(post.id), post]));
+  hydratedGroups.flat().forEach(post => byId.set(String(post.id), post));
+  return [...byId.values()];
+}
+
 async function loadFeed(force = false) {
   const columns = $('[data-feed-columns]');
   const allListFeed = $('[data-feed-all-list]');
@@ -867,7 +932,9 @@ async function loadFeed(force = false) {
         ? `/api/posts?username=${encodeURIComponent(profileUsername)}`
         : '/api/posts';
     const data = await api(endpoint);
-    const nextPosts = data.posts || [];
+    const nextPosts = profilePostId
+      ? await hydrateExpandedSpecificPosts(profilePostId, data.posts || [])
+      : (data.posts || []);
     specificSiblingStubs = profilePostId ? (data.siblingStubs || []) : [];
     const nextSignature = getFeedSignature(nextPosts);
     if (!force && nextSignature === feedSignature) return;
@@ -1158,10 +1225,17 @@ function bindFeed() {
           method: 'POST',
           body: JSON.stringify({ value: Number(target.dataset.vote) }),
         });
-        await loadFeed();
-        pinCardActions(postId);
+        if (!refreshReplyHistoryPage()) {
+          await loadFeed();
+          pinCardActions(postId);
+        }
       }
-      if (target.matches('[data-share]')) { await api(`/api/posts/${card.dataset.postId}/share`, { method: 'POST' }); await navigator.clipboard?.writeText(`${location.origin}/#murmurio-${card.dataset.postId}`); toast('Link copiado.'); await loadFeed(); }
+      if (target.matches('[data-share]')) {
+        await api(`/api/posts/${card.dataset.postId}/share`, { method: 'POST' });
+        await navigator.clipboard?.writeText(`${location.origin}/#murmurio-${card.dataset.postId}`);
+        toast('Link copiado.');
+        if (!refreshReplyHistoryPage()) await loadFeed();
+      }
       if (target.matches('[data-toggle-delete-reply]')) {
         const confirm = target.parentElement?.querySelector('[data-reply-delete-confirm]');
         if (confirm) {
@@ -1177,7 +1251,7 @@ function bindFeed() {
         target.disabled = true;
         await api(`/api/replies/${target.dataset.confirmDeleteReply}`, { method: 'DELETE' });
         announceFeedChanged();
-        await loadFeed(true);
+        if (!refreshReplyHistoryPage()) await loadFeed(true);
         toast('Murmúrio apagado.');
       }
       if (target.matches('[data-delete-reply]')) { await api(`/api/replies/${target.dataset.deleteReply}`, { method: 'DELETE' }); announceFeedChanged(); await loadFeed(true); toast('Murmúrio apagado.'); }
@@ -1190,7 +1264,7 @@ function bindFeed() {
         await api(`/api/posts/${target.dataset.confirmDeletePost}`, { method: 'DELETE' });
         announceFeedChanged();
         closeModal();
-        await loadFeed(true);
+        if (!refreshReplyHistoryPage()) await loadFeed(true);
         toast('Murmúrio apagado.');
       }
       if (target.matches('[data-feed-more]')) { expandSplitFeed(target.dataset.feedMore); }
@@ -1272,7 +1346,11 @@ function bindFeed() {
       event.preventDefault();
       const card = form.closest('[data-post-id]');
       const text = form.querySelector('input').value.trim();
-      try { await api(`/api/posts/${card.dataset.postId}/reply`, { method: 'POST', body: JSON.stringify({ text }) }); announceFeedChanged(); await loadFeed(true); } catch (error) { toast(error.message); }
+      try {
+        await api(`/api/posts/${card.dataset.postId}/reply`, { method: 'POST', body: JSON.stringify({ text }) });
+        announceFeedChanged();
+        if (!refreshReplyHistoryPage()) await loadFeed(true);
+      } catch (error) { toast(error.message); }
     }
   });
 }
@@ -2204,6 +2282,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   try {
     await loadUser();
+    renderReplyHistory();
     bindColumnGroup();
   } catch (error) {
     showRuntimeError(error, 'Erro ao carregar o usuário atual');

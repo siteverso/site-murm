@@ -1,0 +1,31 @@
+.reply-content { min-width: 0; overflow-wrap: anywhere; }
+.toast-action { margin-left: auto; padding: 5px 8px; border: 1px solid currentColor; border-radius: 999px; color: inherit; background: transparent; font: inherit; font-weight: 800; cursor: pointer; }
+.action-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.action-icon svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+  overflow: visible;
+}
+@keyframes iconPulse {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+.animate-smile .action-icon,
+.animate-cry .action-icon,
+.animate-reply .action-icon,
+.animate-share .action-icon { animation: iconPulse .24s ease; }
+.animate-smile, .animate-cry, .animate-reply, .animate-share {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+

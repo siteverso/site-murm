@@ -1,0 +1,19 @@
+.profile-sections { display: grid; gap: 24px; }
+.public-profile-grid { grid-template-columns: 320px minmax(0, 1fr); }
+.public-profile-card { position: static; }
+.public-profile-avatar { overflow: hidden; }
+.public-profile-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.public-profile-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.profile-sidebar-actions { margin-top: 20px; display: grid; gap: 10px; }
+.profile-sidebar-actions > .button { margin-top: 0; }
+.profile-sidebar-action { margin-top: 20px; }
+.public-profile-content { min-height: 240px; padding: 24px; }
+.public-profile-content h2 { margin-top: 0; }
+
+.account-access > p { color: var(--muted); line-height: 1.6; }
+.auth-methods { margin: 18px 0 24px; padding: 14px; display: flex; justify-content: space-between; gap: 14px; border-radius: 14px; background: var(--surface-2); }
+.auth-methods span { color: var(--muted); }
+.account-access h3 { margin-bottom: 6px; }
+.account-access form > p { margin-top: 0; color: var(--muted); line-height: 1.55; }
+@media (max-width: 720px) { .topbar .language-switch { display: none; } }
+

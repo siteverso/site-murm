@@ -3,8 +3,9 @@ import {withConnection} from '../oracle';
 
 export async function listPosts(_currentUserId: number | null, profileUsername: string | null = null): Promise<unknown[]> {
     return withConnection(async connection => {
-        // A leitura da home deve depender apenas das tabelas essenciais.
-        // Avatar, região e voto não podem impedir que os murmúrios apareçam.
+        // Feed principal e listagem normal de perfil exibem somente murmúrios raiz.
+        // Respostas permanecem acessíveis exclusivamente pelas páginas de thread/respostas,
+        // inclusive quando o pai foi removido do banco.
         const result = await connection.execute<Record<string, unknown>>(
             `SELECT p.id,
                     p.user_id,
@@ -20,49 +21,35 @@ export async function listPosts(_currentUserId: number | null, profileUsername: 
                     '' AS region_code,
                     '' AS avatar_url,
                     0 AS my_vote,
-                    parent_user.username AS parent_username
+                    (SELECT COUNT(*)
+                       FROM murm_post reply
+                      WHERE reply.parent_post_id = p.id
+                        AND LOWER(TRIM(reply.status)) = 'published'
+                        AND LOWER(TRIM(reply.post_type)) = 'murmur') AS reply_count
                FROM murm_post p
                JOIN murm_user u
                  ON u.id = p.user_id
-               LEFT JOIN murm_post parent_post
-                 ON parent_post.id = p.parent_post_id
-               LEFT JOIN murm_user parent_user
-                 ON parent_user.id = parent_post.user_id
               WHERE LOWER(TRIM(p.status)) = 'published'
-                AND p.id IN (
-                    SELECT tree.id
-                      FROM murm_post tree
-                     WHERE LOWER(TRIM(tree.status)) = 'published'
-                     START WITH tree.parent_post_id IS NULL
-                            AND LOWER(TRIM(tree.post_type)) = 'murmur'
-                            AND (
-                                :profile_username IS NULL
-                                OR tree.user_id = (
-                                    SELECT profile_user.id
-                                      FROM murm_user profile_user
-                                     WHERE LOWER(profile_user.username) = LOWER(:profile_username)
-                                     FETCH FIRST 1 ROW ONLY
-                                )
-                            )
-                     CONNECT BY NOCYCLE PRIOR tree.id = tree.parent_post_id
+                AND LOWER(TRIM(p.post_type)) = 'murmur'
+                AND p.parent_post_id IS NULL
+                AND (
+                    :profile_username IS NULL
+                    OR p.user_id = (
+                        SELECT profile_user.id
+                          FROM murm_user profile_user
+                         WHERE LOWER(profile_user.username) = LOWER(:profile_username)
+                         FETCH FIRST 1 ROW ONLY
+                    )
                 )
               ORDER BY p.created_at DESC`,
             { profile_username: profileUsername },
         );
 
-        const rows = result.rows || [];
-        const replyCounts = new Map<number, number>();
-        rows.forEach(row => {
-            if (row.PARENT_POST_ID == null) return;
-            const parentId = Number(row.PARENT_POST_ID);
-            replyCounts.set(parentId, (replyCounts.get(parentId) || 0) + 1);
-        });
-
-        return rows.map(row => ({
+        return (result.rows || []).map(row => ({
             id: Number(row.ID),
             userId: Number(row.USER_ID),
-            parentPostId: row.PARENT_POST_ID == null ? null : Number(row.PARENT_POST_ID),
-            parentAuthor: String(row.PARENT_USERNAME || ''),
+            parentPostId: null,
+            parentAuthor: '',
             author: String(row.USERNAME || ''),
             sexCode: String(row.SEX_CODE || '').trim().toUpperCase(),
             regionCode: '',
@@ -73,7 +60,7 @@ export async function listPosts(_currentUserId: number | null, profileUsername: 
             shares: Number(row.SHARE_COUNT || 0),
             myVote: 0,
             createdAt: new Date(String(row.CREATED_AT)).getTime(),
-            replyCount: replyCounts.get(Number(row.ID)) || 0,
+            replyCount: Number(row.REPLY_COUNT || 0),
         }));
     });
 }
@@ -183,7 +170,33 @@ export async function listSpecificThread(postId: number): Promise<{ posts: unkno
                 isStub: true,
             }));
         }
-        return {posts: mapPostRows(fullResult.rows || []), siblingStubs};
+        const mappedPosts = mapPostRows(fullResult.rows || []) as Array<Record<string, unknown>>;
+
+        // A FK da resposta pode continuar apontando para um pai já removido fisicamente.
+        // Nesse caso, injeta somente um mock neutro para preservar e renderizar a árvore.
+        if (parentId != null && !mappedPosts.some(post => Number(post.id) === parentId)) {
+            const selectedPost = mappedPosts.find(post => Number(post.id) === postId);
+            mappedPosts.unshift({
+                id: parentId,
+                userId: 0,
+                parentPostId: null,
+                parentAuthor: '',
+                author: '',
+                isDeleted: true,
+                sexCode: '',
+                regionCode: '',
+                avatarUrl: '',
+                text: '',
+                positive: 0,
+                negative: 0,
+                shares: 0,
+                myVote: 0,
+                createdAt: Number(selectedPost?.createdAt || Date.now()),
+                replyCount: mappedPosts.filter(post => Number(post.parentPostId) === parentId).length,
+            });
+        }
+
+        return {posts: mappedPosts, siblingStubs};
     });
 }
 

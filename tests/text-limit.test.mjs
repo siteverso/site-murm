@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { readGlobalCss } from './css-test-utils.mjs';
 
 const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
 const layout = await readFile(new URL('../src/layouts/AppLayout.astro', import.meta.url), 'utf8');
 const composer = await readFile(new URL('../src/components/Composer.astro', import.meta.url), 'utf8');
 const config = await readFile(new URL('../src/lib/config/text.ts', import.meta.url), 'utf8');
-const css = await readFile(new URL('../src/styles/global.css', import.meta.url), 'utf8');
+const css = await readGlobalCss();
 const envExample = await readFile(new URL('../deploy/.env.example', import.meta.url), 'utf8');
 const postApi = await readFile(new URL('../src/pages/api/posts/index.ts', import.meta.url), 'utf8');
 const replyApi = await readFile(new URL('../src/pages/api/posts/[id]/reply.ts', import.meta.url), 'utf8');

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { readGlobalCss } from './css-test-utils.mjs';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -60,7 +61,7 @@ test('clicar na imagem da conta abre o seletor de foto existente', async () => {
 test('foto do perfil público abre visualização ampliada simples', async () => {
   const sidebar = await read('src/components/ProfileSidebar.astro');
   const app = await read('public/app.js');
-  const css = await read('src/styles/global.css');
+  const css = await readGlobalCss();
   assert.match(sidebar, /data-profile-photo-open/);
   assert.match(sidebar, /data-profile-photo-viewer/);
   assert.match(sidebar, /data-profile-photo-large/);

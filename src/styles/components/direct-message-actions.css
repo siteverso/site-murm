@@ -1,0 +1,24 @@
+/* Lista de bilhetes: negrito apenas quando há mensagens novas */
+.direct-thread strong { font-weight: 600; }
+.direct-thread.has-unread strong { font-weight: 900; }
+.direct-thread-head { min-width: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; color: var(--text); }
+.direct-thread-head time { flex: 0 0 auto; color: var(--muted); font-size: .68rem; font-weight: 600; }
+.direct-thread-preview { font-weight: 400; }
+.direct-thread.has-unread .direct-thread-preview { color: var(--text); font-weight: 700; }
+
+/* Edição de bilhetes enviados */
+.direct-delete-zone { gap: 3px; }
+.direct-edit-button { width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 999px; color: var(--muted); background: transparent; cursor: pointer; opacity: .62; }
+.direct-edit-button:hover, .direct-edit-button:focus-visible { color: var(--text); background: var(--surface-2); opacity: 1; }
+.direct-edit-form { margin: 9px 0; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; }
+.direct-edit-form textarea { min-height: 72px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; color: var(--text); background: var(--bg); resize: vertical; }
+.direct-edit-form button { min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--text); background: var(--surface-2); cursor: pointer; font-size: .74rem; font-weight: 800; }
+
+@media (hover: none) {
+  .murmur-head-actions .direct-card-button { opacity: 1; pointer-events: auto; transform: none; }
+}
+
+/* Bilhete otimista: visível só para o remetente até o envio definitivo. */
+.direct-note.is-pending { opacity: .72; }
+.direct-note.is-pending .direct-note-footer { justify-content: flex-start; }
+

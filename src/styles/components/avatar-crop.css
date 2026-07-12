@@ -1,0 +1,37 @@
+.avatar-crop-modal { width: min(520px, 100%); }
+.avatar-crop-stage {
+  position: relative;
+  width: min(360px, 78vw);
+  aspect-ratio: 1;
+  margin: 22px auto 18px;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #111;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.avatar-crop-stage.is-dragging { cursor: grabbing; }
+.avatar-crop-stage img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  max-width: none;
+  transform-origin: center;
+  pointer-events: none;
+  will-change: transform;
+}
+.avatar-crop-mask {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 999px rgb(0 0 0 / 56%);
+  outline: 2px solid rgb(255 255 255 / 88%);
+  outline-offset: -2px;
+  pointer-events: none;
+}
+.avatar-crop-zoom { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 14px; color: var(--muted); font-size: .86rem; font-weight: 800; }
+.avatar-crop-zoom input { width: 100%; accent-color: var(--strong); }
+.avatar-crop-actions { justify-content: flex-end; }
+
+

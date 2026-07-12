@@ -1,0 +1,56 @@
+/* Ações das respostas com confirmação por ícones */
+.reply-actions {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.reply-delete,
+.reply-confirm,
+.reply-cancel {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  transition: transform .18s ease, opacity .18s ease, background-color .18s ease, color .18s ease;
+}
+.reply-confirm,
+.reply-cancel {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+  padding: 0;
+  transform: scale(.84);
+}
+.reply-actions.is-confirming .reply-confirm,
+.reply-actions.is-confirming .reply-cancel {
+  width: 30px;
+  opacity: 1;
+  transform: scale(1);
+}
+.reply-actions.is-confirming .reply-delete {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.reply-delete:hover,
+.reply-delete:focus-visible,
+.reply-confirm:hover,
+.reply-confirm:focus-visible,
+.reply-cancel:hover,
+.reply-cancel:focus-visible {
+  color: var(--text);
+  background: var(--surface-2);
+  transform: scale(1.08);
+}
+.reply-confirm {
+  font-weight: 900;
+}
+.reply-cancel {
+  font-weight: 900;
+}
+

@@ -1,0 +1,238 @@
+/* Ações do cabeçalho do murmúrio */
+.murmur-head-actions { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; }
+.murmur-card-collapsible { cursor: default; }
+.murmur-card-collapsible:hover { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 82%, transparent); }
+.murmur-card-collapsible .murmur-profile-link,
+.murmur-card-collapsible .murmur-profile-link,
+.murmur-card-collapsible .murmur-author a,
+.murmur-card-collapsible .murmur-text-link,
+.murmur-card-collapsible .murmur-head-actions button,
+.murmur-card-collapsible .murmur-actions button,
+.murmur-card-collapsible button { cursor: pointer; }
+.murmur-delete-button { color: color-mix(in srgb, var(--negative) 72%, var(--muted)); }
+.murmur-delete-button:hover,
+.murmur-delete-button:focus-visible { color: var(--negative); border-color: color-mix(in srgb, var(--negative) 42%, var(--line)); background: color-mix(in srgb, var(--negative) 8%, var(--surface-2)); }
+.murmur-delete-confirm-actions { justify-content: flex-end; }
+
+
+
+.replies-compact { margin: 12px 0 0; padding: 0; border-left: 0; }
+.reply-preview-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+.reply-preview-item {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--line) 92%, var(--surface));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-2) 82%, black 18%);
+}
+.reply-preview-item.is-own-reply {
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--line));
+  background: color-mix(in srgb, var(--surface-2) 76%, var(--accent) 8%, black 16%);
+}
+.reply-preview-content {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.reply-preview-content strong,
+.reply-preview-content span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.reply-preview-content strong {
+  flex: 0 0 auto;
+  font-size: .8rem;
+}
+.reply-preview-content span {
+  color: var(--muted);
+  font-size: .8rem;
+}
+.reply-inline-delete-zone { position: relative; min-width: 20px; display: flex; align-items: center; justify-content: flex-end; }
+.reply-inline-delete-button {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--negative) 74%, var(--muted));
+  background: transparent;
+  cursor: pointer;
+  font-size: .9rem;
+  line-height: 1;
+  opacity: .72;
+}
+.reply-inline-delete-button:hover,
+.reply-inline-delete-button:focus-visible {
+  color: var(--negative);
+  background: color-mix(in srgb, var(--negative) 10%, var(--surface));
+  opacity: 1;
+}
+.reply-inline-delete-confirm {
+  position: absolute;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-2) 92%, black 8%);
+  box-shadow: var(--shadow);
+  white-space: nowrap;
+}
+.reply-inline-delete-confirm button {
+  min-height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: .68rem;
+  font-weight: 800;
+}
+.reply-inline-delete-confirm button:first-child { color: var(--text); background: var(--surface); }
+.reply-inline-delete-confirm button:hover { color: var(--text); }
+
+.replies.replies-recursive { margin: 14px 0 0; padding: 0; border-left: 0; }
+.murmur-context-parent {
+  background: color-mix(in srgb, var(--surface) 88%, var(--surface-2) 12%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 78%, transparent);
+}
+.murmur-context-parent > .murmur-head,
+.murmur-context-parent > .murmur-text-link,
+.murmur-context-parent > .score-line,
+.murmur-context-parent > .reply-box {
+  opacity: .68;
+}
+.murmur-context-parent > .replies.replies-recursive {
+  opacity: 1;
+}
+.replies-specific-thread {
+  display: grid;
+  gap: 10px;
+}
+.thread-sibling-stack {
+  display: grid;
+  gap: 8px;
+}
+.thread-sibling-line,
+.thread-sibling-load {
+  width: 100%;
+  min-height: 36px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--line) 82%, var(--surface));
+  border-radius: 999px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface-2) 80%, black 20%);
+  cursor: pointer;
+  text-align: left;
+  overflow: hidden;
+}
+.thread-sibling-line.sex-m {
+  border-color: color-mix(in srgb, #4f84ff 24%, var(--line));
+  background: color-mix(in srgb, #4f84ff 5%, var(--surface-2));
+}
+.thread-sibling-line.sex-f {
+  border-color: color-mix(in srgb, #f28bb8 26%, var(--line));
+  background: color-mix(in srgb, #f28bb8 6%, var(--surface-2));
+}
+.thread-sibling-line.sex-u {
+  border-color: color-mix(in srgb, var(--text) 9%, var(--line));
+}
+.thread-sibling-line:hover,
+.thread-sibling-line:focus-visible,
+.thread-sibling-load:hover,
+.thread-sibling-load:focus-visible {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--line));
+  background: color-mix(in srgb, var(--surface-2) 72%, var(--accent) 8%, black 20%);
+}
+.thread-sibling-line__pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 42%, var(--text));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 14%, transparent), 0 0 14px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.thread-sibling-load {
+  font-size: .76rem;
+  font-weight: 700;
+}
+.thread-sibling-line {
+  grid-template-columns: auto auto minmax(0, 1fr);
+}
+.thread-sibling-line__time {
+  color: var(--muted);
+  font-size: .72rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.thread-sibling-line__preview {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--text) 72%, var(--muted));
+  font-size: .76rem;
+}
+.thread-sibling-line.is-loading {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--surface-2) 82%, black 18%), color-mix(in srgb, var(--accent) 9%, var(--surface-2)), color-mix(in srgb, var(--surface-2) 82%, black 18%));
+  background-size: 220% 100%;
+  animation: siblingVacuumShimmer .55s linear infinite;
+}
+@keyframes siblingVacuumShimmer { to { background-position: -220% 0; } }
+.thread-expanded-card {
+  min-height: 0;
+  height: auto;
+  transform-origin: center top;
+}
+.thread-expanded-card > .murmur-card {
+  transform-origin: center top;
+  will-change: opacity, transform, clip-path;
+}
+.thread-selected-card > .murmur-card,
+.thread-expanded-card > .murmur-card {
+  margin: 0;
+}
+.murmur-terminal-level { cursor: pointer; }
+.murmur-terminal-level::after {
+  content: 'Abrir perfil para continuar';
+  display: block;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: .7rem;
+  text-align: right;
+  opacity: .72;
+}
+.murmur-terminal-level:hover::after,
+.murmur-terminal-level:focus-within::after { color: var(--text); opacity: 1; }
+.murmur-head-actions .direct-card-button { opacity: 0; pointer-events: none; transform: translateY(2px); }
+.murmur-card:hover .murmur-head-actions .direct-card-button,
+.murmur-card:focus-within .murmur-head-actions .direct-card-button { opacity: 1; pointer-events: auto; transform: none; }
+

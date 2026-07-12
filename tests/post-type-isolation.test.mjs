@@ -6,7 +6,9 @@ const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('Murmurinho lista somente registros do tipo murmur', async () => {
     const postsRepository = await read('src/lib/server/repositories/posts.ts');
-    assert.match(postsRepository, /START WITH tree\.parent_post_id IS NULL[\s\S]*LOWER\(TRIM\(tree\.post_type\)\) = 'murmur'[\s\S]*CONNECT BY NOCYCLE PRIOR tree\.id = tree\.parent_post_id/);
+    const listPosts = postsRepository.slice(postsRepository.indexOf('export async function listPosts'), postsRepository.indexOf('type PostRow'));
+    assert.match(listPosts, /LOWER\(TRIM\(p\.post_type\)\) = 'murmur'/);
+    assert.match(listPosts, /AND p\.parent_post_id IS NULL/);
     assert.doesNotMatch(postsRepository, /post_type[^\n]*<> 'photo'/i);
 });
 

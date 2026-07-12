@@ -1,0 +1,38 @@
+/* Ações flutuantes */
+.floating-action, .scroll-top { position: fixed; right: 24px; z-index: 80; width: 54px; height: 54px; padding: 0; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; color: var(--inverse); background: var(--strong); box-shadow: var(--shadow); cursor: pointer; font-size: 1.55rem; line-height: 1; }
+.floating-action { bottom: 24px; }
+.scroll-top { bottom: 88px; opacity: 0; transform: translateY(12px); pointer-events: none; transition: .2s ease; }
+.scroll-top.visible { opacity: 1; transform: none; pointer-events: auto; }
+
+.direct-card-button {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  line-height: 1;
+  appearance: none;
+  transition: color .18s ease, background-color .18s ease, border-color .18s ease, transform .18s ease;
+}
+.direct-card-button .action-icon,
+.direct-card-button svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+  pointer-events: none;
+}
+.direct-card-button:hover,
+.direct-card-button:focus-visible {
+  color: var(--text);
+  background: var(--surface-2);
+  border-color: color-mix(in srgb, var(--line) 70%, var(--text) 30%);
+}
+.direct-card-button:active { transform: scale(.96); }
+
+/* Modal */

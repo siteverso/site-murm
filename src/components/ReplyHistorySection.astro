@@ -2,14 +2,34 @@
 const {
   profile,
   replyGroups = [],
-  locale = 'pt-BR',
   backUrl = '',
   backLabel = 'Ver murmúrios',
 } = Astro.props;
 
-const formatDate = value => value == null ? '' : new Date(value).toLocaleString(locale === 'en' ? 'en-US' : 'pt-BR');
-const initials = name => (name || 'mu').slice(0, 2).toUpperCase();
-const sexClass = sexCode => sexCode === 'M' ? 'sex-m' : sexCode === 'F' ? 'sex-f' : 'sex-u';
+const normalizedGroups = replyGroups.map(group => {
+  const parentDeleted = !group.parent.exists || group.parent.isDeleted;
+  const parentId = Number(group.parent.id || group.parentPostId);
+  const replies = group.replies.map(reply => ({
+    ...reply,
+    parentPostId: parentId,
+    replyCount: 0,
+    myVote: 0,
+    isDeleted: false,
+  }));
+
+  return {
+    parent: {
+      ...group.parent,
+      id: parentId,
+      replyCount: replies.length,
+      myVote: 0,
+      isDeleted: parentDeleted,
+    },
+    replies,
+  };
+});
+
+const historyJson = JSON.stringify(normalizedGroups).replace(/</g, '\\u003c');
 ---
 <div class="feed-heading minimal profile-feed-heading">
   <h2>Respostas de @{profile.username}</h2>
@@ -17,80 +37,10 @@ const sexClass = sexCode => sexCode === 'M' ? 'sex-m' : sexCode === 'F' ? 'sex-f
 </div>
 
 {replyGroups.length ? (
-  <div class="reply-history-list">
-    {replyGroups.map(group => {
-      const parentDeleted = !group.parent.exists || group.parent.isDeleted;
-      return (
-        <article class={`panel murmur-card reply-history-group reply-history-parent-card ${parentDeleted ? 'reply-history-parent-card--deleted' : sexClass(group.parent.sexCode)}`} data-parent-post-id={group.parentPostId}>
-          {parentDeleted ? (
-            <>
-              <div class="murmur-head">
-                <span class="avatar murmur-profile-link reply-history-disabled-avatar" aria-hidden="true">××</span>
-                <div class="murmur-author">
-                  <strong>Murmúrio removido</strong>
-                  <span>{group.parent.createdAt ? formatDate(group.parent.createdAt) : ''}</span>
-                </div>
-              </div>
-              <div class="reply-history-deleted-copy">
-                <p class="murmur-text">Este murmúrio foi removido.</p>
-              </div>
-            </>
-          ) : (
-            <>
-              <div class="murmur-head">
-                <a class="avatar murmur-profile-link" href={`/perfil/${encodeURIComponent(group.parent.author)}`} aria-label={`Abrir perfil de @${group.parent.author}`}>
-                  {group.parent.avatarUrl ? <img src={group.parent.avatarUrl} alt={`Foto de @${group.parent.author}`} loading="lazy" decoding="async" /> : initials(group.parent.author)}
-                </a>
-                <div class="murmur-author">
-                  <a href={`/perfil/${encodeURIComponent(group.parent.author)}`}><strong>@{group.parent.author}</strong></a>
-                  <span>{formatDate(group.parent.createdAt)}</span>
-                </div>
-              </div>
-              <a class="murmur-text-link" href={`/perfil/${encodeURIComponent(group.parent.author)}?murmurio=${group.parent.id}`}>
-                <p class="murmur-text">{group.parent.text}</p>
-              </a>
-              <div class="score-line reply-history-score-line">
-                <span class={`score ${group.parent.positive - group.parent.negative < 0 ? 'negative' : ''}`}>{group.parent.positive - group.parent.negative}</span>
-                <div class="murmur-actions is-static" aria-hidden="true">
-                  <span class="action-button static"><span>{group.parent.positive}</span></span>
-                  <span class="action-button static"><span>{group.parent.negative}</span></span>
-                  <span class="action-button static"><span>{group.replies.length}</span></span>
-                  <span class="action-button static"><span>{group.parent.shares}</span></span>
-                </div>
-              </div>
-            </>
-          )}
-
-          <div class="replies replies-recursive reply-history-children">
-            {group.replies.map(reply => (
-              <section class={`panel murmur-card murmur-reply-card reply-history-child-card ${sexClass(reply.sexCode)}`} id={`murmurio-${reply.id}`}>
-                <div class="murmur-head">
-                  <a class="avatar murmur-profile-link" href={`/perfil/${encodeURIComponent(reply.author)}`} aria-label={`Abrir perfil de @${reply.author}`}>
-                    {reply.avatarUrl ? <img src={reply.avatarUrl} alt={`Foto de @${reply.author}`} loading="lazy" decoding="async" /> : initials(reply.author)}
-                  </a>
-                  <div class="murmur-author">
-                    <a href={`/perfil/${encodeURIComponent(reply.author)}`}><strong>@{reply.author}</strong></a>
-                    <span>{formatDate(reply.createdAt)}</span>
-                  </div>
-                </div>
-                <a class="murmur-text-link" href={`/perfil/${encodeURIComponent(reply.author)}?murmurio=${reply.id}`}>
-                  <p class="murmur-text">{reply.text}</p>
-                </a>
-                <div class="score-line reply-history-score-line">
-                  <span class={`score ${reply.positive - reply.negative < 0 ? 'negative' : ''}`}>{reply.positive - reply.negative}</span>
-                  <div class="murmur-actions is-static" aria-hidden="true">
-                    <span class="action-button static"><span>{reply.positive}</span></span>
-                    <span class="action-button static"><span>{reply.negative}</span></span>
-                    <span class="action-button static"><span>{reply.shares}</span></span>
-                  </div>
-                </div>
-              </section>
-            ))}
-          </div>
-        </article>
-      );
-    })}
-  </div>
+  <>
+    <div class="reply-history-list" data-reply-history></div>
+    <script type="application/json" data-reply-history-data set:html={historyJson}></script>
+  </>
 ) : (
   <p class="empty-state">Ainda não há respostas publicadas por @{profile.username}.</p>
 )}
