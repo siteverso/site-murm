@@ -206,7 +206,9 @@ const COLUMN_GROUPS = {
   ],
 };
 let feedColumnObservers = [];
+let feedRevealObserver = null;
 let feedTimer = null;
+let hasRenderedFeed = false;
 
 function userInitials(username = '') {
   return String(username).trim().slice(0, 2).toUpperCase() || 'MU';
@@ -218,6 +220,9 @@ function renderAvatar(el, user) {
     const image = document.createElement('img');
     image.src = user.avatarUrl;
     image.alt = `Foto de @${user.username}`;
+    image.loading = 'lazy';
+    image.decoding = 'async';
+    image.className = 'lazy-media';
     image.loading = 'eager';
     el.append(image);
     return;
@@ -530,9 +535,9 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
   const terminalClass = terminalProfile ? ' murmur-terminal-level' : '';
   const contextParentClass = sameId(post.id, contextParentId) ? ' murmur-context-parent' : '';
 
-  return `<article id="murmurio-${post.id}" class="panel murmur-card ${sexClass}${post.parentPostId ? ' murmur-reply-card' : ''}${terminalClass}${contextParentClass}${collapsibleHeader ? ' murmur-card-collapsible' : ''}" data-post-id="${post.id}"${collapsibleHeader ? ` data-collapse-expanded-post="${post.id}"` : ''}${terminalAttribute}>
+  return `<article id="murmurio-${post.id}" class="panel murmur-card lazy-reveal ${sexClass}${post.parentPostId ? ' murmur-reply-card' : ''}${terminalClass}${contextParentClass}${collapsibleHeader ? ' murmur-card-collapsible' : ''}" data-post-id="${post.id}"${collapsibleHeader ? ` data-collapse-expanded-post="${post.id}"` : ''}${terminalAttribute}>
     <div class="murmur-head">
-      <a class="avatar murmur-profile-link" href="/perfil/${encodeURIComponent(post.author)}" aria-label="Abrir perfil de @${escapeHtml(post.author)}">${post.avatarUrl ? `<img src="${escapeHtml(post.avatarUrl)}" alt="Foto de @${escapeHtml(post.author)}" loading="lazy">` : escapeHtml(post.author.slice(0, 2).toUpperCase())}</a>
+      <a class="avatar murmur-profile-link" href="/perfil/${encodeURIComponent(post.author)}" aria-label="Abrir perfil de @${escapeHtml(post.author)}">${post.avatarUrl ? `<img class="lazy-media" src="${escapeHtml(post.avatarUrl)}" alt="Foto de @${escapeHtml(post.author)}" loading="lazy" decoding="async">` : escapeHtml(post.author.slice(0, 2).toUpperCase())}</a>
       <div class="murmur-author"><a href="/perfil/${encodeURIComponent(post.author)}"><strong>@${escapeHtml(post.author)}</strong></a><span>${new Date(post.createdAt).toLocaleString()}</span></div>
       ${renderPostHeaderActions(post)}
     </div>
@@ -627,6 +632,69 @@ function renderLane(feed, posts, repliesMode = 'none', rootPostId = '') {
   syncSpecificHoverControl();
 }
 
+
+function renderFeedSkeletons() {
+  const columns = $('[data-feed-columns]');
+  const allListFeed = $('[data-feed-all-list]');
+  const profileFeed = $('[data-profile-feed]');
+  const skeletonCard = () => `<article class="panel murmur-card skeleton-card" aria-hidden="true">
+    <div class="skeleton-head">
+      <span class="skeleton-block skeleton-avatar"></span>
+      <span class="skeleton-author">
+        <span class="skeleton-block skeleton-name"></span>
+        <span class="skeleton-block skeleton-date"></span>
+      </span>
+    </div>
+    <span class="skeleton-block skeleton-line skeleton-line--long"></span>
+    <span class="skeleton-block skeleton-line"></span>
+    <span class="skeleton-block skeleton-line skeleton-line--short"></span>
+    <div class="skeleton-actions">
+      <span class="skeleton-block skeleton-score"></span>
+      <span class="skeleton-block skeleton-pill"></span>
+      <span class="skeleton-block skeleton-pill"></span>
+    </div>
+  </article>`;
+  const cards = (count = 3) => Array.from({ length: count }, skeletonCard).join('');
+
+  if (columns) {
+    const definitions = getColumnDefinitions();
+    columns.dataset.columnCount = String(definitions.length);
+    columns.innerHTML = definitions.map(definition => `<section class="network-lane ${definition.className || ''}">
+      <div class="feed lane-feed feed-skeleton" aria-label="Carregando murmúrios">${cards(3)}</div>
+    </section>`).join('');
+  }
+  if (allListFeed) allListFeed.innerHTML = `<div class="feed-skeleton" aria-label="Carregando murmúrios">${cards(4)}</div>`;
+  if (profileFeed) profileFeed.innerHTML = `<div class="feed-skeleton" aria-label="Carregando murmúrios">${cards(3)}</div>`;
+}
+
+function setupLazyVisuals(root = document) {
+  const cards = $$('.lazy-reveal:not(.is-visible)', root);
+  if (cards.length) {
+    if (!('IntersectionObserver' in window)) {
+      cards.forEach(card => card.classList.add('is-visible'));
+    } else {
+      feedRevealObserver ||= new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add('is-visible');
+          feedRevealObserver.unobserve(entry.target);
+        });
+      }, { rootMargin: '160px 0px', threshold: 0.01 });
+      cards.forEach(card => feedRevealObserver.observe(card));
+    }
+  }
+
+  $$('.lazy-media:not([data-lazy-bound])', root).forEach(image => {
+    image.dataset.lazyBound = 'true';
+    const markLoaded = () => image.classList.add('is-loaded');
+    if (image.complete) markLoaded();
+    else {
+      image.addEventListener('load', markLoaded, { once: true });
+      image.addEventListener('error', markLoaded, { once: true });
+    }
+  });
+}
+
 function disconnectFeedColumnObservers() {
   feedColumnObservers.forEach(observer => observer.disconnect());
   feedColumnObservers = [];
@@ -677,6 +745,7 @@ function renderSplitFeeds() {
     renderSplitLane($(`[data-feed-column="${key}"]`), getColumnItems(definition), key);
   });
   setupFeedColumnAutoload();
+  setupLazyVisuals(columns);
 }
 
 function expandSplitFeed(kind) {
@@ -749,6 +818,7 @@ async function loadFeed(force = false) {
   if ((!columns && !allListFeed && !profileFeed) || feedRequestRunning) return;
 
   feedRequestRunning = true;
+  if (!hasRenderedFeed) renderFeedSkeletons();
   try {
     const profileUsername = profileFeed?.dataset.profileUsername || '';
     const profilePostId = profileFeed?.dataset.profilePostId || '';
@@ -771,6 +841,8 @@ async function loadFeed(force = false) {
     renderLane(allListFeed, feedBuckets.all, 'compact');
     renderLane(profileFeed, feedBuckets.all, profileFeed?.dataset.feedIncludeReplies === 'true' ? 'recursive' : 'none', profilePostId);
     restoreFeedAnchor(anchor);
+    setupLazyVisuals();
+    hasRenderedFeed = true;
   } finally {
     feedRequestRunning = false;
   }

@@ -305,7 +305,7 @@ test('card inflado recolhe fora das hot areas e preserva links e ações', async
   assert.match(source, /async function collapseExpandedSpecificPost/);
   assert.match(source, /height: '36px'/);
   assert.match(source, /state\.expandedIds\.delete\(String\(postId\)\)/);
-  assert.match(css, /\.murmur-card-collapsible \{ cursor: pointer; \}/);
+  assert.match(css, /\.murmur-card-collapsible \{ cursor: default; \}/);
 });
 
 test('link do usuário ocupa somente avatar e texto do nome', () => {
@@ -313,4 +313,5 @@ test('link do usuário ocupa somente avatar e texto do nome', () => {
   assert.match(css, /\.murmur-author \{[^}]*display: flex;[^}]*align-items: flex-start;/s);
   assert.match(css, /\.murmur-author a \{[^}]*display: inline-flex;[^}]*width: fit-content;/s);
   assert.match(css, /\.murmur-author strong \{[^}]*display: inline;/s);
+  assert.match(css, /\.murmur-card-collapsible \.murmur-text-link,[\s\S]*cursor: pointer;/);
 });
