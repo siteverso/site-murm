@@ -807,9 +807,9 @@ html[data-theme="dark"] .field-help[data-type="waiting"] { color: #91baf0; }
 
 .murmur-reply-context { display: inline-flex; margin: 8px 0 0 60px; color: var(--muted); font-size: .78rem; font-weight: 750; }
 .murmur-reply-context:hover { color: var(--text); }
-.murmur-head-actions .direct-card-button[data-direct-user] { opacity: 0; pointer-events: none; transform: translateY(2px); }
-.murmur-card:hover .murmur-head-actions .direct-card-button[data-direct-user],
-.murmur-card:focus-within .murmur-head-actions .direct-card-button[data-direct-user] { opacity: 1; pointer-events: auto; transform: none; }
+.murmur-head-actions .direct-card-button { opacity: 0; pointer-events: none; transform: translateY(2px); }
+.murmur-card:hover .murmur-head-actions .direct-card-button,
+.murmur-card:focus-within .murmur-head-actions .direct-card-button { opacity: 1; pointer-events: auto; transform: none; }
 
 /* Lista de bilhetes: negrito apenas quando há mensagens novas */
 .direct-thread strong { font-weight: 600; }
@@ -828,5 +828,5 @@ html[data-theme="dark"] .field-help[data-type="waiting"] { color: #91baf0; }
 .direct-edit-form button { min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--text); background: var(--surface-2); cursor: pointer; font-size: .74rem; font-weight: 800; }
 
 @media (hover: none) {
-  .murmur-head-actions .direct-card-button[data-direct-user] { opacity: 1; pointer-events: auto; transform: none; }
+  .murmur-head-actions .direct-card-button { opacity: 1; pointer-events: auto; transform: none; }
 }

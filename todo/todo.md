@@ -13,6 +13,7 @@ TODO, um de cada vez:
 - voltar a exibir as resposta dentro do proprio murmurio 
 - so exibir o icone remover murmurio no hover, igual o direct  ![img_6.png](img_6.png)
 - logo apos enviar um bilhete permitir desfazer ![img_5.png](img_5.png)
-- ta desalinhado as magens revisar todas as paginas ![img_7.png](img_7.png)
-- deve limitar a no maximo 5 o numero de murmurios resposta um dentro do outro
-- tirar essa linha inutil na esquerda dos murmurios ![img_8.png](img_8.png)
+- o hover so pode mostrar acoes do proprio mumrurio e nao dos outros agrupados ![img_9.png](img_9.png)
+- usar a mesma confirmacao de murmurio de nivel 0 (murmurio normal) nos murmurios respostas.
+  atualmente eu clico pra remover uma resposta ele nao confirma. usar mesmo estilo classes etc revise. teste ![img_10.png](img_10.png)
+- 

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { formatDateTime, getSexColumnDefinitions, hasUnreadMessages } from '../public/app-utils.mjs';
 
 test('agrupamento por sexo inclui a terceira coluna para cadastros sem sexo', () => {
@@ -61,4 +62,12 @@ test('respostas são agrupadas e renderizadas dentro do murmúrio pai', async ()
   assert.match(source, /data-replies-for=/);
   assert.match(source, /renderPost\(reply, childrenByParent, nextAncestry\)/);
   assert.match(source, /roots\.map\(post => renderPost\(post, childrenByParent\)\)/);
+});
+
+test('ícones de direct e exclusão do murmúrio aparecem juntos apenas no hover ou foco', () => {
+  const css = readFileSync(new URL('../src/styles/global.css', import.meta.url), 'utf8');
+  assert.match(css, /\.murmur-head-actions \.direct-card-button \{ opacity: 0; pointer-events: none;/);
+  assert.match(css, /\.murmur-card:hover \.murmur-head-actions \.direct-card-button,/);
+  assert.match(css, /\.murmur-card:focus-within \.murmur-head-actions \.direct-card-button \{ opacity: 1; pointer-events: auto;/);
+  assert.match(css, /@media \(hover: none\)[\s\S]*\.murmur-head-actions \.direct-card-button \{ opacity: 1; pointer-events: auto;/);
 });
