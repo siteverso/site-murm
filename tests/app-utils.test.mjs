@@ -307,3 +307,10 @@ test('card inflado recolhe fora das hot areas e preserva links e ações', async
   assert.match(source, /state\.expandedIds\.delete\(String\(postId\)\)/);
   assert.match(css, /\.murmur-card-collapsible \{ cursor: pointer; \}/);
 });
+
+test('link do usuário ocupa somente avatar e texto do nome', () => {
+  const css = readFileSync(new URL('../src/styles/global.css', import.meta.url), 'utf8');
+  assert.match(css, /\.murmur-author \{[^}]*display: flex;[^}]*align-items: flex-start;/s);
+  assert.match(css, /\.murmur-author a \{[^}]*display: inline-flex;[^}]*width: fit-content;/s);
+  assert.match(css, /\.murmur-author strong \{[^}]*display: inline;/s);
+});

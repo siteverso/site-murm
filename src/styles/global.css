@@ -105,8 +105,9 @@ input:focus, textarea:focus { border-color: var(--strong); box-shadow: 0 0 0 3px
 .hidden-message { padding: 17px 20px; display: flex; align-items: center; justify-content: space-between; gap: 14px; color: var(--muted); background: var(--surface-2); }
 .hidden-message strong { color: var(--text); }
 .murmur-head { display: flex; align-items: center; gap: 12px; }
-.murmur-author { min-width: 0; flex: 1; }
-.murmur-author strong { display: block; }
+.murmur-author { min-width: 0; flex: 1; display: flex; flex-direction: column; align-items: flex-start; }
+.murmur-author a { display: inline-flex; width: fit-content; max-width: 100%; }
+.murmur-author strong { display: inline; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .murmur-author span { color: var(--muted); font-size: .84rem; }
 .murmur-text { margin: 16px 0; white-space: pre-wrap; line-height: 1.62; }
 .murmur-text-link { display: block; color: inherit; text-decoration: none; }
