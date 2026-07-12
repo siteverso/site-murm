@@ -123,7 +123,12 @@ export async function currentUser(context: APIContext): Promise<SessionUser | nu
                     NVL(u.sex_code, '') AS sex_code,
                     u.sex_set_at,
                     NVL(u.sex_change_count, 0) AS sex_change_count,
-                    NVL(u.avatar_url, '') AS avatar_url,
+                    CASE
+                        WHEN u.avatar_image IS NOT NULL THEN
+                            '/api/users/' || u.id || '/avatar?v=' ||
+                            TO_CHAR(NVL(u.avatar_updated_at, u.updated_at), 'YYYYMMDDHH24MISSFF6')
+                        ELSE NVL(u.avatar_url, '')
+                    END AS avatar_url,
                     u.language_code,
                     NVL(u.theme_code, 'auto') AS theme_code,
                     NVL(u.region_code, '') AS region_code,

@@ -1,0 +1,1 @@
+select * from murm_post;

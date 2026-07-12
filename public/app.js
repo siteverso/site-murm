@@ -1,6 +1,6 @@
 import { formatDateTime, getSexColumnDefinitions, hasUnreadMessages } from '/app-utils.mjs';
 
-const $ = (selector, root = document) => root.querySelector(selector);
+const $ = (selector, root = document) => root?.querySelector?.(selector) ?? null;
 
 const ICONS = {
   direct: `
@@ -59,13 +59,15 @@ const ICONS = {
     </span>`,
 };
 
-const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+const $$ = (selector, root = document) => root?.querySelectorAll ? [...root.querySelectorAll(selector)] : [];
 const sameId = (left, right) => left != null && right != null && String(left) === String(right);
 
 const api = async (url, options = {}) => {
+  const headers = { ...(options.headers || {}) };
+  if (!(options.body instanceof FormData)) headers['Content-Type'] = 'application/json';
   const response = await fetch(url, {
     ...options,
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    headers,
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -201,12 +203,26 @@ function userInitials(username = '') {
   return String(username).trim().slice(0, 2).toUpperCase() || 'MU';
 }
 
+function renderAvatar(el, user) {
+  el.replaceChildren();
+  if (user.avatarUrl) {
+    const image = document.createElement('img');
+    image.src = user.avatarUrl;
+    image.alt = `Foto de @${user.username}`;
+    image.loading = 'eager';
+    el.append(image);
+    return;
+  }
+  el.textContent = userInitials(user.username);
+}
+
 function renderUser(user) {
   if (!user) return;
 
-  $$('[data-user-avatar]').forEach(el => { el.textContent = userInitials(user.username); });
+  $$('[data-user-avatar]').forEach(el => renderAvatar(el, user));
   $$('[data-user-name]').forEach(el => { el.textContent = `@${user.username}`; });
-  $$('[data-profile-avatar]').forEach(el => { el.textContent = userInitials(user.username); });
+  $$('[data-own-profile-link]').forEach(el => { el.href = '/perfil'; });
+  $$('[data-profile-avatar]').forEach(el => renderAvatar(el, user));
   $$('[data-profile-username]').forEach(el => { el.textContent = `@${user.username}`; });
   $$('[data-profile-email]').forEach(el => { el.textContent = user.email; });
   $$('[data-profile-sex]').forEach(el => { el.textContent = user.sexCode === 'M' ? 'Macho' : user.sexCode === 'F' ? 'Fêmea' : 'Sexo não informado'; });
@@ -355,7 +371,7 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set()) {
 
   return `<article id="murmurio-${post.id}" class="panel murmur-card ${sexClass}${post.parentPostId ? ' murmur-reply-card' : ''}" data-post-id="${post.id}">
     <div class="murmur-head">
-      <div class="avatar">${escapeHtml(post.author.slice(0, 2).toUpperCase())}</div>
+      <div class="avatar">${post.avatarUrl ? `<img src="${escapeHtml(post.avatarUrl)}" alt="Foto de @${escapeHtml(post.author)}" loading="lazy">` : escapeHtml(post.author.slice(0, 2).toUpperCase())}</div>
       <div class="murmur-author"><strong>@${escapeHtml(post.author)}</strong><span>${new Date(post.createdAt).toLocaleString()}</span></div>
       ${renderPostHeaderActions(post)}
     </div>
@@ -764,7 +780,160 @@ function bindUi() {
 }
 
 
+const uploadProfileAvatar = async (blob, message) => {
+  const formData = new FormData();
+  formData.append('avatar', blob, 'avatar.jpg');
+  await api('/api/auth/avatar', { method: 'POST', body: formData });
+  await loadUser();
+  setFormMessage(message, 'Foto atualizada.', 'success');
+  toast('Foto de perfil atualizada.');
+};
+
+function openAvatarCropper(file, message, input) {
+  const objectUrl = URL.createObjectURL(file);
+  modal(`
+    <h2>Ajustar foto</h2>
+    <p class="modal-subtitle">Mova a imagem e ajuste o zoom para enquadrar o perfil.</p>
+    <div class="avatar-crop-stage" data-avatar-crop-stage>
+      <img src="${objectUrl}" alt="Imagem escolhida para recorte" draggable="false" data-avatar-crop-image>
+      <span class="avatar-crop-mask" aria-hidden="true"></span>
+    </div>
+    <label class="avatar-crop-zoom">
+      <span>Zoom</span>
+      <input type="range" min="1" max="3" value="1" step="0.01" data-avatar-crop-zoom>
+    </label>
+    <div class="modal-actions avatar-crop-actions">
+      <button class="button secondary" type="button" data-modal-close>Cancelar</button>
+      <button class="button primary" type="button" data-avatar-crop-confirm>Usar esta foto</button>
+    </div>
+  `, 'avatar-crop-modal');
+
+  const backdrop = $('[data-modal]');
+  const stage = $('[data-avatar-crop-stage]', backdrop);
+  const image = $('[data-avatar-crop-image]', backdrop);
+  const zoomInput = $('[data-avatar-crop-zoom]', backdrop);
+  const confirm = $('[data-avatar-crop-confirm]', backdrop);
+  if (!stage || !image || !zoomInput || !confirm) return;
+
+  const state = { x: 0, y: 0, zoom: 1, baseScale: 1, dragging: false, pointerX: 0, pointerY: 0 };
+  const stageSize = () => stage.clientWidth;
+  const clampPosition = () => {
+    const size = stageSize();
+    const width = image.naturalWidth * state.baseScale * state.zoom;
+    const height = image.naturalHeight * state.baseScale * state.zoom;
+    state.x = Math.max((size - width) / 2, Math.min((width - size) / 2, state.x));
+    state.y = Math.max((size - height) / 2, Math.min((height - size) / 2, state.y));
+  };
+  const render = () => {
+    clampPosition();
+    image.style.transform = `translate(calc(-50% + ${state.x}px), calc(-50% + ${state.y}px)) scale(${state.baseScale * state.zoom})`;
+  };
+  const initializeImage = () => {
+    state.baseScale = Math.max(stageSize() / image.naturalWidth, stageSize() / image.naturalHeight);
+    render();
+  };
+  if (image.complete && image.naturalWidth) initializeImage();
+  else image.addEventListener('load', initializeImage, { once: true });
+  const setZoom = value => {
+    const min = Number(zoomInput.min);
+    const max = Number(zoomInput.max);
+    state.zoom = Math.max(min, Math.min(max, value));
+    zoomInput.value = state.zoom.toFixed(2);
+    render();
+  };
+  zoomInput.addEventListener('input', () => {
+    setZoom(Number(zoomInput.value));
+  });
+  stage.addEventListener('wheel', event => {
+    event.preventDefault();
+    const direction = event.deltaY < 0 ? 1 : -1;
+    setZoom(state.zoom + direction * 0.08);
+  }, { passive: false });
+  stage.addEventListener('pointerdown', event => {
+    state.dragging = true;
+    state.pointerX = event.clientX;
+    state.pointerY = event.clientY;
+    stage.setPointerCapture(event.pointerId);
+    stage.classList.add('is-dragging');
+  });
+  stage.addEventListener('pointermove', event => {
+    if (!state.dragging) return;
+    state.x += event.clientX - state.pointerX;
+    state.y += event.clientY - state.pointerY;
+    state.pointerX = event.clientX;
+    state.pointerY = event.clientY;
+    render();
+  });
+  const stopDragging = event => {
+    state.dragging = false;
+    stage.classList.remove('is-dragging');
+    if (stage.hasPointerCapture?.(event.pointerId)) stage.releasePointerCapture(event.pointerId);
+  };
+  stage.addEventListener('pointerup', stopDragging);
+  stage.addEventListener('pointercancel', stopDragging);
+
+  confirm.addEventListener('click', async () => {
+    setButtonLoading(confirm, true, 'Salvando…');
+    try {
+      const outputSize = 512;
+      const canvas = document.createElement('canvas');
+      canvas.width = outputSize;
+      canvas.height = outputSize;
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Não foi possível preparar a imagem.');
+      const size = stageSize();
+      const scale = state.baseScale * state.zoom;
+      const displayedWidth = image.naturalWidth * scale;
+      const displayedHeight = image.naturalHeight * scale;
+      const left = (size - displayedWidth) / 2 + state.x;
+      const top = (size - displayedHeight) / 2 + state.y;
+      const sourceX = Math.max(0, -left / scale);
+      const sourceY = Math.max(0, -top / scale);
+      const sourceSize = size / scale;
+      context.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, outputSize, outputSize);
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+      if (!blob) throw new Error('Não foi possível recortar a imagem.');
+      await uploadProfileAvatar(blob, message);
+      closeModal();
+    } catch (error) {
+      setFormMessage(message, error.message, 'error');
+      setButtonLoading(confirm, false);
+    }
+  });
+
+  const observer = new MutationObserver(() => {
+    if (document.body.contains(backdrop)) return;
+    URL.revokeObjectURL(objectUrl);
+    input.value = '';
+    observer.disconnect();
+  });
+  observer.observe(document.body, { childList: true });
+}
+
 function bindProfile() {
+  const avatarForm = $('[data-avatar-form]');
+  const avatarInput = $('[data-avatar-input]', avatarForm);
+  const avatarTrigger = $('[data-avatar-trigger]');
+  avatarTrigger?.addEventListener('click', () => avatarInput?.click());
+
+  avatarInput?.addEventListener('change', () => {
+    const file = avatarInput.files?.[0];
+    if (!file) return;
+    const message = $('[data-form-message]', avatarForm);
+    setFormMessage(message);
+    if (file.size > 3 * 1024 * 1024) {
+      setFormMessage(message, 'A imagem deve ter no máximo 3 MB.', 'error');
+      avatarInput.value = '';
+      return;
+    }
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setFormMessage(message, 'Escolha uma imagem JPG, PNG ou WebP.', 'error');
+      avatarInput.value = '';
+      return;
+    }
+    openAvatarCropper(file, message, avatarInput);
+  });
+
   const profileForm = $('[data-profile-form]');
   profileForm?.addEventListener('submit', async event => {
     event.preventDefault();
@@ -1349,13 +1518,68 @@ document.addEventListener('submit', async event => {
   scheduleDirectSend({ recipientId, contents });
 });
 
+function showRuntimeError(error, context = 'Erro de execução') {
+  const normalized = error instanceof Error ? error : new Error(String(error));
+  console.error(context, normalized);
+
+  let panel = document.querySelector('[data-runtime-error-panel]');
+  if (!panel) {
+    panel = document.createElement('section');
+    panel.dataset.runtimeErrorPanel = '';
+    panel.className = 'runtime-error-panel';
+    panel.setAttribute('role', 'alert');
+    document.body.prepend(panel);
+  }
+
+  const stack = normalized.stack || normalized.message || String(normalized);
+  panel.innerHTML = `
+    <div class="runtime-error-panel__header">${escapeHtml(context)}</div>
+    <pre class="runtime-error-panel__details">${escapeHtml(stack)}</pre>
+  `;
+}
+
+window.addEventListener('error', event => {
+  showRuntimeError(event.error || event.message, 'Erro JavaScript na página');
+});
+
+window.addEventListener('unhandledrejection', event => {
+  showRuntimeError(event.reason, 'Promise rejeitada sem tratamento');
+});
+
 document.addEventListener('DOMContentLoaded', async () => {
-  bindUi(); bindAuth(); bindProfile(); bindFeedView(); bindFeed();
-  await loadUser();
-  bindColumnGroup();
-  await loadFeed(true).catch(() => {});
-  startFeedPolling();
-  bindDirectsPage();
-  pollDirects();
-  setInterval(pollDirects, 7000);
+  try {
+    bindUi();
+    bindAuth();
+    bindProfile();
+    bindFeedView();
+    bindFeed();
+  } catch (error) {
+    showRuntimeError(error, 'Erro ao inicializar a interface');
+  }
+
+  try {
+    await loadUser();
+    bindColumnGroup();
+  } catch (error) {
+    showRuntimeError(error, 'Erro ao carregar o usuário atual');
+  }
+
+  try {
+    await loadFeed(true);
+  } catch (error) {
+    showRuntimeError(error, 'Erro ao carregar os murmúrios');
+    const feeds = $$('[data-feed-column], [data-feed-all-list]');
+    feeds.forEach(feed => {
+      feed.innerHTML = `<p class="empty-state">Erro ao carregar murmúrios: ${escapeHtml(error?.stack || error?.message || String(error))}</p>`;
+    });
+  }
+
+  try {
+    startFeedPolling();
+    bindDirectsPage();
+    pollDirects();
+    setInterval(pollDirects, 7000);
+  } catch (error) {
+    showRuntimeError(error, 'Erro ao iniciar atualizações automáticas');
+  }
 });

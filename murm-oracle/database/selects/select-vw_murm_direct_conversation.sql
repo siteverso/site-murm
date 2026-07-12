@@ -1,0 +1,1 @@
+select * from VW_MURM_DIRECT_CONVERSATION;

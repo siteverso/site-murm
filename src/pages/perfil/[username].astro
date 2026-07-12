@@ -1,12 +1,18 @@
 ---
-import AppLayout from '../layouts/AppLayout.astro';
-import Header from '../components/Header.astro';
-import { requireUser } from '../lib/server/session';
-import { getMessages, normalizeLocale } from '../i18n';
+import AppLayout from '../../layouts/AppLayout.astro';
+import Header from '../../components/Header.astro';
+import { findPublicProfileByUsername } from '../../lib/server/repositories/users';
+import { getMessages, normalizeLocale } from '../../i18n';
 
 const locale = normalizeLocale(Astro.cookies.get('murmurinho-language')?.value);
 const t = getMessages(locale);
-const profile = await requireUser(Astro);
+const username = decodeURIComponent(Astro.params.username || '').replace(/^@/, '').trim();
+const profile = username ? await findPublicProfileByUsername(username) : null;
+
+if (!profile) {
+  return Astro.redirect('/');
+}
+
 const initials = profile.username.slice(0, 2).toUpperCase() || 'MU';
 const sexLabel = profile.sexCode === 'M'
   ? 'Macho'
@@ -42,12 +48,11 @@ const regionLabel = regionLabels[profile.regionCode] || '';
         <div><strong>{profile.positiveCount}</strong><span>{t.profile.positives}</span></div>
         <div><strong>{profile.negativeCount}</strong><span>{t.profile.negatives}</span></div>
       </div>
-      <a class="button secondary full profile-sidebar-action public-profile-account-link" href="/conta">Editar conta</a>
     </aside>
 
     <section class="panel public-profile-content">
       <h2>Perfil público</h2>
-      <p>Esta é a página pública de @{profile.username}.</p>
+      <p>Esta é a página que outras pessoas veem ao abrir o perfil de @{profile.username}.</p>
     </section>
   </main>
   <div class="toast" data-toast></div>

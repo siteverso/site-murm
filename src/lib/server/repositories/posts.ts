@@ -1,23 +1,24 @@
 import oracledb from 'oracledb';
 import {withConnection} from '../oracle';
 
-export async function listPosts(currentUserId: number | null): Promise<unknown[]> {
+export async function listPosts(_currentUserId: number | null): Promise<unknown[]> {
     return withConnection(async connection => {
+        // A leitura da home deve depender apenas das tabelas essenciais.
+        // Avatar, região e voto não podem impedir que os murmúrios apareçam.
         const result = await connection.execute<Record<string, unknown>>(
             `SELECT p.id,
                     p.user_id,
                     p.parent_post_id,
                     p.contents,
-                    p.positive_count,
-                    p.negative_count,
-                    p.share_count,
-                    p.status,
+                    NVL(p.positive_count, 0) AS positive_count,
+                    NVL(p.negative_count, 0) AS negative_count,
+                    NVL(p.share_count, 0) AS share_count,
                     p.created_at,
                     u.username,
                     NVL(u.sex_code, '') AS sex_code,
-                    NVL(u.region_code, '') AS region_code,
-                    NVL(u.avatar_url, '') AS avatar_url,
-                    NVL(v.vote_value, 0) AS my_vote,
+                    '' AS region_code,
+                    '' AS avatar_url,
+                    0 AS my_vote,
                     parent_user.username AS parent_username
                FROM murm_post p
                JOIN murm_user u
@@ -26,12 +27,8 @@ export async function listPosts(currentUserId: number | null): Promise<unknown[]
                  ON parent_post.id = p.parent_post_id
                LEFT JOIN murm_user parent_user
                  ON parent_user.id = parent_post.user_id
-               LEFT JOIN murm_vote v
-                 ON v.post_id = p.id
-                AND v.user_id = :current_user_id
-              WHERE p.status = 'published'
+              WHERE LOWER(TRIM(p.status)) = 'published'
               ORDER BY p.created_at DESC`,
-            {current_user_id: currentUserId},
         );
 
         const rows = result.rows || [];
@@ -47,15 +44,15 @@ export async function listPosts(currentUserId: number | null): Promise<unknown[]
             userId: Number(row.USER_ID),
             parentPostId: row.PARENT_POST_ID == null ? null : Number(row.PARENT_POST_ID),
             parentAuthor: String(row.PARENT_USERNAME || ''),
-            author: String(row.USERNAME),
-            sexCode: String(row.SEX_CODE || ''),
-            regionCode: String(row.REGION_CODE || ''),
-            avatarUrl: String(row.AVATAR_URL || ''),
-            text: String(row.CONTENTS),
-            positive: Number(row.POSITIVE_COUNT),
-            negative: Number(row.NEGATIVE_COUNT),
-            shares: Number(row.SHARE_COUNT),
-            myVote: Number(row.MY_VOTE),
+            author: String(row.USERNAME || ''),
+            sexCode: String(row.SEX_CODE || '').trim().toUpperCase(),
+            regionCode: '',
+            avatarUrl: '',
+            text: String(row.CONTENTS || ''),
+            positive: Number(row.POSITIVE_COUNT || 0),
+            negative: Number(row.NEGATIVE_COUNT || 0),
+            shares: Number(row.SHARE_COUNT || 0),
+            myVote: 0,
             createdAt: new Date(String(row.CREATED_AT)).getTime(),
             replyCount: replyCounts.get(Number(row.ID)) || 0,
         }));

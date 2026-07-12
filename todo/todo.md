@@ -13,3 +13,4 @@ TODO, um de cada vez:
 - E na esquerda deve ter a opcao para entao editar a conta
 - permitir enviar imagem do perfil pela conta
 - deve ter um pagina perfil da pessoa ao clicar no icone dela ou nome
+- padronizar coluna esqueda com mesmo componente ![img_2.png](img_2.png)![img_3.png](img_3.png) mantendo detalhes da conta como sexo regiao embaixo o email etc usar mesmo componente unica direnca é que na conta da pra alterar a imagem

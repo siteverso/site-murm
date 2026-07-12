@@ -93,3 +93,25 @@ test('chat mostra bilhete pendente apenas ao remetente e remove ao desfazer', as
   assert.match(source, /onUndone: pendingId => \{[\s\S]*removePendingDirect\(pendingId\)/);
   assert.match(source, /existingNotes = \$\$\('\[data-direct-message\]:not\(\[data-direct-pending\]\)'/);
 });
+
+
+test('usuário do topo abre /perfil', async () => {
+  const header = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/components/Header.astro', import.meta.url), 'utf8'));
+  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  assert.match(header, /data-own-profile-link/);
+  assert.match(source, /el\.href = '\/perfil'/);
+});
+
+
+test('perfil próprio oferece edição da conta na coluna esquerda', async () => {
+  const profile = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/pages/perfil.astro', import.meta.url), 'utf8'));
+  const publicProfile = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/pages/perfil/[username].astro', import.meta.url), 'utf8'));
+  assert.match(profile, /class="button secondary full profile-sidebar-action public-profile-account-link" href="\/conta"/);
+  assert.doesNotMatch(publicProfile, /public-profile-account-link|href="\/conta"/);
+});
+
+
+test('conta oferece acesso ao perfil público na coluna esquerda', async () => {
+  const account = readFileSync(new URL('../src/pages/conta.astro', import.meta.url), 'utf8');
+  assert.match(account, /class="button secondary full profile-sidebar-action account-profile-link" href="\/perfil"/);
+});

@@ -153,3 +153,68 @@ export async function createOrLinkGoogleUser(input: {
         }
     });
 }
+
+
+export type PublicProfile = {
+    id: number;
+    username: string;
+    bio: string;
+    sexCode: string;
+    regionCode: string;
+    avatarUrl: string;
+    postCount: number;
+    positiveCount: number;
+    negativeCount: number;
+};
+
+export async function findPublicProfileByUsername(username: string): Promise<PublicProfile | null> {
+    return withConnection(async connection => {
+        const result = await connection.execute<Record<string, unknown>>(
+            `SELECT u.id,
+                    u.username,
+                    NVL(u.bio, '') AS bio,
+                    NVL(u.sex_code, '') AS sex_code,
+                    NVL(u.region_code, '') AS region_code,
+                    CASE
+                        WHEN u.avatar_image IS NOT NULL THEN
+                            '/api/users/' || u.id || '/avatar?v=' ||
+                            TO_CHAR(NVL(u.avatar_updated_at, u.updated_at), 'YYYYMMDDHH24MISSFF6')
+                        ELSE NVL(u.avatar_url, '')
+                    END AS avatar_url,
+                    (SELECT COUNT(*)
+                     FROM murm_post p
+                     WHERE p.user_id = u.id
+                       AND p.parent_post_id IS NULL
+                       AND p.status = 'published') AS post_count,
+                    (SELECT NVL(SUM(p.positive_count), 0)
+                     FROM murm_post p
+                     WHERE p.user_id = u.id
+                       AND p.parent_post_id IS NULL
+                       AND p.status = 'published') AS positive_count,
+                    (SELECT NVL(SUM(p.negative_count), 0)
+                     FROM murm_post p
+                     WHERE p.user_id = u.id
+                       AND p.parent_post_id IS NULL
+                       AND p.status = 'published') AS negative_count
+             FROM murm_user u
+             WHERE u.active = 1
+               AND LOWER(u.username) = LOWER(:username)`,
+            { username },
+        );
+        const row = result.rows?.[0];
+
+        if (!row) return null;
+
+        return {
+            id: Number(row.ID),
+            username: String(row.USERNAME),
+            bio: String(row.BIO || ''),
+            sexCode: String(row.SEX_CODE || ''),
+            regionCode: String(row.REGION_CODE || ''),
+            avatarUrl: String(row.AVATAR_URL || ''),
+            postCount: Number(row.POST_COUNT || 0),
+            positiveCount: Number(row.POSITIVE_COUNT || 0),
+            negativeCount: Number(row.NEGATIVE_COUNT || 0),
+        };
+    });
+}

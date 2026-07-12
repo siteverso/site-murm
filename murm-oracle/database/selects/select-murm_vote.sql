@@ -1,0 +1,1 @@
+select * from MURM_VOTE;

@@ -1,0 +1,1 @@
+select * from DBTOOLS$EXECUTION_HISTORY;

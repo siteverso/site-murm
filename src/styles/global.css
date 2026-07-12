@@ -227,6 +227,17 @@ html[data-theme="dark"] .form-message[data-type="info"] { color: #91baf0; }
 .profile-grid { padding: 36px 0 70px; display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 24px; align-items: start; }
 .profile-card { padding: 24px; position: sticky; top: 20px; }
 .profile-card .avatar { width: 78px; height: 78px; margin-bottom: 16px; font-size: 1.5rem; }
+.avatar { overflow: hidden; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.account-avatar-editor { display: grid; justify-items: center; gap: 10px; margin-bottom: 6px; }
+.account-avatar-trigger { padding: 0; border: 0; cursor: pointer; transition: transform .18s ease, box-shadow .18s ease; }
+.account-avatar-trigger:hover { transform: scale(1.04); box-shadow: 0 0 0 4px var(--surface-2); }
+.account-avatar-trigger:focus-visible { outline: 3px solid var(--strong); outline-offset: 3px; }
+.account-avatar-form { display: grid; justify-items: center; gap: 6px; width: 100%; }
+.account-avatar-form .button.compact { min-height: 34px; padding: 7px 12px; cursor: pointer; }
+.account-avatar-form small { color: var(--muted); font-size: .76rem; text-align: center; }
+.account-avatar-form .form-message { min-height: 0; margin: 0; text-align: center; }
+
 .profile-card h1 { margin: 0 0 4px; }
 .profile-card .handle { color: var(--muted); }
 .profile-sex { display: inline-block; margin-top: 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: .8rem; font-weight: 800; }
@@ -353,6 +364,15 @@ html[data-theme="dark"] .field-help[data-type="warning"] { color: #f2c66d; }
 html[data-theme="dark"] .field-help[data-type="waiting"] { color: #91baf0; }
 .field select:disabled { cursor: not-allowed; opacity: .7; }
 .profile-sections { display: grid; gap: 24px; }
+.public-profile-grid { grid-template-columns: 320px minmax(0, 1fr); }
+.public-profile-card { position: static; }
+.public-profile-avatar { overflow: hidden; }
+.public-profile-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.public-profile-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.profile-sidebar-action { margin-top: 20px; }
+.public-profile-content { min-height: 240px; padding: 24px; }
+.public-profile-content h2 { margin-top: 0; }
+
 .account-access > p { color: var(--muted); line-height: 1.6; }
 .auth-methods { margin: 18px 0 24px; padding: 14px; display: flex; justify-content: space-between; gap: 14px; border-radius: 14px; background: var(--surface-2); }
 .auth-methods span { color: var(--muted); }
@@ -834,3 +854,65 @@ html[data-theme="dark"] .field-help[data-type="waiting"] { color: #91baf0; }
 /* Bilhete otimista: visível só para o remetente até o envio definitivo. */
 .direct-note.is-pending { opacity: .72; }
 .direct-note.is-pending .direct-note-footer { justify-content: flex-start; }
+
+.avatar-crop-modal { width: min(520px, 100%); }
+.avatar-crop-stage {
+  position: relative;
+  width: min(360px, 78vw);
+  aspect-ratio: 1;
+  margin: 22px auto 18px;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #111;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.avatar-crop-stage.is-dragging { cursor: grabbing; }
+.avatar-crop-stage img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  max-width: none;
+  transform-origin: center;
+  pointer-events: none;
+  will-change: transform;
+}
+.avatar-crop-mask {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 999px rgb(0 0 0 / 56%);
+  outline: 2px solid rgb(255 255 255 / 88%);
+  outline-offset: -2px;
+  pointer-events: none;
+}
+.avatar-crop-zoom { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 14px; color: var(--muted); font-size: .86rem; font-weight: 800; }
+.avatar-crop-zoom input { width: 100%; accent-color: var(--strong); }
+.avatar-crop-actions { justify-content: flex-end; }
+
+
+.runtime-error-panel {
+  position: relative;
+  z-index: 10000;
+  margin: 0;
+  padding: 12px 16px;
+  border-bottom: 2px solid #b42318;
+  background: #fff1f0;
+  color: #7a271a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.runtime-error-panel__header {
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.runtime-error-panel__details {
+  margin: 0;
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font: inherit;
+}

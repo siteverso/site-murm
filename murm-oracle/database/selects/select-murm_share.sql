@@ -1,0 +1,1 @@
+SELECT * FROM murm_share;
