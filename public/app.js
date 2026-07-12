@@ -390,9 +390,9 @@ function renderReplyPreview(reply, parentPost) {
         <button class="reply-inline-delete-button" type="button" data-toggle-delete-reply="${reply.id}" aria-label="Apagar resposta" title="Apagar resposta">×</button>
       </div>`
     : '';
-  const parentProfileUrl = `/perfil/${encodeURIComponent(parentPost.author)}?murmurio=${encodeURIComponent(parentPost.id)}`;
+  const replyProfileUrl = `/perfil/${encodeURIComponent(reply.author)}?murmurio=${encodeURIComponent(reply.id)}`;
   return `<li class="reply-preview-item${sameId(currentUser?.id, reply.userId) ? ' is-own-reply' : ''}" data-reply-preview-id="${reply.id}">
-    <a class="reply-preview-content" href="${parentProfileUrl}" aria-label="Abrir o murmúrio de @${escapeHtml(parentPost.author)} relacionado a esta resposta">
+    <a class="reply-preview-content" href="${replyProfileUrl}" aria-label="Abrir esta resposta no perfil de @${escapeHtml(reply.author)}">
       <strong>@${escapeHtml(reply.author)}</strong>
       <span>${escapeHtml(reply.text)}</span>
     </a>
@@ -479,7 +479,10 @@ function collectPostSubtree(items, rootPostId) {
   };
   if (root.parentPostId != null) {
     const parent = byId.get(String(root.parentPostId));
-    if (parent) visit(parent);
+    if (parent) {
+      visited.add(String(parent.id));
+      selected.push(parent);
+    }
   }
   visit(root);
   return selected;

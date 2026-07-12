@@ -166,11 +166,11 @@ test('perfil recursivo usa apenas o espaçamento do card pai nas laterais', () =
 });
 
 
-test('home usa margens compactas equilibradas e abre o murmúrio pai da resposta', async () => {
+test('home usa margens compactas equilibradas e abre a própria resposta clicada', async () => {
   const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
   const css = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/styles/global.css', import.meta.url), 'utf8'));
   assert.match(source, /function renderReplyPreview\(reply, parentPost\)/);
-  assert.match(source, /\?murmurio=\$\{encodeURIComponent\(parentPost\.id\)\}/);
+  assert.match(source, /\?murmurio=\$\{encodeURIComponent\(reply\.id\)\}/);
   assert.match(css, /\.replies-compact \{ margin: 12px 0 0; padding: 0; border-left: 0; \}/);
 });
 
@@ -186,6 +186,14 @@ test('perfil permite murmúrio específico, mostra o pai esmaecido e reinicia a 
   assert.match(css, /\.murmur-context-parent \{/);
   assert.match(profile, /data-profile-post-id=\{profilePostId \|\| undefined\}/);
   assert.match(profile, /Ver todos os murmúrios/);
+});
+
+test('murmúrio específico mostra somente o pai direto e a mensagem selecionada, sem irmãos', async () => {
+  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  assert.match(source, /visited\.add\(String\(parent\.id\)\);/);
+  assert.match(source, /selected\.push\(parent\);/);
+  assert.doesNotMatch(source, /if \(root\.parentPostId != null\) \{[\s\S]*visit\(parent\);/);
+  assert.match(source, /visit\(root\);/);
 });
 
 test('texto de cada mensagem abre o perfil no modo da própria mensagem e não exibe contexto redundante', async () => {
