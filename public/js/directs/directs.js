@@ -77,10 +77,10 @@ function bindDirectsPage() {
     const renderConversations = conversations => {
         const items = conversations || [];
         list.innerHTML = items.length ? items.map(item => `
-      <button class="direct-thread ${String(item.otherUserId) === String(activeUserId) ? 'active' : ''} ${hasUnreadMessages(item.unreadCount) ? 'has-unread' : ''} ${item.blockedEither ? 'is-blocked' : ''} ${sexClass(item.sexCode)}" data-open-direct="${item.otherUserId}" type="button">
+      <button class="direct-thread ${String(item.otherUserId) === String(activeUserId) ? 'active' : ''} ${hasUnreadMessages(item.unreadCount) ? 'has-unread' : ''} ${item.blockedByMe ? 'is-blocked' : ''} ${sexClass(item.sexCode)}" data-open-direct="${item.otherUserId}" type="button">
         <span class="direct-thread-head"><strong>@${escapeHtml(item.username)}</strong><time>${formatDateTime(item.lastAt)}</time></span>
         <span class="direct-thread-preview">${escapeHtml(item.lastMessage)}</span>
-        <small>${item.blockedEither ? `<span class="direct-thread-blocked" aria-label="${labels.blockedLabel}">🔒 ${labels.blockedLabel}</span>` : (item.unreadCount ? `${item.unreadCount} novo(s)` : '')}</small>
+        <small>${item.blockedByMe ? `<span class="direct-thread-blocked" aria-label="${labels.blockedLabel}">🔒 ${labels.blockedLabel}</span>` : (item.unreadCount ? `${item.unreadCount} novo(s)` : '')}</small>
       </button>
     `).join('') : `<div class="direct-list-empty">${archivedView ? (locale === 'en' ? 'No archived chats.' : 'Nenhum chat arquivado.') : (locale === 'en' ? 'No chats yet.' : 'Nenhum bilhete ainda.')}</div>`;
         if (archiveToggle) {

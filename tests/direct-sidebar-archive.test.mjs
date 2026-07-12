@@ -8,9 +8,11 @@ const repository = fs.readFileSync('src/lib/server/repositories/directs.ts', 'ut
 const api = fs.readFileSync('src/pages/api/directs/conversation.ts', 'utf8');
 const css = fs.readFileSync('src/styles/pages/directs.css', 'utf8');
 
-test('lateral identifica conversas bloqueadas', () => {
-  assert.match(client, /item\.blockedEither \? 'is-blocked'/);
-  assert.match(client, /direct-thread-blocked/);
+test('lateral identifica bloqueio somente para quem bloqueou', () => {
+  assert.match(client, /item\.blockedByMe \? 'is-blocked'/);
+  assert.match(client, /item\.blockedByMe \? `<span class=\"direct-thread-blocked/);
+  assert.doesNotMatch(client, /item\.blockedEither \? 'is-blocked'/);
+  assert.doesNotMatch(client, /item\.blockedEither \? `<span class=\"direct-thread-blocked/);
   assert.match(css, /\.direct-thread-blocked/);
 });
 
