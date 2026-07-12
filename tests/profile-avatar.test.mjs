@@ -6,9 +6,11 @@ const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('conta oferece upload de avatar com formatos e limite indicados', async () => {
   const account = await read('src/pages/conta.astro');
-  assert.match(account, /data-avatar-form/);
-  assert.match(account, /accept="image\/jpeg,image\/png,image\/webp"/);
-  assert.match(account, /até 3 MB/);
+  const sidebar = await read('src/components/ProfileSidebar.astro');
+  assert.match(account, /<ProfileSidebar dynamic editableAvatar/);
+  assert.match(sidebar, /data-avatar-form/);
+  assert.match(sidebar, /accept="image\/jpeg,image\/png,image\/webp"/);
+  assert.match(sidebar, /até 3 MB/);
 });
 
 test('upload valida imagem e salva em BLOB', async () => {
@@ -46,9 +48,11 @@ test('upload abre recorte circular com posicionamento e zoom antes de enviar', a
 
 test('clicar na imagem da conta abre o seletor de foto existente', async () => {
   const account = await read('src/pages/conta.astro');
+  const sidebar = await read('src/components/ProfileSidebar.astro');
   const app = await read('public/app.js');
-  assert.match(account, /data-avatar-trigger/);
-  assert.match(account, /type="button"/);
+  assert.match(account, /<ProfileSidebar dynamic editableAvatar/);
+  assert.match(sidebar, /data-avatar-trigger/);
+  assert.match(sidebar, /type="button"/);
   assert.match(app, /avatarTrigger\?\.addEventListener\('click'/);
   assert.match(app, /avatarInput\?\.click\(\)/);
 });

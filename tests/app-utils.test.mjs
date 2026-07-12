@@ -60,8 +60,8 @@ test('respostas são agrupadas e renderizadas dentro do murmúrio pai', async ()
   assert.match(source, /function groupPostsByParent\(items\)/);
   assert.match(source, /function getRootPosts\(items\)/);
   assert.match(source, /data-replies-for=/);
-  assert.match(source, /renderPost\(reply, childrenByParent, nextAncestry\)/);
-  assert.match(source, /roots\.map\(post => renderPost\(post, childrenByParent\)\)/);
+  assert.match(source, /renderPost\(reply, childrenByParent, nextAncestry, true\)/);
+  assert.match(source, /roots\.map\(post => renderPost\(post, childrenByParent, new Set\(\), includeReplies\)\)/);
 });
 
 test('ícones de direct e exclusão do murmúrio aparecem juntos apenas no hover ou foco', () => {
@@ -99,19 +99,23 @@ test('usuário do topo abre /perfil', async () => {
   const header = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/components/Header.astro', import.meta.url), 'utf8'));
   const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
   assert.match(header, /data-own-profile-link/);
-  assert.match(source, /el\.href = '\/perfil'/);
+  assert.match(source, /el\.href = `\/perfil\/\$\{encodeURIComponent\(user\.username\)\}`/);
 });
 
 
 test('perfil próprio oferece edição da conta na coluna esquerda', async () => {
   const profile = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/pages/perfil.astro', import.meta.url), 'utf8'));
-  const publicProfile = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/pages/perfil/[username].astro', import.meta.url), 'utf8'));
-  assert.match(profile, /class="button secondary full profile-sidebar-action public-profile-account-link" href="\/conta"/);
-  assert.doesNotMatch(publicProfile, /public-profile-account-link|href="\/conta"/);
+  const sidebar = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/components/ProfileSidebar.astro', import.meta.url), 'utf8'));
+  assert.match(profile, /<ProfileSidebar profile=\{profile\} showEditAccount/);
+  assert.match(sidebar, /public-profile-account-link/);
+  assert.match(sidebar, /href="\/conta"/);
 });
 
 
 test('conta oferece acesso ao perfil público na coluna esquerda', async () => {
   const account = readFileSync(new URL('../src/pages/conta.astro', import.meta.url), 'utf8');
-  assert.match(account, /class="button secondary full profile-sidebar-action account-profile-link" href="\/perfil"/);
+  const sidebar = readFileSync(new URL('../src/components/ProfileSidebar.astro', import.meta.url), 'utf8');
+  assert.match(account, /<ProfileSidebar dynamic editableAvatar/);
+  assert.match(sidebar, /account-profile-link/);
+  assert.match(sidebar, /href="\/perfil"/);
 });

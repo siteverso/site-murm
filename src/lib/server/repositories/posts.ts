@@ -1,7 +1,7 @@
 import oracledb from 'oracledb';
 import {withConnection} from '../oracle';
 
-export async function listPosts(_currentUserId: number | null): Promise<unknown[]> {
+export async function listPosts(_currentUserId: number | null, profileUsername: string | null = null): Promise<unknown[]> {
     return withConnection(async connection => {
         // A leitura da home deve depender apenas das tabelas essenciais.
         // Avatar, região e voto não podem impedir que os murmúrios apareçam.
@@ -28,7 +28,13 @@ export async function listPosts(_currentUserId: number | null): Promise<unknown[
                LEFT JOIN murm_user parent_user
                  ON parent_user.id = parent_post.user_id
               WHERE LOWER(TRIM(p.status)) = 'published'
+                AND (
+                    :profile_username IS NULL
+                    OR LOWER(u.username) = LOWER(:profile_username)
+                    OR LOWER(parent_user.username) = LOWER(:profile_username)
+                )
               ORDER BY p.created_at DESC`,
+            { profile_username: profileUsername },
         );
 
         const rows = result.rows || [];

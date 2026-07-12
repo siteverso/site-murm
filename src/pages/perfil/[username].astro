@@ -1,58 +1,26 @@
 ---
 import AppLayout from '../../layouts/AppLayout.astro';
 import Header from '../../components/Header.astro';
+import ProfileSidebar from '../../components/ProfileSidebar.astro';
 import { findPublicProfileByUsername } from '../../lib/server/repositories/users';
+import { requireUser } from '../../lib/server/session';
 import { getMessages, normalizeLocale } from '../../i18n';
 
 const locale = normalizeLocale(Astro.cookies.get('murmurinho-language')?.value);
 const t = getMessages(locale);
 const username = decodeURIComponent(Astro.params.username || '').replace(/^@/, '').trim();
 const profile = username ? await findPublicProfileByUsername(username) : null;
-
-if (!profile) {
-  return Astro.redirect('/');
-}
-
-const initials = profile.username.slice(0, 2).toUpperCase() || 'MU';
-const sexLabel = profile.sexCode === 'M'
-  ? 'Macho'
-  : profile.sexCode === 'F'
-    ? 'Fêmea'
-    : 'Sexo não informado';
-const regionLabels: Record<string, string> = {
-  N: 'Norte',
-  NE: 'Nordeste',
-  CO: 'Centro-Oeste',
-  SE: 'Sudeste',
-  S: 'Sul',
-};
-const regionLabel = regionLabels[profile.regionCode] || '';
+if (!profile) return Astro.redirect('/');
+const currentUser = await requireUser(Astro);
+const isOwnProfile = currentUser.id === profile.id;
 ---
 <AppLayout title={`@${profile.username} — ${t.site.title}`}>
   <Header />
   <main class="shell profile-grid public-profile-grid">
-    <aside class="panel profile-card public-profile-card">
-      <div class="avatar public-profile-avatar">
-        {profile.avatarUrl
-          ? <img src={profile.avatarUrl} alt={`Foto de @${profile.username}`} />
-          : initials}
-      </div>
-      <h1>@{profile.username}</h1>
-      <div class="public-profile-tags">
-        <span class="profile-sex">{sexLabel}</span>
-        {regionLabel && <span class="profile-sex">{regionLabel}</span>}
-      </div>
-      <p class="bio">{profile.bio || 'Sem biografia ainda.'}</p>
-      <div class="profile-stats">
-        <div><strong>{profile.postCount}</strong><span>{t.profile.murmurs}</span></div>
-        <div><strong>{profile.positiveCount}</strong><span>{t.profile.positives}</span></div>
-        <div><strong>{profile.negativeCount}</strong><span>{t.profile.negatives}</span></div>
-      </div>
-    </aside>
-
-    <section class="panel public-profile-content">
-      <h2>Perfil público</h2>
-      <p>Esta é a página que outras pessoas veem ao abrir o perfil de @{profile.username}.</p>
+    <ProfileSidebar profile={profile} showEditAccount={isOwnProfile} labels={t.profile} />
+    <section class="public-profile-content">
+      <div class="feed-heading minimal profile-feed-heading"><h2>Murmúrios de @{profile.username}</h2></div>
+      <div class="feed profile-feed" data-profile-feed data-profile-username={profile.username} data-feed-include-replies="true"></div>
     </section>
   </main>
   <div class="toast" data-toast></div>

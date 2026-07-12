@@ -8,7 +8,7 @@ Realize testes unitarios para garantir funcionamento
 
 TODO, um de cada vez:
 
-- verifique se tem arquivo lixo e me avisa aqui no chat se devo apagar algum arquivo
+- no pefil do usuario listar os murmurios com respostas como esta hoje na home e na home nao exibir as repostas utilizar componantes astros e classe reaproveiteveis DRY
 - Hoje o clique no usuario do topo abre a conta do usuario, vamos mudar isso  O clique no icone do usuario deve abrir o perfil dele que é o que todos veem
 - E na esquerda deve ter a opcao para entao editar a conta
 - permitir enviar imagem do perfil pela conta

@@ -5,7 +5,8 @@ import { createPost, listPosts } from '../../../lib/server/repositories/posts';
 
 export const GET: APIRoute = async context => {
     try {
-        return json({ ok: true, posts: await listPosts(null) });
+        const username = String(new URL(context.request.url).searchParams.get('username') || '').trim() || null;
+        return json({ ok: true, posts: await listPosts(null, username) });
     } catch (error) {
         return errorResponse(error);
     }

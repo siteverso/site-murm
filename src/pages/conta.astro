@@ -1,6 +1,7 @@
 ---
 import AppLayout from '../layouts/AppLayout.astro';
 import Header from '../components/Header.astro';
+import ProfileSidebar from '../components/ProfileSidebar.astro';
 import { getMessages, normalizeLocale } from '../i18n';
 const locale = normalizeLocale(Astro.cookies.get('murmurinho-language')?.value);
 const t = getMessages(locale);
@@ -8,27 +9,7 @@ const t = getMessages(locale);
 <AppLayout title={`${t.profile.title} — ${t.site.title}`}>
   <Header />
   <main class="shell profile-grid">
-    <aside class="panel profile-card">
-      <div class="account-avatar-editor">
-        <button class="avatar account-avatar-trigger" type="button" aria-label="Alterar foto do perfil" title="Alterar foto" data-profile-avatar data-avatar-trigger>MU</button>
-        <form class="account-avatar-form" data-avatar-form>
-          <label class="button secondary compact" for="profileAvatar">Alterar foto</label>
-          <input id="profileAvatar" name="avatar" type="file" accept="image/jpeg,image/png,image/webp" hidden data-avatar-input />
-          <small>JPG, PNG ou WebP, até 3 MB.</small>
-          <p class="form-message" data-form-message></p>
-        </form>
-      </div>
-      <h1 data-profile-username>usuario</h1>
-      <span class="handle" data-profile-email>usuario@exemplo.com</span>
-      <span class="profile-sex" data-profile-sex>Sexo não informado</span>
-      <p class="bio" data-profile-bio></p>
-      <div class="profile-stats">
-        <div><strong data-profile-posts>0</strong><span>{t.profile.murmurs}</span></div>
-        <div><strong data-profile-positive>0</strong><span>{t.profile.positives}</span></div>
-        <div><strong data-profile-negative>0</strong><span>{t.profile.negatives}</span></div>
-      </div>
-      <a class="button secondary full profile-sidebar-action account-profile-link" href="/perfil">Ver meu perfil</a>
-    </aside>
+    <ProfileSidebar dynamic editableAvatar labels={t.profile} />
 
     <div class="profile-sections">
       <section class="panel profile-edit">

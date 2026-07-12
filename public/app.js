@@ -221,11 +221,13 @@ function renderUser(user) {
 
   $$('[data-user-avatar]').forEach(el => renderAvatar(el, user));
   $$('[data-user-name]').forEach(el => { el.textContent = `@${user.username}`; });
-  $$('[data-own-profile-link]').forEach(el => { el.href = '/perfil'; });
+  $$('[data-own-profile-link]').forEach(el => { el.href = `/perfil/${encodeURIComponent(user.username)}`; });
   $$('[data-profile-avatar]').forEach(el => renderAvatar(el, user));
   $$('[data-profile-username]').forEach(el => { el.textContent = `@${user.username}`; });
   $$('[data-profile-email]').forEach(el => { el.textContent = user.email; });
   $$('[data-profile-sex]').forEach(el => { el.textContent = user.sexCode === 'M' ? 'Macho' : user.sexCode === 'F' ? 'Fêmea' : 'Sexo não informado'; });
+  const regionNames = { N: 'Norte', NE: 'Nordeste', CO: 'Centro-Oeste', SE: 'Sudeste', S: 'Sul' };
+  $$('[data-profile-region]').forEach(el => { el.textContent = regionNames[user.regionCode] || ''; el.hidden = !user.regionCode; });
   $$('[data-profile-bio]').forEach(el => { el.textContent = user.bio || 'Sem biografia ainda.'; });
   $$('[data-profile-posts]').forEach(el => { el.textContent = user.postCount; });
   $$('[data-profile-positive]').forEach(el => { el.textContent = user.positiveCount; });
@@ -355,7 +357,7 @@ function getRootPosts(items) {
   return items.filter(post => post.parentPostId == null || !publishedIds.has(String(post.parentPostId)));
 }
 
-function renderPost(post, childrenByParent = new Map(), ancestry = new Set()) {
+function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), includeReplies = false) {
   const score = post.positive - post.negative;
   const sexClass = post.sexCode === 'M' ? 'sex-m' : post.sexCode === 'F' ? 'sex-f' : 'sex-u';
   const replyContext = post.parentPostId
@@ -365,14 +367,14 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set()) {
   const nextAncestry = new Set(ancestry);
   nextAncestry.add(postKey);
   const replies = (childrenByParent.get(postKey) || []).filter(reply => !nextAncestry.has(String(reply.id)));
-  const nestedReplies = replies.length
-    ? `<div class="replies" data-replies-for="${post.id}">${replies.map(reply => renderPost(reply, childrenByParent, nextAncestry)).join('')}</div>`
+  const nestedReplies = includeReplies && replies.length
+    ? `<div class="replies" data-replies-for="${post.id}">${replies.map(reply => renderPost(reply, childrenByParent, nextAncestry, true)).join('')}</div>`
     : '';
 
   return `<article id="murmurio-${post.id}" class="panel murmur-card ${sexClass}${post.parentPostId ? ' murmur-reply-card' : ''}" data-post-id="${post.id}">
     <div class="murmur-head">
-      <div class="avatar">${post.avatarUrl ? `<img src="${escapeHtml(post.avatarUrl)}" alt="Foto de @${escapeHtml(post.author)}" loading="lazy">` : escapeHtml(post.author.slice(0, 2).toUpperCase())}</div>
-      <div class="murmur-author"><strong>@${escapeHtml(post.author)}</strong><span>${new Date(post.createdAt).toLocaleString()}</span></div>
+      <a class="avatar murmur-profile-link" href="/perfil/${encodeURIComponent(post.author)}" aria-label="Abrir perfil de @${escapeHtml(post.author)}">${post.avatarUrl ? `<img src="${escapeHtml(post.avatarUrl)}" alt="Foto de @${escapeHtml(post.author)}" loading="lazy">` : escapeHtml(post.author.slice(0, 2).toUpperCase())}</a>
+      <div class="murmur-author"><a href="/perfil/${encodeURIComponent(post.author)}"><strong>@${escapeHtml(post.author)}</strong></a><span>${new Date(post.createdAt).toLocaleString()}</span></div>
       ${renderPostHeaderActions(post)}
     </div>
     ${replyContext}
@@ -394,12 +396,12 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set()) {
   </article>`;
 }
 
-function renderLane(feed, posts) {
+function renderLane(feed, posts, includeReplies = false) {
   if (!feed) return;
   const childrenByParent = groupPostsByParent(posts);
   const roots = getRootPosts(posts);
   feed.innerHTML = roots.length
-    ? roots.map(post => renderPost(post, childrenByParent)).join('')
+    ? roots.map(post => renderPost(post, childrenByParent, new Set(), includeReplies)).join('')
     : '<p class="empty-state">Nenhum murmúrio nesta visualização.</p>';
 }
 
@@ -521,11 +523,14 @@ function restoreFeedAnchor(anchor) {
 async function loadFeed(force = false) {
   const columns = $('[data-feed-columns]');
   const allListFeed = $('[data-feed-all-list]');
-  if ((!columns && !allListFeed) || feedRequestRunning) return;
+  const profileFeed = $('[data-profile-feed]');
+  if ((!columns && !allListFeed && !profileFeed) || feedRequestRunning) return;
 
   feedRequestRunning = true;
   try {
-    const data = await api('/api/posts');
+    const profileUsername = profileFeed?.dataset.profileUsername || '';
+    const endpoint = profileUsername ? `/api/posts?username=${encodeURIComponent(profileUsername)}` : '/api/posts';
+    const data = await api(endpoint);
     const nextPosts = data.posts || [];
     const nextSignature = getFeedSignature(nextPosts);
     if (!force && nextSignature === feedSignature) return;
@@ -535,7 +540,8 @@ async function loadFeed(force = false) {
     feedSignature = nextSignature;
     feedBuckets.all = posts;
     renderSplitFeeds();
-    renderLane(allListFeed, feedBuckets.all);
+    renderLane(allListFeed, feedBuckets.all, false);
+    renderLane(profileFeed, feedBuckets.all, profileFeed?.dataset.feedIncludeReplies === 'true');
     restoreFeedAnchor(anchor);
   } finally {
     feedRequestRunning = false;
@@ -552,7 +558,7 @@ function pinCardActions(postId) {
 }
 
 function startFeedPolling() {
-  if (!$('[data-feed-columns]') && !$('[data-feed-all-list]')) return;
+  if (!$('[data-feed-columns]') && !$('[data-feed-all-list]') && !$('[data-profile-feed]')) return;
 
   clearInterval(feedTimer);
   feedTimer = setInterval(() => {
@@ -1568,7 +1574,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadFeed(true);
   } catch (error) {
     showRuntimeError(error, 'Erro ao carregar os murmúrios');
-    const feeds = $$('[data-feed-column], [data-feed-all-list]');
+    const feeds = $$('[data-feed-column], [data-feed-all-list], [data-profile-feed]');
     feeds.forEach(feed => {
       feed.innerHTML = `<p class="empty-state">Erro ao carregar murmúrios: ${escapeHtml(error?.stack || error?.message || String(error))}</p>`;
     });

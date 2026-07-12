@@ -1,0 +1,48 @@
+---
+const {
+  profile = null,
+  editableAvatar = false,
+  showEditAccount = false,
+  dynamic = false,
+  labels,
+} = Astro.props;
+
+const username = profile?.username || 'usuario';
+const initials = username.slice(0, 2).toUpperCase() || 'MU';
+const sexCode = profile?.sexCode || '';
+const sexLabel = sexCode === 'M' ? 'Macho' : sexCode === 'F' ? 'Fêmea' : 'Sexo não informado';
+const regionLabels: Record<string, string> = { N: 'Norte', NE: 'Nordeste', CO: 'Centro-Oeste', SE: 'Sudeste', S: 'Sul' };
+const regionLabel = regionLabels[profile?.regionCode || ''] || '';
+---
+<aside class="panel profile-card public-profile-card">
+  {editableAvatar ? (
+    <div class="account-avatar-editor">
+      <button class="avatar account-avatar-trigger" type="button" aria-label="Alterar foto do perfil" title="Alterar foto" data-profile-avatar data-avatar-trigger>{initials}</button>
+      <form class="account-avatar-form" data-avatar-form>
+        <label class="button secondary compact" for="profileAvatar">Alterar foto</label>
+        <input id="profileAvatar" name="avatar" type="file" accept="image/jpeg,image/png,image/webp" hidden data-avatar-input />
+        <small>JPG, PNG ou WebP, até 3 MB.</small>
+        <p class="form-message" data-form-message></p>
+      </form>
+    </div>
+  ) : (
+    <div class="avatar public-profile-avatar" data-profile-avatar={dynamic || undefined}>
+      {profile?.avatarUrl ? <img src={profile.avatarUrl} alt={`Foto de @${username}`} /> : initials}
+    </div>
+  )}
+
+  <h1 data-profile-username={dynamic || undefined}>@{username}</h1>
+  {(dynamic || profile?.email) && <span class="handle" data-profile-email={dynamic || undefined}>{profile?.email || 'usuario@exemplo.com'}</span>}
+  <div class="public-profile-tags">
+    <span class="profile-sex" data-profile-sex={dynamic || undefined}>{sexLabel}</span>
+    {(dynamic || regionLabel) && <span class="profile-sex" data-profile-region={dynamic || undefined}>{regionLabel}</span>}
+  </div>
+  <p class="bio" data-profile-bio={dynamic || undefined}>{profile?.bio || 'Sem biografia ainda.'}</p>
+  <div class="profile-stats">
+    <div><strong data-profile-posts={dynamic || undefined}>{profile?.postCount || 0}</strong><span>{labels.murmurs}</span></div>
+    <div><strong data-profile-positive={dynamic || undefined}>{profile?.positiveCount || 0}</strong><span>{labels.positives}</span></div>
+    <div><strong data-profile-negative={dynamic || undefined}>{profile?.negativeCount || 0}</strong><span>{labels.negatives}</span></div>
+  </div>
+  {showEditAccount && <a class="button secondary full profile-sidebar-action public-profile-account-link" href="/conta">Editar conta</a>}
+  {editableAvatar && <a class="button secondary full profile-sidebar-action account-profile-link" href="/perfil">Ver meu perfil</a>}
+</aside>
