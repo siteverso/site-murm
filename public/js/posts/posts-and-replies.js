@@ -249,9 +249,6 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
       <div class="murmur-author"><a href="/perfil/${encodeURIComponent(post.author)}"><strong>@${escapeHtml(post.author)}</strong></a><span>${new Date(post.createdAt).toLocaleString()}</span></div>
       <span class="reply-private-badge" title="Resposta privada"><i aria-hidden="true"></i>Privada</span>
     </div>
-    <div class="murmur-private-placeholder" aria-label="Conteúdo privado oculto">
-      <span class="murmur-private-placeholder__pill"><i aria-hidden="true"></i>Conteúdo privado</span>
-    </div>
   </article>`;
     }
 

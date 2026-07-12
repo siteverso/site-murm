@@ -21,9 +21,9 @@ test('submits and persists private replies', () => {
 
 test('private replies support owner highlight and public redacted card', () => {
   assert.match(renderer, /murmur-card-private-redacted/);
-  assert.match(renderer, /Conteúdo privado/);
+  assert.doesNotMatch(renderer, />Conteúdo privado</);
   assert.match(repository, /can_view_private/);
   assert.match(repository, /isPrivateRedacted/);
   assert.match(threadCss, /\.murmur-card-private/);
-  assert.match(threadCss, /\.murmur-private-placeholder/);
+  assert.doesNotMatch(threadCss, /\.murmur-private-placeholder/);
 });

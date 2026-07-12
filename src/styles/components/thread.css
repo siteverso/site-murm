@@ -338,31 +338,6 @@
 .murmur-card-private-redacted {
   background: color-mix(in srgb, #35e3c1 5%, var(--surface));
 }
-.murmur-private-placeholder {
-  margin-top: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-}
-.murmur-private-placeholder__pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 8px 12px;
-  border: 1px solid color-mix(in srgb, #35e3c1 24%, var(--line));
-  border-radius: 999px;
-  color: color-mix(in srgb, #91ffe2 78%, var(--muted));
-  background: color-mix(in srgb, var(--surface-2) 84%, rgb(8 40 36 / 16%));
-  font-size: .74rem;
-  font-weight: 700;
-}
-.murmur-private-placeholder__pill i {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #54f6c5;
-  box-shadow: 0 0 5px #36e6c2, 0 0 10px rgb(52 216 255 / .42);
-}
 @media (max-width: 620px) {
   .reply-box { grid-template-columns: minmax(0, 1fr) auto; }
   .reply-private-toggle { grid-column: 1; justify-self: start; }
