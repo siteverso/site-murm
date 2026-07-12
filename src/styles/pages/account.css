@@ -46,3 +46,15 @@
 }
 .sex-field select::-ms-expand { display: none; }
 
+.country-field { position: relative; }
+.country-search-wrap { position: relative; }
+.country-search-wrap input { padding-right: 72px; }
+.country-calling-code { position: absolute; top: 50%; right: 12px; transform: translateY(-50%); padding: 4px 8px; border-radius: 999px; color: var(--muted); background: var(--surface-2); font-size: .76rem; font-weight: 850; pointer-events: none; }
+.country-options { position: absolute; z-index: 30; top: calc(100% - 22px); left: 0; right: 0; max-height: 290px; overflow-y: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: var(--shadow); }
+.country-option { width: 100%; min-height: 46px; padding: 9px 12px; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 8px; border: 0; border-bottom: 1px solid var(--line); color: var(--text); background: transparent; text-align: left; cursor: pointer; }
+.country-option:last-child { border-bottom: 0; }
+.country-option:hover, .country-option.active { background: var(--surface-2); }
+.country-option__flag { font-size: 1.2rem; }
+.country-option__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 780; }
+.country-option__meta { color: var(--muted); font-size: .76rem; font-weight: 800; }
+.country-options-empty { margin: 0; padding: 14px; color: var(--muted); font-size: .84rem; }

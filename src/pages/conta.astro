@@ -33,18 +33,17 @@ const t = getMessages(locale);
               </div>
               <small class="field-help" data-sex-rule>A primeira definição é livre. Depois, somente uma correção será permitida, após 30 dias.</small>
             </div>
-            <div class="field">
-              <label for="regionCode">Região do Brasil</label>
-              <div class="select-wrap">
-                <select id="regionCode" name="regionCode">
-                  <option value="">Não informar</option>
-                  <option value="N">Norte</option>
-                  <option value="NE">Nordeste</option>
-                  <option value="CO">Centro-Oeste</option>
-                  <option value="SE">Sudeste</option>
-                  <option value="S">Sul</option>
-                </select>
+            <div class="field country-field" data-country-picker>
+              <label for="countrySearch">País</label>
+              <div class="country-search-wrap">
+                <input id="countrySearch" name="countrySearch" type="search" autocomplete="off" placeholder="Buscar país por nome, código ou DDI" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="countryOptions" />
+                <span class="country-calling-code" data-country-calling-code hidden></span>
               </div>
+              <input type="hidden" name="countryCode" />
+              <input type="hidden" name="countryName" />
+              <input type="hidden" name="countryCallingCode" />
+              <div id="countryOptions" class="country-options" role="listbox" data-country-options hidden></div>
+              <small class="field-help">Busca rápida pela API pública REST Countries. O país e o DDI ficam salvos na conta.</small>
             </div>
             <div class="field">
               <label for="preferredLanguageCode">Idioma preferencial</label>
@@ -56,16 +55,6 @@ const t = getMessages(locale);
                 </select>
               </div>
               <small class="field-help">Não altera o idioma da interface. Murmúrios neste idioma aparecem primeiro, mantendo os mais recentes no topo de cada grupo.</small>
-            </div>
-            <div class="field">
-              <label for="columnGroupCode">Colunas da página inicial</label>
-              <div class="select-wrap">
-                <select id="columnGroupCode" name="columnGroupCode">
-                  <option value="sex">Agrupar por sexo</option>
-                  <option value="region">Agrupar por regiões do Brasil</option>
-                </select>
-              </div>
-              <small class="field-help">Define como o modo Colunas organiza os murmúrios.</small>
             </div>
           </div>
           <div class="field"><label for="bio">{t.profile.bio}</label><textarea id="bio" name="bio" maxlength="180" rows="5"></textarea></div>

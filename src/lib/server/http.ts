@@ -49,6 +49,7 @@ export function errorResponse(error: unknown): Response {
         RESET_DESABILITADO: [501, 'Recuperação por e-mail ainda não configurada.'],
         ORACLE_WALLET_INVALIDA: [503, 'A carteira Oracle não foi encontrada ou está incompleta.'],
         ORACLE_INDISPONIVEL: [503, 'Não foi possível conectar ao banco Oracle. Confira usuário, senha, serviço e Wallet.'],
+        PAISES_INDISPONIVEIS: [503, 'Não foi possível carregar a lista de países agora.'],
     };
 
     const [status, publicMessage] = known[message] || [500, 'Erro interno.'];

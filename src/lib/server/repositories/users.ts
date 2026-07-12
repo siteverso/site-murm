@@ -160,7 +160,9 @@ export type PublicProfile = {
     username: string;
     bio: string;
     sexCode: string;
-    regionCode: string;
+    countryCode: string;
+    countryName: string;
+    countryCallingCode: string;
     avatarUrl: string;
     postCount: number;
     positiveCount: number;
@@ -174,7 +176,9 @@ export async function findPublicProfileByUsername(username: string): Promise<Pub
                     u.username,
                     NVL(u.bio, '') AS bio,
                     NVL(u.sex_code, '') AS sex_code,
-                    NVL(u.region_code, '') AS region_code,
+                    NVL(u.country_code, '') AS country_code,
+                    NVL(u.country_name, '') AS country_name,
+                    NVL(u.country_calling_code, '') AS country_calling_code,
                     CASE
                         WHEN u.avatar_image IS NOT NULL THEN
                             '/api/users/' || u.id || '/avatar?v=' ||
@@ -213,7 +217,9 @@ export async function findPublicProfileByUsername(username: string): Promise<Pub
             username: String(row.USERNAME),
             bio: String(row.BIO || ''),
             sexCode: String(row.SEX_CODE || ''),
-            regionCode: String(row.REGION_CODE || ''),
+            countryCode: String(row.COUNTRY_CODE || ''),
+            countryName: String(row.COUNTRY_NAME || ''),
+            countryCallingCode: String(row.COUNTRY_CALLING_CODE || ''),
             avatarUrl: String(row.AVATAR_URL || ''),
             postCount: Number(row.POST_COUNT || 0),
             positiveCount: Number(row.POSITIVE_COUNT || 0),

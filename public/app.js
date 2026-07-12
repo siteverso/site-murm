@@ -202,13 +202,6 @@ const feedBuckets = { all: [] };
 const splitFeedLimits = {};
 const COLUMN_GROUPS = {
   sex: getSexColumnDefinitions(),
-  region: [
-    { code: 'N', label: 'Norte' },
-    { code: 'NE', label: 'Nordeste' },
-    { code: 'CO', label: 'Centro-Oeste' },
-    { code: 'SE', label: 'Sudeste' },
-    { code: 'S', label: 'Sul' },
-  ],
 };
 let feedColumnObservers = [];
 let feedRevealObserver = null;
@@ -268,8 +261,10 @@ function renderUser(user) {
   $$('[data-profile-username]').forEach(el => { el.textContent = `@${user.username}`; });
   $$('[data-profile-email]').forEach(el => { el.textContent = user.email; });
   $$('[data-profile-sex]').forEach(el => { el.textContent = user.sexCode === 'M' ? 'Macho' : user.sexCode === 'F' ? 'Fêmea' : 'Sexo não informado'; });
-  const regionNames = { N: 'Norte', NE: 'Nordeste', CO: 'Centro-Oeste', SE: 'Sudeste', S: 'Sul' };
-  $$('[data-profile-region]').forEach(el => { el.textContent = regionNames[user.regionCode] || ''; el.hidden = !user.regionCode; });
+  $$('[data-profile-country]').forEach(el => {
+    el.textContent = user.countryName ? `${user.countryName}${user.countryCallingCode ? ` · ${user.countryCallingCode}` : ''}` : '';
+    el.hidden = !user.countryName;
+  });
   $$('[data-profile-bio]').forEach(el => { el.textContent = user.bio || 'Sem biografia ainda.'; });
   $$('[data-profile-posts]').forEach(el => { el.textContent = user.postCount; });
   $$('[data-profile-positive]').forEach(el => { el.textContent = user.positiveCount; });
@@ -327,13 +322,15 @@ function renderUser(user) {
       sexRule.dataset.type = 'warning';
     }
 
-    profileForm.regionCode.value = user.regionCode || '';
-    profileForm.columnGroupCode.value = user.columnGroupCode || 'sex';
+    profileForm.countryCode.value = user.countryCode || '';
+    profileForm.countryName.value = user.countryName || '';
+    profileForm.countryCallingCode.value = user.countryCallingCode || '';
+    profileForm.countrySearch.value = user.countryName || '';
+    const countryDdi = $('[data-country-calling-code]', profileForm);
+    if (countryDdi) { countryDdi.textContent = user.countryCallingCode || ''; countryDdi.hidden = !user.countryCallingCode; }
     profileForm.preferredLanguageCode.value = user.preferredLanguageCode || 'pt-BR';
     profileForm.bio.value = user.bio || '';
 
-    const columnGroupSelect = $('[data-column-group-select]');
-    if (columnGroupSelect) columnGroupSelect.value = user.columnGroupCode || 'sex';
   }
 
   const methods = [];
@@ -869,7 +866,7 @@ function disconnectFeedColumnObservers() {
 }
 
 function getColumnGroupMode() {
-  return currentUser?.columnGroupCode === 'region' ? 'region' : 'sex';
+  return 'sex';
 }
 
 function getColumnDefinitions() {
@@ -878,9 +875,6 @@ function getColumnDefinitions() {
 
 function getColumnItems(definition) {
   const roots = getRootPosts(posts);
-  if (getColumnGroupMode() === 'region') {
-    return roots.filter(post => (post.regionCode || '') === definition.code);
-  }
   return roots.filter(post => (post.sexCode || '') === definition.code);
 }
 
@@ -943,7 +937,6 @@ function getFeedSignature(items) {
   return JSON.stringify(items.map(post => [
     post.id,
     post.sexCode,
-    post.regionCode,
     post.text,
     post.positive,
     post.negative,
@@ -1093,45 +1086,6 @@ function bindFeedView() {
     const button = event.target.closest('[data-feed-view]');
     if (!button) return;
     applyView(button.dataset.feedView);
-  });
-}
-
-async function saveColumnGroupPreference(columnGroupCode) {
-  if (!currentUser || !['sex', 'region'].includes(columnGroupCode)) return;
-  await api('/api/auth/profile', {
-    method: 'PATCH',
-    body: JSON.stringify({
-      username: currentUser.username,
-      email: currentUser.email,
-      bio: currentUser.bio,
-      sexCode: currentUser.sexCode,
-      regionCode: currentUser.regionCode,
-      columnGroupCode,
-    }),
-  });
-  currentUser.columnGroupCode = columnGroupCode;
-  const profileSelect = $('[data-profile-form] [name="columnGroupCode"]');
-  if (profileSelect) profileSelect.value = columnGroupCode;
-  Object.keys(splitFeedLimits).forEach(key => delete splitFeedLimits[key]);
-  renderSplitFeeds();
-}
-
-function bindColumnGroup() {
-  const select = $('[data-column-group-select]');
-  if (!select) return;
-  select.value = currentUser?.columnGroupCode || 'sex';
-  select.addEventListener('change', async () => {
-    const previous = currentUser?.columnGroupCode || 'sex';
-    select.disabled = true;
-    try {
-      await saveColumnGroupPreference(select.value);
-      toast('Agrupamento das colunas atualizado.');
-    } catch (error) {
-      select.value = previous;
-      toast(error.message);
-    } finally {
-      select.disabled = false;
-    }
   });
 }
 
@@ -1738,6 +1692,115 @@ function bindProfilePhotoViewer() {
   });
 }
 
+
+function normalizeCountrySearch(value = '') {
+  return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+function bindCountryPicker() {
+  const picker = $('[data-country-picker]');
+  if (!picker) return;
+  const form = picker.closest('form');
+  const input = $('[name="countrySearch"]', picker);
+  const codeInput = $('[name="countryCode"]', picker);
+  const nameInput = $('[name="countryName"]', picker);
+  const callingInput = $('[name="countryCallingCode"]', picker);
+  const callingBadge = $('[data-country-calling-code]', picker);
+  const options = $('[data-country-options]', picker);
+  let countries = [];
+  let loaded = false;
+  let activeIndex = -1;
+
+  const close = () => {
+    options.hidden = true;
+    input.setAttribute('aria-expanded', 'false');
+    activeIndex = -1;
+  };
+
+  const selectCountry = country => {
+    input.value = country.name;
+    codeInput.value = country.code;
+    nameInput.value = country.name;
+    callingInput.value = country.callingCode || '';
+    callingBadge.textContent = country.callingCode || '';
+    callingBadge.hidden = !country.callingCode;
+    close();
+  };
+
+  const render = () => {
+    const query = normalizeCountrySearch(input.value);
+    const matches = countries.filter(country => {
+      const haystack = normalizeCountrySearch(`${country.name} ${country.code} ${country.callingCode}`);
+      return !query || haystack.includes(query);
+    }).slice(0, 30);
+    options.innerHTML = matches.length ? matches.map((country, index) => `
+      <button class="country-option" type="button" role="option" data-country-index="${index}" aria-selected="false">
+        <span class="country-option__flag" aria-hidden="true">${escapeHtml(country.flag || '')}</span>
+        <span class="country-option__name">${escapeHtml(country.name)}</span>
+        <span class="country-option__meta">${escapeHtml(country.code)}${country.callingCode ? ` · ${escapeHtml(country.callingCode)}` : ''}</span>
+      </button>`).join('') : '<p class="country-options-empty">Nenhum país encontrado.</p>';
+    options._matches = matches;
+    options.hidden = false;
+    input.setAttribute('aria-expanded', 'true');
+    activeIndex = -1;
+  };
+
+  const load = async () => {
+    if (loaded) return;
+    options.hidden = false;
+    options.innerHTML = '<p class="country-options-empty">Carregando países…</p>';
+    try {
+      const data = await api('/api/countries');
+      countries = Array.isArray(data.countries) ? data.countries : [];
+      loaded = true;
+      render();
+    } catch (error) {
+      options.innerHTML = `<p class="country-options-empty">${escapeHtml(error.message || 'Não foi possível carregar os países.')}</p>`;
+    }
+  };
+
+  input.addEventListener('focus', () => load().then(render));
+  input.addEventListener('input', () => {
+    if (input.value !== nameInput.value) {
+      codeInput.value = '';
+      nameInput.value = '';
+      callingInput.value = '';
+      callingBadge.hidden = true;
+    }
+    load().then(render);
+  });
+  input.addEventListener('keydown', event => {
+    const buttons = $$('[data-country-index]', options);
+    if (event.key === 'Escape') return close();
+    if (!buttons.length || !['ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) return;
+    event.preventDefault();
+    if (event.key === 'ArrowDown') activeIndex = Math.min(activeIndex + 1, buttons.length - 1);
+    if (event.key === 'ArrowUp') activeIndex = Math.max(activeIndex - 1, 0);
+    if (event.key === 'Enter' && activeIndex >= 0) return selectCountry(options._matches[activeIndex]);
+    buttons.forEach((button, index) => {
+      const active = index === activeIndex;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-selected', active ? 'true' : 'false');
+      if (active) button.scrollIntoView({ block: 'nearest' });
+    });
+  });
+  options.addEventListener('click', event => {
+    const button = event.target.closest('[data-country-index]');
+    if (!button) return;
+    selectCountry(options._matches[Number(button.dataset.countryIndex)]);
+  });
+  document.addEventListener('pointerdown', event => {
+    if (!picker.contains(event.target)) close();
+  });
+  form?.addEventListener('submit', event => {
+    if (input.value.trim() && !codeInput.value) {
+      event.preventDefault();
+      input.focus();
+      toast('Selecione um país da lista para salvar.');
+    }
+  }, true);
+}
+
 function bindProfile() {
   bindProfilePhotoViewer();
   const avatarForm = $('[data-avatar-form]');
@@ -1778,8 +1841,9 @@ function bindProfile() {
           username: profileForm.username.value,
           email: profileForm.email.value,
           sexCode: profileForm.sexCode.value,
-          regionCode: profileForm.regionCode.value,
-          columnGroupCode: profileForm.columnGroupCode.value,
+          countryCode: profileForm.countryCode.value,
+          countryName: profileForm.countryName.value,
+          countryCallingCode: profileForm.countryCallingCode.value,
           preferredLanguageCode: profileForm.preferredLanguageCode.value,
           bio: profileForm.bio.value,
         }),
@@ -2381,6 +2445,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     bindUi();
     bindAuth();
     bindProfile();
+    bindCountryPicker();
     bindFeedView();
     bindFeed();
   } catch (error) {
@@ -2390,8 +2455,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     await loadUser();
     renderReplyHistory();
-    bindColumnGroup();
-  } catch (error) {
+    } catch (error) {
     showRuntimeError(error, 'Erro ao carregar o usuário atual');
   }
 

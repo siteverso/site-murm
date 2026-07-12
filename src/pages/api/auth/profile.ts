@@ -9,19 +9,21 @@ import { withConnection } from '../../../lib/server/oracle';
 export const PATCH: APIRoute = async context => {
     try {
         const user = await requireUser(context);
-        const input = await body<{ username?: string; email?: string; bio?: string; sexCode?: string; regionCode?: string; columnGroupCode?: string; preferredLanguageCode?: string }>(context.request);
+        const input = await body<{ username?: string; email?: string; bio?: string; sexCode?: string; countryCode?: string; countryName?: string; countryCallingCode?: string; preferredLanguageCode?: string }>(context.request);
         const username = normalizeUsername(input.username);
         const email = normalizeEmail(input.email);
         const bio = String(input.bio || '').trim().slice(0, 180);
         const sexCode = String(input.sexCode || '').trim().toUpperCase();
-        const regionCode = String(input.regionCode || '').trim().toUpperCase();
-        const columnGroupCode = String(input.columnGroupCode || 'sex').trim().toLowerCase();
+        const countryCode = String(input.countryCode || '').trim().toUpperCase();
+        const countryName = String(input.countryName || '').trim().slice(0, 160);
+        const countryCallingCode = String(input.countryCallingCode || '').trim().slice(0, 12);
         const preferredLanguageCode = String(input.preferredLanguageCode || 'pt-BR').trim();
         validateUsername(username);
         validateEmail(email);
         if (sexCode && !['M', 'F'].includes(sexCode)) throw new Error('JSON_INVALIDO');
-        if (regionCode && !['N', 'NE', 'CO', 'SE', 'S'].includes(regionCode)) throw new Error('JSON_INVALIDO');
-        if (!['sex', 'region'].includes(columnGroupCode)) throw new Error('JSON_INVALIDO');
+        if (countryCode && !/^[A-Z]{2}$/.test(countryCode)) throw new Error('JSON_INVALIDO');
+        if (countryCode && !countryName) throw new Error('JSON_INVALIDO');
+        if (countryCallingCode && !/^\+[0-9]{1,7}$/.test(countryCallingCode)) throw new Error('JSON_INVALIDO');
         if (!['pt-BR', 'en', 'es'].includes(preferredLanguageCode)) throw new Error('JSON_INVALIDO');
 
         await withConnection(async connection => {
@@ -100,8 +102,9 @@ export const PATCH: APIRoute = async context => {
                              ELSE email_set_at
                          END,
                          bio = :bio,
-                         region_code = :region_code,
-                         column_group_code = :column_group_code,
+                         country_code = :country_code,
+                         country_name = :country_name,
+                         country_calling_code = :country_calling_code,
                          preferred_language_code = :preferred_language_code,
                          sex_code = CASE
                              WHEN :sex_changed = 1 THEN :sex_code
@@ -123,8 +126,9 @@ export const PATCH: APIRoute = async context => {
                         email,
                         email_changed: emailChanged ? 1 : 0,
                         bio: bio || null,
-                        region_code: regionCode || null,
-                        column_group_code: columnGroupCode,
+                        country_code: countryCode || null,
+                        country_name: countryCode ? countryName : null,
+                        country_calling_code: countryCode ? (countryCallingCode || null) : null,
                         preferred_language_code: preferredLanguageCode,
                         sex_code: sexCode || null,
                         sex_changed: sexChanged ? 1 : 0,

@@ -19,7 +19,6 @@ export async function listPosts(_currentUserId: number | null, profileUsername: 
                     NVL(p.language_code, NVL(u.language_code, 'pt-BR')) AS language_code,
                     u.username,
                     NVL(u.sex_code, '') AS sex_code,
-                    '' AS region_code,
                     '' AS avatar_url,
                     0 AS my_vote,
                     (SELECT COUNT(*)
@@ -60,7 +59,6 @@ export async function listPosts(_currentUserId: number | null, profileUsername: 
             parentAuthor: '',
             author: String(row.USERNAME || ''),
             sexCode: String(row.SEX_CODE || '').trim().toUpperCase(),
-            regionCode: '',
             avatarUrl: '',
             text: String(row.CONTENTS || ''),
             languageCode: String(row.LANGUAGE_CODE || 'pt-BR'),
@@ -92,7 +90,6 @@ function mapPostRows(rows: PostRow[]): unknown[] {
         author: String(row.USERNAME || ''),
         isDeleted: String(row.STATUS || '').trim().toLowerCase() === 'deleted',
         sexCode: String(row.SEX_CODE || '').trim().toUpperCase(),
-        regionCode: '',
         avatarUrl: '',
         text: String(row.CONTENTS || ''),
         positive: Number(row.POSITIVE_COUNT || 0),
@@ -199,8 +196,7 @@ export async function listSpecificThread(postId: number): Promise<{ posts: unkno
                 author: '',
                 isDeleted: true,
                 sexCode: '',
-                regionCode: '',
-                avatarUrl: '',
+                    avatarUrl: '',
                 text: '',
                 positive: 0,
                 negative: 0,
@@ -438,7 +434,6 @@ type ReplyHistoryPost = {
     author: string;
     isDeleted: boolean;
     sexCode: string;
-    regionCode: string;
     avatarUrl: string;
     text: string;
     positive: number;
@@ -478,7 +473,6 @@ function mapReplyHistoryRows(rows: PostRow[]): ReplyHistoryPost[] {
         author: String(row.USERNAME || ''),
         isDeleted: String(row.STATUS || '').trim().toLowerCase() === 'deleted',
         sexCode: String(row.SEX_CODE || '').trim().toUpperCase(),
-        regionCode: '',
         avatarUrl: String(row.AVATAR_URL || ''),
         text: String(row.CONTENTS || ''),
         positive: Number(row.POSITIVE_COUNT || 0),
@@ -555,7 +549,6 @@ async function fetchReplyHistoryBranch(connection: oracledb.Connection, replyId:
             author: '',
             isDeleted: true,
             sexCode: '',
-            regionCode: '',
             avatarUrl: '',
             text: '',
             positive: 0,

@@ -23,8 +23,9 @@ export type SessionUser = {
     languageCode: string;
     preferredLanguageCode: 'pt-BR' | 'en' | 'es';
     themeCode: string;
-    regionCode: string;
-    columnGroupCode: 'sex' | 'region';
+    countryCode: string;
+    countryName: string;
+    countryCallingCode: string;
     hasPassword: boolean;
     hasGoogle: boolean;
     postCount: number;
@@ -133,8 +134,9 @@ export async function currentUser(context: APIContext): Promise<SessionUser | nu
                     u.language_code,
                     NVL(u.preferred_language_code, 'pt-BR') AS preferred_language_code,
                     NVL(u.theme_code, 'auto') AS theme_code,
-                    NVL(u.region_code, '') AS region_code,
-                    NVL(u.column_group_code, 'sex') AS column_group_code,
+                    NVL(u.country_code, '') AS country_code,
+                    NVL(u.country_name, '') AS country_name,
+                    NVL(u.country_calling_code, '') AS country_calling_code,
                     CASE WHEN u.password_hash IS NULL THEN 0 ELSE 1 END AS has_password,
                     CASE WHEN u.google_sub IS NULL THEN 0 ELSE 1 END AS has_google,
                     (SELECT COUNT(*) FROM murm_post p WHERE p.user_id = u.id AND p.parent_post_id IS NULL AND p.status = 'published'
@@ -196,8 +198,9 @@ export async function currentUser(context: APIContext): Promise<SessionUser | nu
                 ? String(row.PREFERRED_LANGUAGE_CODE || 'pt-BR') as 'pt-BR' | 'en' | 'es'
                 : 'pt-BR',
             themeCode: String(row.THEME_CODE || 'auto'),
-            regionCode: String(row.REGION_CODE || ''),
-            columnGroupCode: String(row.COLUMN_GROUP_CODE || 'sex') === 'region' ? 'region' : 'sex',
+            countryCode: String(row.COUNTRY_CODE || ''),
+            countryName: String(row.COUNTRY_NAME || ''),
+            countryCallingCode: String(row.COUNTRY_CALLING_CODE || ''),
             hasPassword: Number(row.HAS_PASSWORD) === 1,
             hasGoogle: Number(row.HAS_GOOGLE) === 1,
             postCount: Number(row.POST_COUNT || 0),

@@ -13,8 +13,8 @@ const username = profile?.username || 'usuario';
 const initials = username.slice(0, 2).toUpperCase() || 'MU';
 const sexCode = profile?.sexCode || '';
 const sexLabel = sexCode === 'M' ? 'Macho' : sexCode === 'F' ? 'Fêmea' : 'Sexo não informado';
-const regionLabels: Record<string, string> = { N: 'Norte', NE: 'Nordeste', CO: 'Centro-Oeste', SE: 'Sudeste', S: 'Sul' };
-const regionLabel = regionLabels[profile?.regionCode || ''] || '';
+const countryLabel = profile?.countryName || '';
+const countryCallingCode = profile?.countryCallingCode || '';
 ---
 <aside class="panel profile-card public-profile-card">
   {editableAvatar ? (
@@ -52,7 +52,7 @@ const regionLabel = regionLabels[profile?.regionCode || ''] || '';
   {(dynamic || profile?.email) && <span class="handle" data-profile-email={dynamic || undefined}>{profile?.email || 'usuario@exemplo.com'}</span>}
   <div class="public-profile-tags">
     <span class="profile-sex" data-profile-sex={dynamic || undefined}>{sexLabel}</span>
-    {(dynamic || regionLabel) && <span class="profile-sex" data-profile-region={dynamic || undefined}>{regionLabel}</span>}
+    {(dynamic || countryLabel) && <span class="profile-sex" data-profile-country={dynamic || undefined}>{countryLabel}{countryCallingCode ? ` · ${countryCallingCode}` : ''}</span>}
   </div>
   <p class="bio" data-profile-bio={dynamic || undefined}>{profile?.bio || 'Sem biografia ainda.'}</p>
   <div class="profile-stats">

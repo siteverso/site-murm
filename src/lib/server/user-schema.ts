@@ -3,8 +3,9 @@ import type { Connection } from 'oracledb';
 type UserSchema = {
     avatarImage: boolean;
     avatarUpdatedAt: boolean;
-    regionCode: boolean;
-    columnGroupCode: boolean;
+    countryCode: boolean;
+    countryName: boolean;
+    countryCallingCode: boolean;
 };
 
 let cached: UserSchema | null = null;
@@ -16,14 +17,15 @@ export async function getUserSchema(connection: Connection): Promise<UserSchema>
         `SELECT column_name
            FROM user_tab_columns
           WHERE table_name = 'MURM_USER'
-            AND column_name IN ('AVATAR_IMAGE', 'AVATAR_UPDATED_AT', 'REGION_CODE', 'COLUMN_GROUP_CODE')`,
+            AND column_name IN ('AVATAR_IMAGE', 'AVATAR_UPDATED_AT', 'COUNTRY_CODE', 'COUNTRY_NAME', 'COUNTRY_CALLING_CODE')`,
     );
     const names = new Set((result.rows || []).map(row => String(row.COLUMN_NAME || '').toUpperCase()));
     cached = {
         avatarImage: names.has('AVATAR_IMAGE'),
         avatarUpdatedAt: names.has('AVATAR_UPDATED_AT'),
-        regionCode: names.has('REGION_CODE'),
-        columnGroupCode: names.has('COLUMN_GROUP_CODE'),
+        countryCode: names.has('COUNTRY_CODE'),
+        countryName: names.has('COUNTRY_NAME'),
+        countryCallingCode: names.has('COUNTRY_CALLING_CODE'),
     };
     return cached;
 }
