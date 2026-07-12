@@ -344,3 +344,15 @@
   .reply-send-button { grid-column: 2; grid-row: 1 / span 2; }
   .reply-private-toggle span { min-height: 30px; }
 }
+
+.reply-preview-more {
+  display: block;
+  width: fit-content;
+  margin: 8px 2px 0 auto;
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.reply-preview-more:hover,
+.reply-preview-more:focus-visible { color: var(--text); }

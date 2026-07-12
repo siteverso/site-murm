@@ -9,9 +9,9 @@ export async function listPosts(currentUserId: number | null, profileUsername: s
         const userSchema = await getUserSchema(connection);
         const userAvatarSql = avatarSql(userSchema, 'u');
 
-        // Feed principal e listagem normal de perfil exibem somente murmúrios raiz.
-        // Respostas permanecem acessíveis exclusivamente pelas páginas de thread/respostas,
-        // inclusive quando o pai foi removido do banco.
+        // Os cards principais continuam sendo somente murmúrios raiz.
+        // Na Home, carregamos separadamente apenas duas respostas diretas por raiz
+        // para uma prévia compacta; níveis mais profundos ficam na página da conversa.
         const result = await connection.execute<Record<string, unknown>>(
             `SELECT p.id,
                  p.user_id,
@@ -66,7 +66,7 @@ export async function listPosts(currentUserId: number | null, profileUsername: s
             {profile_username: profileUsername, preferred_language_code: preferredLanguageCode, current_user_id: currentUserId},
         );
 
-        return (result.rows || []).map(row => ({
+        const roots = (result.rows || []).map(row => ({
             id: Number(row.ID),
             userId: Number(row.USER_ID),
             parentPostId: null,
@@ -83,8 +83,96 @@ export async function listPosts(currentUserId: number | null, profileUsername: s
             hasMyReply: Number(row.HAS_MY_REPLY || 0) === 1,
             createdAt: new Date(String(row.CREATED_AT)).getTime(),
             isPrivate: String(row.VISIBILITY_CODE || 'public').trim().toLowerCase() === 'private',
+            canViewPrivate: true,
+            isPrivateRedacted: false,
             replyCount: Number(row.REPLY_COUNT || 0),
         }));
+
+        // Perfis permanecem enxutos: a prévia de respostas é exclusiva da Home.
+        if (profileUsername || roots.length === 0) return roots;
+
+        const previewResult = await connection.execute<Record<string, unknown>>(
+            `SELECT *
+             FROM (
+                 SELECT reply.id,
+                     reply.user_id,
+                     reply.parent_post_id,
+                     reply.contents,
+                     nvl(reply.positive_count, 0) AS positive_count,
+                     nvl(reply.negative_count, 0) AS negative_count,
+                     nvl(reply.share_count, 0) AS share_count,
+                     reply.created_at,
+                     reply.status,
+                     nvl(reply.visibility_code, 'public') AS visibility_code,
+                     nvl(reply.language_code, nvl(reply_user.language_code, 'pt-BR')) AS language_code,
+                     reply_user.username,
+                     nvl(reply_user.sex_code, '') AS sex_code,
+                     ${userAvatarSql.replaceAll('u.', 'reply_user.')} AS avatar_url,
+                     parent_user.username AS parent_username,
+                     nvl((SELECT max(v.vote_value)
+                          FROM murm_vote v
+                          WHERE v.post_id = reply.id
+                              AND v.user_id = :current_user_id), 0) AS my_vote,
+                     CASE WHEN exists (SELECT 1
+                                       FROM murm_post own_reply
+                                       WHERE own_reply.parent_post_id = reply.id
+                                           AND own_reply.user_id = :current_user_id
+                                           AND lower(trim(own_reply.status)) = 'published'
+                                           AND lower(trim(own_reply.post_type)) = 'murmur') THEN 1
+                          ELSE 0 END AS has_my_reply,
+                     CASE WHEN nvl(reply.visibility_code, 'public') <> 'private'
+                               OR reply.user_id = :current_user_id
+                               OR parent.user_id = :current_user_id THEN 1
+                          ELSE 0 END AS can_view_private,
+                     row_number() OVER (
+                         PARTITION BY reply.parent_post_id
+                         ORDER BY CASE WHEN reply.user_id = :current_user_id THEN 0 ELSE 1 END,
+                                  reply.created_at DESC,
+                                  reply.id DESC
+                     ) AS preview_rank
+                 FROM murm_post reply
+                 JOIN murm_user reply_user ON reply_user.id = reply.user_id
+                 JOIN murm_post parent ON parent.id = reply.parent_post_id
+                 JOIN murm_user parent_user ON parent_user.id = parent.user_id
+                 WHERE lower(trim(reply.status)) = 'published'
+                     AND lower(trim(reply.post_type)) = 'murmur'
+                     AND lower(trim(parent.status)) = 'published'
+                     AND lower(trim(parent.post_type)) = 'murmur'
+                     AND parent.parent_post_id IS NULL
+             )
+             WHERE preview_rank <= 2
+             ORDER BY parent_post_id, created_at DESC, id DESC`,
+            {current_user_id: currentUserId},
+        );
+
+        const previews = (previewResult.rows || []).map(row => {
+            const isPrivate = String(row.VISIBILITY_CODE || 'public').trim().toLowerCase() === 'private';
+            const canViewPrivate = !isPrivate || Number(row.CAN_VIEW_PRIVATE || 0) === 1;
+            const isPrivateRedacted = isPrivate && !canViewPrivate;
+            return {
+                id: Number(row.ID),
+                userId: Number(row.USER_ID),
+                parentPostId: Number(row.PARENT_POST_ID),
+                parentAuthor: String(row.PARENT_USERNAME || ''),
+                author: String(row.USERNAME || ''),
+                sexCode: String(row.SEX_CODE || '').trim().toUpperCase(),
+                avatarUrl: String(row.AVATAR_URL || ''),
+                text: isPrivateRedacted ? '' : String(row.CONTENTS || ''),
+                languageCode: String(row.LANGUAGE_CODE || 'pt-BR'),
+                positive: isPrivateRedacted ? 0 : Number(row.POSITIVE_COUNT || 0),
+                negative: isPrivateRedacted ? 0 : Number(row.NEGATIVE_COUNT || 0),
+                shares: isPrivateRedacted ? 0 : Number(row.SHARE_COUNT || 0),
+                myVote: isPrivateRedacted ? 0 : Number(row.MY_VOTE || 0),
+                hasMyReply: isPrivateRedacted ? false : Number(row.HAS_MY_REPLY || 0) === 1,
+                createdAt: new Date(String(row.CREATED_AT)).getTime(),
+                isPrivate,
+                canViewPrivate,
+                isPrivateRedacted,
+                replyCount: 0,
+            };
+        });
+
+        return [...roots, ...previews];
     });
 }
 

@@ -152,7 +152,7 @@ function renderSpecificThread(parentPost, rootPost, allPosts, siblingStubs = [])
     return `${ancestorContext}${fullParentCard}`;
 }
 
-function selectVisibleReplies(replies, limit = 3) {
+function selectVisibleReplies(replies, limit = 2) {
     const newest = [...replies].sort(compareRepliesByNewest);
     if (newest.length <= limit) return newest;
 
@@ -208,8 +208,12 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
 
     let nestedReplies = '';
     if (repliesMode === 'compact' && replies.length) {
-        const visibleReplies = selectVisibleReplies(replies);
-        nestedReplies = `<div class="replies replies-compact" data-replies-for="${post.id}"><ul class="reply-preview-list">${visibleReplies.map(reply => renderReplyPreview(reply, post)).join('')}</ul></div>`;
+        const visibleReplies = selectVisibleReplies(replies, 2);
+        const hiddenReplyCount = Math.max(0, Number(post.replyCount || 0) - visibleReplies.length);
+        const allRepliesLink = hiddenReplyCount > 0
+            ? `<a class="reply-preview-more" href="/perfil/${encodeURIComponent(post.author)}?murmurio=${encodeURIComponent(post.id)}">Ver todas as ${post.replyCount} respostas →</a>`
+            : '';
+        nestedReplies = `<div class="replies replies-compact" data-replies-for="${post.id}"><ul class="reply-preview-list">${visibleReplies.map(reply => renderReplyPreview(reply, post)).join('')}</ul>${allRepliesLink}</div>`;
     }
     if (repliesMode === 'recursive' && replies.length && depth < maxDepth) {
         nestedReplies = `<div class="replies replies-recursive" data-replies-for="${post.id}">${replies.map(reply => renderPost(reply, childrenByParent, nextAncestry, {
