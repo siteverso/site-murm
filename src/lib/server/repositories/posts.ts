@@ -30,8 +30,19 @@ export async function listPosts(_currentUserId: number | null, profileUsername: 
               WHERE LOWER(TRIM(p.status)) = 'published'
                 AND (
                     :profile_username IS NULL
-                    OR LOWER(u.username) = LOWER(:profile_username)
-                    OR LOWER(parent_user.username) = LOWER(:profile_username)
+                    OR p.id IN (
+                        SELECT tree.id
+                          FROM murm_post tree
+                         WHERE LOWER(TRIM(tree.status)) = 'published'
+                         START WITH tree.parent_post_id IS NULL
+                                AND tree.user_id = (
+                                    SELECT profile_user.id
+                                      FROM murm_user profile_user
+                                     WHERE LOWER(profile_user.username) = LOWER(:profile_username)
+                                     FETCH FIRST 1 ROW ONLY
+                                )
+                         CONNECT BY NOCYCLE PRIOR tree.id = tree.parent_post_id
+                    )
                 )
               ORDER BY p.created_at DESC`,
             { profile_username: profileUsername },

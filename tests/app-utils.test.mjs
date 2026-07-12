@@ -243,14 +243,19 @@ test('irmãs minimizadas exibem somente data e prévia truncada e carregam o car
   assert.match(source, /afterExtra \+= SPECIFIC_SIBLING_WINDOW/);
 });
 
-test('um clique expande automaticamente o contexto acima e abaixo a cada 300ms', async () => {
+test('clique expande somente a linha escolhida e hover opcional usa espera curta', async () => {
   const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
-  assert.match(source, /async function expandSpecificContext\(rootId, clickedId, orderedVisibleIds\)/);
-  assert.match(source, /await loadAndExpandSpecificPost\(rootId, String\(clickedId\)\)/);
-  assert.match(source, /await wait\(300\)/);
-  assert.match(source, /const aboveId = orderedVisibleIds\[clickedIndex - distance\]/);
-  assert.match(source, /const belowId = orderedVisibleIds\[clickedIndex \+ distance\]/);
-  assert.match(source, /await Promise\.all\(pair\.map\(id => loadAndExpandSpecificPost\(rootId, id\)\)\)/);
+  const profile = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/pages/perfil/[username].astro', import.meta.url), 'utf8'));
+  assert.match(source, /async function expandOnlySpecificPost\(rootId, inflateId, sourceLine = null\)/);
+  assert.match(source, /await loadAndExpandSpecificPost\(rootId, String\(inflateId\)\)/);
+  assert.doesNotMatch(source, /expandSpecificContext/);
+  assert.doesNotMatch(source, /await wait\(300\)/);
+  assert.match(source, /const SPECIFIC_HOVER_DELAY_MS = 700/);
+  assert.match(source, /setTimeout\(async \(\) => \{/);
+  assert.match(source, /scheduleSpecificHoverExpansion\(line\)/);
+  assert.match(source, /cancelSpecificHoverExpansion\(\)/);
+  assert.match(profile, /data-expand-on-hover/);
+  assert.match(profile, /data-expand-on-hover-label>Hover<\/span>/);
 });
 
 
@@ -265,4 +270,40 @@ test('slide de inflação usa altura real e mantém estilo por sexo', async () =
   assert.match(css, /\.thread-sibling-line\.sex-f \{/);
   assert.doesNotMatch(css, /\.murmur-context-parent \{[\s\S]*?opacity: \.8;/);
   assert.match(repository, /NVL\(u\.sex_code, ''\) AS sex_code/);
+});
+
+
+test('perfil mantém lateral sticky rolável e não solta respostas de outros usuários', async () => {
+  const css = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/styles/global.css', import.meta.url), 'utf8'));
+  const repository = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/lib/server/repositories/posts.ts', import.meta.url), 'utf8'));
+  assert.match(css, /\.profile-card \{[^}]*position: sticky;[^}]*max-height: calc\(100dvh - 40px\);[^}]*overflow-y: auto;/s);
+  assert.match(repository, /START WITH tree\.parent_post_id IS NULL/);
+  assert.match(repository, /CONNECT BY NOCYCLE PRIOR tree\.id = tree\.parent_post_id/);
+  assert.doesNotMatch(repository, /OR LOWER\(parent_user\.username\) = LOWER\(:profile_username\)/);
+});
+
+test('LED de hover só aparece quando existem linhas colapsadas', async () => {
+  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const css = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/styles/global.css', import.meta.url), 'utf8'));
+  const profile = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/pages/perfil/[username].astro', import.meta.url), 'utf8'));
+  assert.match(source, /function syncSpecificHoverControl\(\)/);
+  assert.match(source, /profileFeed\?\.querySelector\('\[data-inflate-post\]'\)/);
+  assert.match(source, /button\.hidden = !hasCollapsedLines/);
+  assert.match(profile, /data-expand-on-hover[^>]*hidden/);
+  assert.match(css, /\.profile-hover-expand\.active \.profile-hover-expand__dot \{[^}]*#39d7c5/s);
+  assert.match(css, /background: #777/);
+});
+
+
+test('card inflado recolhe fora das hot areas e preserva links e ações', async () => {
+  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const css = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/styles/global.css', import.meta.url), 'utf8'));
+  assert.match(source, /collapsibleHeader = false/);
+  assert.match(source, /data-collapse-expanded-post=/);
+  assert.match(source, /murmur-card-collapsible/);
+  assert.match(source, /event\.target\.closest\('\.murmur-profile-link, \.murmur-author a, \.murmur-text-link, \.murmur-head-actions, \.murmur-actions, button/);
+  assert.match(source, /async function collapseExpandedSpecificPost/);
+  assert.match(source, /height: '36px'/);
+  assert.match(source, /state\.expandedIds\.delete\(String\(postId\)\)/);
+  assert.match(css, /\.murmur-card-collapsible \{ cursor: pointer; \}/);
 });

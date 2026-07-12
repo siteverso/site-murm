@@ -22,7 +22,13 @@ const profilePostId = String(Astro.url.searchParams.get('murmurio') || '').trim(
     <section class="public-profile-content">
       <div class="feed-heading minimal profile-feed-heading">
         <h2>{profilePostId ? `Murmúrio de @${profile.username}` : `Murmúrios de @${profile.username}`}</h2>
-        {profilePostId && <a class="profile-show-all" href={`/perfil/${encodeURIComponent(profile.username)}`}>Ver todos os murmúrios</a>}
+        {profilePostId && <div class="profile-thread-tools">
+          <button class="profile-hover-expand" type="button" data-expand-on-hover aria-pressed="false" title="Expandir linha após alguns instantes com o mouse parado" hidden>
+            <span class="profile-hover-expand__dot" aria-hidden="true"></span>
+            <span data-expand-on-hover-label>Hover</span>
+          </button>
+          <a class="profile-show-all" href={`/perfil/${encodeURIComponent(profile.username)}`}>Ver todos os murmúrios</a>
+        </div>}
       </div>
       <div class="feed profile-feed" data-profile-feed data-profile-username={profile.username} data-profile-post-id={profilePostId || undefined} data-feed-include-replies="true"></div>
     </section>

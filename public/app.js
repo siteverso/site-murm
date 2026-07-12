@@ -5,6 +5,10 @@ const configuredTextLimit = Number.parseInt(String(window.__MURMUR_TEXT_LIMIT__ 
 const TEXT_LIMIT = Number.isInteger(configuredTextLimit) && configuredTextLimit > 0 ? configuredTextLimit : 256;
 const SPECIFIC_SIBLING_WINDOW = 5;
 const specificThreadStates = new Map();
+const SPECIFIC_HOVER_DELAY_MS = 700;
+let specificHoverExpandEnabled = false;
+let specificHoverTimer = null;
+let specificHoverTarget = null;
 
 const ICONS = {
   direct: `
@@ -382,7 +386,6 @@ function getSpecificThreadState(rootPostId) {
       beforeExtra: 0,
       afterExtra: 0,
       animatePostIds: new Set(),
-      autoExpanding: false,
     });
   }
   return specificThreadStates.get(key);
@@ -431,6 +434,7 @@ function renderSpecificThread(parentPost, rootPost, allPosts, siblingStubs = [])
       depth: 2,
       maxDepth: 5,
       contextParentId: String(parentPost.id),
+      collapsibleHeader: true,
     })}</div>`;
   };
 
@@ -494,6 +498,7 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
     depth = 1,
     maxDepth = 5,
     contextParentId = null,
+    collapsibleHeader = false,
   } = options;
   const score = post.positive - post.negative;
   const sexClass = post.sexCode === 'M' ? 'sex-m' : post.sexCode === 'F' ? 'sex-f' : 'sex-u';
@@ -525,7 +530,7 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
   const terminalClass = terminalProfile ? ' murmur-terminal-level' : '';
   const contextParentClass = sameId(post.id, contextParentId) ? ' murmur-context-parent' : '';
 
-  return `<article id="murmurio-${post.id}" class="panel murmur-card ${sexClass}${post.parentPostId ? ' murmur-reply-card' : ''}${terminalClass}${contextParentClass}" data-post-id="${post.id}"${terminalAttribute}>
+  return `<article id="murmurio-${post.id}" class="panel murmur-card ${sexClass}${post.parentPostId ? ' murmur-reply-card' : ''}${terminalClass}${contextParentClass}${collapsibleHeader ? ' murmur-card-collapsible' : ''}" data-post-id="${post.id}"${collapsibleHeader ? ` data-collapse-expanded-post="${post.id}"` : ''}${terminalAttribute}>
     <div class="murmur-head">
       <a class="avatar murmur-profile-link" href="/perfil/${encodeURIComponent(post.author)}" aria-label="Abrir perfil de @${escapeHtml(post.author)}">${post.avatarUrl ? `<img src="${escapeHtml(post.avatarUrl)}" alt="Foto de @${escapeHtml(post.author)}" loading="lazy">` : escapeHtml(post.author.slice(0, 2).toUpperCase())}</a>
       <div class="murmur-author"><a href="/perfil/${encodeURIComponent(post.author)}"><strong>@${escapeHtml(post.author)}</strong></a><span>${new Date(post.createdAt).toLocaleString()}</span></div>
@@ -602,6 +607,7 @@ function renderLane(feed, posts, repliesMode = 'none', rootPostId = '') {
     const parent = root.parentPostId == null ? null : byId.get(String(root.parentPostId));
     if (parent) {
       feed.innerHTML = renderSpecificThread(parent, root, posts, specificSiblingStubs);
+      syncSpecificHoverControl();
       return;
     }
     const visiblePosts = collectPostSubtree(posts, rootPostId);
@@ -610,6 +616,7 @@ function renderLane(feed, posts, repliesMode = 'none', rootPostId = '') {
     feed.innerHTML = roots.length
       ? roots.map(post => renderPost(post, childrenByParent, new Set(), { repliesMode, contextParentId: '' })).join('')
       : '<p class="empty-state">Murmúrio não encontrado.</p>';
+    syncSpecificHoverControl();
     return;
   }
   const childrenByParent = groupPostsByParent(posts);
@@ -617,6 +624,7 @@ function renderLane(feed, posts, repliesMode = 'none', rootPostId = '') {
   feed.innerHTML = roots.length
     ? roots.map(post => renderPost(post, childrenByParent, new Set(), { repliesMode, contextParentId: '' })).join('')
     : '<p class="empty-state">Murmúrio não encontrado.</p>';
+  syncSpecificHoverControl();
 }
 
 function disconnectFeedColumnObservers() {
@@ -947,27 +955,86 @@ async function loadAndExpandSpecificPost(rootId, inflateId) {
   await animateInflatedCard(expandedCard, sourceHeight);
 }
 
-async function expandSpecificContext(rootId, clickedId, orderedVisibleIds) {
+async function expandOnlySpecificPost(rootId, inflateId, sourceLine = null) {
   const state = getSpecificThreadState(rootId);
-  if (state.autoExpanding) return;
-  state.autoExpanding = true;
+  if (state.expandedIds.has(String(inflateId))) return;
+  sourceLine?.classList.add('is-loading');
   try {
-    const clickedIndex = orderedVisibleIds.indexOf(String(clickedId));
-    if (clickedIndex < 0) return;
-    await loadAndExpandSpecificPost(rootId, String(clickedId));
-    for (let distance = 1; distance < orderedVisibleIds.length; distance += 1) {
-      const pair = [];
-      const aboveId = orderedVisibleIds[clickedIndex - distance];
-      const belowId = orderedVisibleIds[clickedIndex + distance];
-      if (aboveId && !state.expandedIds.has(String(aboveId))) pair.push(String(aboveId));
-      if (belowId && !state.expandedIds.has(String(belowId))) pair.push(String(belowId));
-      if (!pair.length) continue;
-      await wait(300);
-      await Promise.all(pair.map(id => loadAndExpandSpecificPost(rootId, id)));
-    }
+    await loadAndExpandSpecificPost(rootId, String(inflateId));
   } finally {
-    state.autoExpanding = false;
+    sourceLine?.classList.remove('is-loading');
   }
+}
+
+async function collapseExpandedSpecificPost(profileFeed, rootId, postId, card) {
+  if (!profileFeed || !rootId || !postId || !card) return;
+  const wrapper = card.closest('[data-expanded-post]') || card;
+  const startHeight = Math.max(36, Math.round(wrapper.getBoundingClientRect().height));
+  wrapper.style.overflow = 'hidden';
+  const animation = wrapper.animate([
+    { height: `${startHeight}px`, opacity: 1, transform: 'translateY(0)' },
+    { height: '36px', opacity: .42, transform: 'translateY(-5px)' },
+  ], {
+    duration: 420,
+    easing: 'cubic-bezier(.4, 0, .2, 1)',
+    fill: 'forwards',
+  });
+  await animation.finished.catch(() => {});
+  const state = getSpecificThreadState(rootId);
+  state.expandedIds.delete(String(postId));
+  state.animatePostIds.delete(String(postId));
+  renderLane(profileFeed, posts, 'recursive', rootId);
+  syncSpecificHoverControl();
+}
+
+function readSpecificHoverPreference() {
+  try { return localStorage.getItem('murmur_expand_on_hover') === 'true'; } catch { return false; }
+}
+
+function syncSpecificHoverControl() {
+  const button = $('[data-expand-on-hover]');
+  if (!button) return;
+  const profileFeed = $('[data-profile-feed]');
+  const hasCollapsedLines = Boolean(profileFeed?.querySelector('[data-inflate-post]'));
+  button.hidden = !hasCollapsedLines;
+  if (!hasCollapsedLines) cancelSpecificHoverExpansion();
+}
+
+function applySpecificHoverPreference(enabled) {
+  specificHoverExpandEnabled = Boolean(enabled);
+  const button = $('[data-expand-on-hover]');
+  if (button) {
+    button.setAttribute('aria-pressed', specificHoverExpandEnabled ? 'true' : 'false');
+    button.classList.toggle('active', specificHoverExpandEnabled);
+    const label = $('[data-expand-on-hover-label]', button);
+    if (label) label.textContent = specificHoverExpandEnabled ? 'Hover ligado' : 'Hover desligado';
+  }
+  try { localStorage.setItem('murmur_expand_on_hover', specificHoverExpandEnabled ? 'true' : 'false'); } catch {}
+  syncSpecificHoverControl();
+}
+
+function cancelSpecificHoverExpansion() {
+  clearTimeout(specificHoverTimer);
+  specificHoverTimer = null;
+  specificHoverTarget = null;
+}
+
+function scheduleSpecificHoverExpansion(line) {
+  if (!specificHoverExpandEnabled || !line || line.classList.contains('is-loading')) return;
+  cancelSpecificHoverExpansion();
+  specificHoverTarget = line;
+  specificHoverTimer = setTimeout(async () => {
+    const profileFeed = $('[data-profile-feed]');
+    const rootId = profileFeed?.dataset.profilePostId || '';
+    if (!rootId || specificHoverTarget !== line || !line.isConnected) return;
+    try {
+      await expandOnlySpecificPost(rootId, String(line.dataset.inflatePost), line);
+    } catch (error) {
+      toast(error.message);
+    } finally {
+      cancelSpecificHoverExpansion();
+    }
+  }, SPECIFIC_HOVER_DELAY_MS);
 }
 
 function bindFeed() {
@@ -1031,22 +1098,44 @@ function bindFeed() {
           renderLane(profileFeed, posts, 'recursive', rootId);
         }
       }
+      if (target.matches('[data-expand-on-hover]')) {
+        applySpecificHoverPreference(!specificHoverExpandEnabled);
+      }
       if (target.matches('[data-inflate-post]')) {
         const profileFeed = $('[data-profile-feed]');
         const rootId = profileFeed?.dataset.profilePostId || '';
-        if (rootId) {
-          const inflateId = String(target.dataset.inflatePost);
-          const visibleIds = $$('[data-inflate-post]', profileFeed).map(line => String(line.dataset.inflatePost));
-          target.classList.add('is-loading');
-          await expandSpecificContext(rootId, inflateId, visibleIds);
-        }
+        if (rootId) await expandOnlySpecificPost(rootId, String(target.dataset.inflatePost), target);
       }
       const directButton = target.closest('[data-direct-user]');
       if (directButton) openDirectComposer(Number(directButton.dataset.directUser), directButton.dataset.directName);
     } catch (error) { toast(error.message); }
   });
 
-  document.addEventListener('click', event => {
+  document.addEventListener('mouseover', event => {
+    const line = event.target.closest?.('[data-inflate-post]');
+    if (!line || event.relatedTarget?.closest?.('[data-inflate-post]') === line) return;
+    scheduleSpecificHoverExpansion(line);
+  });
+
+  document.addEventListener('mouseout', event => {
+    const line = event.target.closest?.('[data-inflate-post]');
+    if (!line || event.relatedTarget?.closest?.('[data-inflate-post]') === line) return;
+    if (specificHoverTarget === line) cancelSpecificHoverExpansion();
+  });
+
+  applySpecificHoverPreference(readSpecificHoverPreference());
+
+  document.addEventListener('click', async event => {
+    const collapsibleCard = event.target.closest?.('[data-collapse-expanded-post]');
+    if (collapsibleCard) {
+      const hotArea = event.target.closest('.murmur-profile-link, .murmur-author a, .murmur-text-link, .murmur-head-actions, .murmur-actions, button, input, textarea, form, [data-reply-delete-zone]');
+      if (hotArea) return;
+      const profileFeed = $('[data-profile-feed]');
+      const rootId = profileFeed?.dataset.profilePostId || '';
+      const postId = collapsibleCard.dataset.collapseExpandedPost || '';
+      if (rootId && postId) await collapseExpandedSpecificPost(profileFeed, rootId, postId, collapsibleCard);
+      return;
+    }
     if (event.target.closest('button, a, input, textarea, form, [data-reply-delete-zone]')) return;
     const terminalCard = event.target.closest('[data-terminal-profile]');
     if (terminalCard?.dataset.terminalProfile) window.location.assign(terminalCard.dataset.terminalProfile);

@@ -230,7 +230,7 @@ html[data-theme="dark"] .form-message[data-type="info"] { color: #91baf0; }
 }
 
 .profile-grid { padding: 36px 0 70px; display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 24px; align-items: start; }
-.profile-card { padding: 24px; position: sticky; top: 20px; }
+.profile-card { padding: 24px; position: sticky; top: 20px; max-height: calc(100dvh - 40px); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
 .profile-card .avatar { width: 78px; height: 78px; margin-bottom: 16px; font-size: 1.5rem; }
 .avatar { overflow: hidden; }
 .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -824,6 +824,12 @@ html[data-theme="dark"] .field-help[data-type="waiting"] { color: #91baf0; }
 
 /* Ações do cabeçalho do murmúrio */
 .murmur-head-actions { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; }
+.murmur-card-collapsible { cursor: pointer; }
+.murmur-card-collapsible:hover { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 82%, transparent); }
+.murmur-card-collapsible .murmur-profile-link,
+.murmur-card-collapsible .murmur-author a,
+.murmur-card-collapsible .murmur-text-link,
+.murmur-card-collapsible button { cursor: pointer; }
 .murmur-delete-button { color: color-mix(in srgb, var(--negative) 72%, var(--muted)); }
 .murmur-delete-button:hover,
 .murmur-delete-button:focus-visible { color: var(--negative); border-color: color-mix(in srgb, var(--negative) 42%, var(--line)); background: color-mix(in srgb, var(--negative) 8%, var(--surface-2)); }
@@ -1138,6 +1144,42 @@ html[data-theme="dark"] .field-help[data-type="waiting"] { color: #91baf0; }
 .public-profile-content { min-width: 0; padding: 0; }
 .profile-feed-heading { margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .profile-feed-heading h2 { margin: 0; }
+.profile-thread-tools { display: inline-flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+.profile-hover-expand {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  border: 1px solid color-mix(in srgb, var(--line) 88%, #777 12%);
+  border-radius: 999px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface) 90%, #777 10%);
+  cursor: pointer;
+  font: inherit;
+  font-size: .74rem;
+  font-weight: 800;
+}
+.profile-hover-expand[hidden] { display: none; }
+.profile-hover-expand:hover,
+.profile-hover-expand:focus-visible { color: var(--text); background: var(--surface-2); }
+.profile-hover-expand__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #777;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .12);
+  transition: background .18s ease, box-shadow .18s ease;
+}
+.profile-hover-expand.active {
+  color: var(--text);
+  border-color: color-mix(in srgb, #39d7c5 48%, var(--line));
+  background: color-mix(in srgb, #39d7c5 8%, var(--surface));
+}
+.profile-hover-expand.active .profile-hover-expand__dot {
+  background: #39d7c5;
+  box-shadow: 0 0 0 4px rgb(57 215 197 / .14), 0 0 12px rgb(57 215 197 / .72), 0 0 22px rgb(65 154 255 / .34);
+}
 .profile-show-all { color: var(--muted); font-size: .82rem; font-weight: 750; }
 .profile-show-all:hover { color: var(--text); }
 .profile-feed { display: grid; gap: 16px; }
