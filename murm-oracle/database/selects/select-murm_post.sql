@@ -1,1 +1,3 @@
-select * from murm_post;
+select * from murm_post
+order by id desc
+;

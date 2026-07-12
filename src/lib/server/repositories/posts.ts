@@ -28,21 +28,22 @@ export async function listPosts(_currentUserId: number | null, profileUsername: 
                LEFT JOIN murm_user parent_user
                  ON parent_user.id = parent_post.user_id
               WHERE LOWER(TRIM(p.status)) = 'published'
-                AND (
-                    :profile_username IS NULL
-                    OR p.id IN (
-                        SELECT tree.id
-                          FROM murm_post tree
-                         WHERE LOWER(TRIM(tree.status)) = 'published'
-                         START WITH tree.parent_post_id IS NULL
-                                AND tree.user_id = (
+                AND p.id IN (
+                    SELECT tree.id
+                      FROM murm_post tree
+                     WHERE LOWER(TRIM(tree.status)) = 'published'
+                     START WITH tree.parent_post_id IS NULL
+                            AND NVL(LOWER(TRIM(tree.post_type)), 'text') <> 'photo'
+                            AND (
+                                :profile_username IS NULL
+                                OR tree.user_id = (
                                     SELECT profile_user.id
                                       FROM murm_user profile_user
                                      WHERE LOWER(profile_user.username) = LOWER(:profile_username)
                                      FETCH FIRST 1 ROW ONLY
                                 )
-                         CONNECT BY NOCYCLE PRIOR tree.id = tree.parent_post_id
-                    )
+                            )
+                     CONNECT BY NOCYCLE PRIOR tree.id = tree.parent_post_id
                 )
               ORDER BY p.created_at DESC`,
             { profile_username: profileUsername },
@@ -108,7 +109,18 @@ function mapPostRows(rows: PostRow[]): unknown[] {
 export async function listSpecificThread(postId: number): Promise<{ posts: unknown[]; siblingStubs: unknown[] }> {
     return withConnection(async connection => {
         const rootResult = await connection.execute<PostRow>(
-            `SELECT parent_post_id FROM murm_post WHERE id = :post_id AND LOWER(TRIM(status)) = 'published'`,
+            `SELECT parent_post_id
+               FROM murm_post
+              WHERE id = :post_id
+                AND LOWER(TRIM(status)) = 'published'
+                AND id IN (
+                    SELECT tree.id
+                      FROM murm_post tree
+                     WHERE LOWER(TRIM(tree.status)) = 'published'
+                     START WITH tree.parent_post_id IS NULL
+                            AND NVL(LOWER(TRIM(tree.post_type)), 'text') <> 'photo'
+                     CONNECT BY NOCYCLE PRIOR tree.id = tree.parent_post_id
+                )`,
             {post_id: postId},
         );
         const rootRow = rootResult.rows?.[0];

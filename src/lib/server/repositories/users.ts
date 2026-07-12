@@ -185,17 +185,20 @@ export async function findPublicProfileByUsername(username: string): Promise<Pub
                      FROM murm_post p
                      WHERE p.user_id = u.id
                        AND p.parent_post_id IS NULL
-                       AND p.status = 'published') AS post_count,
+                       AND p.status = 'published'
+                       AND NVL(LOWER(TRIM(p.post_type)), 'text') <> 'photo') AS post_count,
                     (SELECT NVL(SUM(p.positive_count), 0)
                      FROM murm_post p
                      WHERE p.user_id = u.id
                        AND p.parent_post_id IS NULL
-                       AND p.status = 'published') AS positive_count,
+                       AND p.status = 'published'
+                       AND NVL(LOWER(TRIM(p.post_type)), 'text') <> 'photo') AS positive_count,
                     (SELECT NVL(SUM(p.negative_count), 0)
                      FROM murm_post p
                      WHERE p.user_id = u.id
                        AND p.parent_post_id IS NULL
-                       AND p.status = 'published') AS negative_count
+                       AND p.status = 'published'
+                       AND NVL(LOWER(TRIM(p.post_type)), 'text') <> 'photo') AS negative_count
              FROM murm_user u
              WHERE u.active = 1
                AND LOWER(u.username) = LOWER(:username)`,

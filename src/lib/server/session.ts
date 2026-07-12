@@ -135,9 +135,12 @@ export async function currentUser(context: APIContext): Promise<SessionUser | nu
                     NVL(u.column_group_code, 'sex') AS column_group_code,
                     CASE WHEN u.password_hash IS NULL THEN 0 ELSE 1 END AS has_password,
                     CASE WHEN u.google_sub IS NULL THEN 0 ELSE 1 END AS has_google,
-                    (SELECT COUNT(*) FROM murm_post p WHERE p.user_id = u.id AND p.parent_post_id IS NULL AND p.status = 'published') AS post_count,
-                    (SELECT NVL(SUM(p.positive_count), 0) FROM murm_post p WHERE p.user_id = u.id AND p.parent_post_id IS NULL AND p.status = 'published') AS positive_count,
-                    (SELECT NVL(SUM(p.negative_count), 0) FROM murm_post p WHERE p.user_id = u.id AND p.parent_post_id IS NULL AND p.status = 'published') AS negative_count
+                    (SELECT COUNT(*) FROM murm_post p WHERE p.user_id = u.id AND p.parent_post_id IS NULL AND p.status = 'published'
+                       AND NVL(LOWER(TRIM(p.post_type)), 'text') <> 'photo') AS post_count,
+                    (SELECT NVL(SUM(p.positive_count), 0) FROM murm_post p WHERE p.user_id = u.id AND p.parent_post_id IS NULL AND p.status = 'published'
+                       AND NVL(LOWER(TRIM(p.post_type)), 'text') <> 'photo') AS positive_count,
+                    (SELECT NVL(SUM(p.negative_count), 0) FROM murm_post p WHERE p.user_id = u.id AND p.parent_post_id IS NULL AND p.status = 'published'
+                       AND NVL(LOWER(TRIM(p.post_type)), 'text') <> 'photo') AS negative_count
              FROM murm_session s
              JOIN murm_user u
                ON u.id = s.user_id

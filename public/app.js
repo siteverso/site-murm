@@ -73,9 +73,14 @@ const sameId = (left, right) => left != null && right != null && String(left) ==
 const api = async (url, options = {}) => {
   const headers = { ...(options.headers || {}) };
   if (!(options.body instanceof FormData)) headers['Content-Type'] = 'application/json';
-  const response = await fetch(url, {
+  const method = String(options.method || 'GET').toUpperCase();
+  const requestUrl = method === 'GET'
+    ? `${url}${url.includes('?') ? '&' : '?'}_=${Date.now()}`
+    : url;
+  const response = await fetch(requestUrl, {
     ...options,
     headers,
+    cache: 'no-store',
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -209,6 +214,29 @@ let feedColumnObservers = [];
 let feedRevealObserver = null;
 let feedTimer = null;
 let hasRenderedFeed = false;
+const feedSyncChannel = typeof BroadcastChannel === 'function' ? new BroadcastChannel('murmurinho-feed-sync') : null;
+let feedSyncListenersBound = false;
+
+function announceFeedChanged() {
+  feedSyncChannel?.postMessage({ type: 'feed-changed', at: Date.now() });
+}
+
+function bindFeedSyncEvents() {
+  if (feedSyncListenersBound) return;
+  feedSyncListenersBound = true;
+
+  feedSyncChannel?.addEventListener('message', event => {
+    if (event.data?.type === 'feed-changed') loadFeed(true).catch(() => {});
+  });
+
+  const refresh = () => loadFeed(true).catch(() => {});
+  window.addEventListener('focus', refresh);
+  window.addEventListener('pageshow', refresh);
+  window.addEventListener('online', refresh);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') refresh();
+  });
+}
 
 function userInitials(username = '') {
   return String(username).trim().slice(0, 2).toUpperCase() || 'MU';
@@ -860,14 +888,12 @@ function pinCardActions(postId) {
 function startFeedPolling() {
   if (!$('[data-feed-columns]') && !$('[data-feed-all-list]') && !$('[data-profile-feed]')) return;
 
+  bindFeedSyncEvents();
   clearInterval(feedTimer);
   feedTimer = setInterval(() => {
     if (document.visibilityState === 'visible') loadFeed().catch(() => {});
   }, MIN_SITE_REFRESH_INTERVAL_MS);
 
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') loadFeed().catch(() => {});
-  });
 }
 
 function bindFeedView() {
@@ -1144,10 +1170,11 @@ function bindFeed() {
       if (target.matches('[data-confirm-delete-reply]')) {
         target.disabled = true;
         await api(`/api/replies/${target.dataset.confirmDeleteReply}`, { method: 'DELETE' });
+        announceFeedChanged();
         await loadFeed(true);
         toast('Murmúrio apagado.');
       }
-      if (target.matches('[data-delete-reply]')) { await api(`/api/replies/${target.dataset.deleteReply}`, { method: 'DELETE' }); await loadFeed(true); toast('Murmúrio apagado.'); }
+      if (target.matches('[data-delete-reply]')) { await api(`/api/replies/${target.dataset.deleteReply}`, { method: 'DELETE' }); announceFeedChanged(); await loadFeed(true); toast('Murmúrio apagado.'); }
       if (target.matches('[data-delete-post]')) {
         const postId = target.dataset.deletePost;
         modal(`<h2>Apagar murmúrio?</h2><p class="modal-subtitle">O murmúrio inteiro e todas as respostas deixarão de aparecer.</p><div class="modal-actions murmur-delete-confirm-actions"><button class="button" type="button" data-modal-close>Cancelar</button><button class="button primary" type="button" data-confirm-delete-post="${postId}">Apagar</button></div>`, 'confirm-delete-modal');
@@ -1155,6 +1182,7 @@ function bindFeed() {
       if (target.matches('[data-confirm-delete-post]')) {
         target.disabled = true;
         await api(`/api/posts/${target.dataset.confirmDeletePost}`, { method: 'DELETE' });
+        announceFeedChanged();
         closeModal();
         await loadFeed(true);
         toast('Murmúrio apagado.');
@@ -1232,13 +1260,13 @@ function bindFeed() {
     if (form.matches('[data-composer], [data-floating-composer]')) {
       event.preventDefault();
       const text = form.querySelector('textarea').value.trim();
-      try { await api('/api/posts', { method: 'POST', body: JSON.stringify({ text }) }); form.reset(); closeModal(); await loadFeed(); toast('Murmúrio publicado.'); } catch (error) { toast(error.message); }
+      try { await api('/api/posts', { method: 'POST', body: JSON.stringify({ text }) }); announceFeedChanged(); form.reset(); closeModal(); await loadFeed(true); toast('Murmúrio publicado.'); } catch (error) { toast(error.message); }
     }
     if (form.matches('[data-reply-form]')) {
       event.preventDefault();
       const card = form.closest('[data-post-id]');
       const text = form.querySelector('input').value.trim();
-      try { await api(`/api/posts/${card.dataset.postId}/reply`, { method: 'POST', body: JSON.stringify({ text }) }); await loadFeed(); } catch (error) { toast(error.message); }
+      try { await api(`/api/posts/${card.dataset.postId}/reply`, { method: 'POST', body: JSON.stringify({ text }) }); announceFeedChanged(); await loadFeed(true); } catch (error) { toast(error.message); }
     }
   });
 }

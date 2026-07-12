@@ -315,3 +315,13 @@ test('link do usuário ocupa somente avatar e texto do nome', () => {
   assert.match(css, /\.murmur-author strong \{[^}]*display: inline;/s);
   assert.match(css, /\.murmur-card-collapsible \.murmur-text-link,[\s\S]*cursor: pointer;/);
 });
+
+test('feed força leitura sem cache e sincroniza exclusões entre abas', async () => {
+  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  assert.match(source, /cache: 'no-store'/);
+  assert.match(source, /new BroadcastChannel\('murmurinho-feed-sync'\)/);
+  assert.match(source, /announceFeedChanged\(\)/);
+  assert.match(source, /event\.data\?\.type === 'feed-changed'/);
+  assert.match(source, /window\.addEventListener\('focus', refresh\)/);
+  assert.match(source, /window\.addEventListener\('pageshow', refresh\)/);
+});
