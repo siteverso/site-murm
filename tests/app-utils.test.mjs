@@ -62,7 +62,7 @@ test('respostas são agrupadas e renderizadas em lista compacta dentro do murmú
   const css = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/styles/global.css', import.meta.url), 'utf8'));
   assert.match(source, /function groupPostsByParent\(items\)/);
   assert.match(source, /function getRootPosts\(items\)/);
-  assert.match(source, /function renderReplyPreview\(reply\)/);
+  assert.match(source, /function renderReplyPreview\(reply, parentPost\)/);
   assert.match(source, /repliesMode === 'compact'/);
   assert.match(source, /<ul class="reply-preview-list">/);
   assert.match(source, /data-toggle-delete-reply=/);
@@ -70,7 +70,7 @@ test('respostas são agrupadas e renderizadas em lista compacta dentro do murmú
   assert.match(source, /closeReplyDeleteConfirm\(/);
   assert.match(css, /\.reply-preview-item \{/);
   assert.match(css, /\.reply-inline-delete-confirm \{/);
-  assert.match(source, /roots\.map\(post => renderPost\(post, childrenByParent, new Set\(\), \{ repliesMode \}\)\)/);
+  assert.match(source, /roots\.map\(post => renderPost\(post, childrenByParent, new Set\(\), \{ repliesMode, contextParentId \}\)\)/);
 });
 
 test('ícones de direct e exclusão do murmúrio aparecem juntos apenas no hover ou foco', () => {
@@ -156,11 +156,41 @@ test('perfil renderiza cards recursivos até o quinto nível', async () => {
   assert.match(source, /depth: depth \+ 1/);
   assert.match(source, /maxDepth = 5/);
   assert.match(source, /data-terminal-profile=/);
-  assert.match(source, /renderLane\(profileFeed, feedBuckets\.all, profileFeed\?\.dataset\.feedIncludeReplies === 'true' \? 'recursive' : 'none'\)/);
+  assert.match(source, /renderLane\(profileFeed, feedBuckets\.all, profileFeed\?\.dataset\.feedIncludeReplies === 'true' \? 'recursive' : 'none', profilePostId\)/);
 });
 
 
 test('perfil recursivo usa apenas o espaçamento do card pai nas laterais', () => {
   const css = readFileSync(new URL('../src/styles/global.css', import.meta.url), 'utf8');
   assert.match(css, /\.replies\.replies-recursive \{ margin: 14px 0 0; padding: 0; border-left: 0; \}/);
+});
+
+
+test('home usa margens compactas equilibradas e abre o murmúrio pai da resposta', async () => {
+  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const css = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/styles/global.css', import.meta.url), 'utf8'));
+  assert.match(source, /function renderReplyPreview\(reply, parentPost\)/);
+  assert.match(source, /\?murmurio=\$\{encodeURIComponent\(parentPost\.id\)\}/);
+  assert.match(css, /\.replies-compact \{ margin: 12px 0 0; padding: 0; border-left: 0; \}/);
+});
+
+test('perfil permite murmúrio específico, mostra o pai esmaecido e reinicia a recursão a cada quinto nível', async () => {
+  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const profile = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/pages/perfil/[username].astro', import.meta.url), 'utf8'));
+  const css = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/styles/global.css', import.meta.url), 'utf8'));
+  assert.match(source, /function collectPostSubtree\(items, rootPostId\)/);
+  assert.match(source, /if \(root\.parentPostId != null\) \{/);
+  assert.match(source, /function getSpecificThreadContext\(posts, rootPostId\)/);
+  assert.match(source, /contextParentId/);
+  assert.match(source, /data-terminal-profile="\/perfil\/\$\{encodeURIComponent\(post\.author\)\}\?murmurio=\$\{encodeURIComponent\(post\.id\)\}"/);
+  assert.match(css, /\.murmur-context-parent \{/);
+  assert.match(profile, /data-profile-post-id=\{profilePostId \|\| undefined\}/);
+  assert.match(profile, /Ver todos os murmúrios/);
+});
+
+test('texto de cada mensagem abre o perfil no modo da própria mensagem e não exibe contexto redundante', async () => {
+  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  assert.match(source, /class="murmur-text-link" href="\/perfil\/\$\{encodeURIComponent\(post\.author\)\}\?murmurio=\$\{encodeURIComponent\(post\.id\)\}"/);
+  assert.doesNotMatch(source, /Resposta para @/);
+  assert.doesNotMatch(source, /murmur-reply-context/);
 });

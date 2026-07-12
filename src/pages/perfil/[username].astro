@@ -13,14 +13,18 @@ const profile = username ? await findPublicProfileByUsername(username) : null;
 if (!profile) return Astro.redirect('/');
 const currentUser = await requireUser(Astro);
 const isOwnProfile = currentUser.id === profile.id;
+const profilePostId = String(Astro.url.searchParams.get('murmurio') || '').trim();
 ---
 <AppLayout title={`@${profile.username} — ${t.site.title}`}>
   <Header />
   <main class="shell profile-grid public-profile-grid">
     <ProfileSidebar profile={profile} showEditAccount={isOwnProfile} labels={t.profile} />
     <section class="public-profile-content">
-      <div class="feed-heading minimal profile-feed-heading"><h2>Murmúrios de @{profile.username}</h2></div>
-      <div class="feed profile-feed" data-profile-feed data-profile-username={profile.username} data-feed-include-replies="true"></div>
+      <div class="feed-heading minimal profile-feed-heading">
+        <h2>{profilePostId ? `Murmúrio de @${profile.username}` : `Murmúrios de @${profile.username}`}</h2>
+        {profilePostId && <a class="profile-show-all" href={`/perfil/${encodeURIComponent(profile.username)}`}>Ver todos os murmúrios</a>}
+      </div>
+      <div class="feed profile-feed" data-profile-feed data-profile-username={profile.username} data-profile-post-id={profilePostId || undefined} data-feed-include-replies="true"></div>
     </section>
   </main>
   <div class="toast" data-toast></div>

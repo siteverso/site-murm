@@ -380,7 +380,7 @@ function selectVisibleReplies(replies, limit = 3) {
   return [ownReply, ...otherNewest].sort(compareRepliesByNewest);
 }
 
-function renderReplyPreview(reply) {
+function renderReplyPreview(reply, parentPost) {
   const deleteControls = sameId(currentUser?.id, reply.userId)
     ? `<div class="reply-inline-delete-zone" data-reply-delete-zone>
         <div class="reply-inline-delete-confirm" data-reply-delete-confirm hidden>
@@ -390,8 +390,9 @@ function renderReplyPreview(reply) {
         <button class="reply-inline-delete-button" type="button" data-toggle-delete-reply="${reply.id}" aria-label="Apagar resposta" title="Apagar resposta">×</button>
       </div>`
     : '';
+  const parentProfileUrl = `/perfil/${encodeURIComponent(parentPost.author)}?murmurio=${encodeURIComponent(parentPost.id)}`;
   return `<li class="reply-preview-item${sameId(currentUser?.id, reply.userId) ? ' is-own-reply' : ''}" data-reply-preview-id="${reply.id}">
-    <a class="reply-preview-content" href="/perfil/${encodeURIComponent(reply.author)}" aria-label="Abrir perfil de @${escapeHtml(reply.author)}">
+    <a class="reply-preview-content" href="${parentProfileUrl}" aria-label="Abrir o murmúrio de @${escapeHtml(parentPost.author)} relacionado a esta resposta">
       <strong>@${escapeHtml(reply.author)}</strong>
       <span>${escapeHtml(reply.text)}</span>
     </a>
@@ -404,12 +405,10 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
     repliesMode = 'none',
     depth = 1,
     maxDepth = 5,
+    contextParentId = null,
   } = options;
   const score = post.positive - post.negative;
   const sexClass = post.sexCode === 'M' ? 'sex-m' : post.sexCode === 'F' ? 'sex-f' : 'sex-u';
-  const replyContext = post.parentPostId
-    ? `<a class="murmur-reply-context" href="#murmurio-${post.parentPostId}">Resposta para @${escapeHtml(post.parentAuthor || 'murmúrio')}</a>`
-    : '';
   const postKey = String(post.id);
   const nextAncestry = new Set(ancestry);
   nextAncestry.add(postKey);
@@ -420,28 +419,31 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
   let nestedReplies = '';
   if (repliesMode === 'compact' && replies.length) {
     const visibleReplies = selectVisibleReplies(replies);
-    nestedReplies = `<div class="replies replies-compact" data-replies-for="${post.id}"><ul class="reply-preview-list">${visibleReplies.map(reply => renderReplyPreview(reply)).join('')}</ul></div>`;
+    nestedReplies = `<div class="replies replies-compact" data-replies-for="${post.id}"><ul class="reply-preview-list">${visibleReplies.map(reply => renderReplyPreview(reply, post)).join('')}</ul></div>`;
   }
   if (repliesMode === 'recursive' && replies.length && depth < maxDepth) {
     nestedReplies = `<div class="replies replies-recursive" data-replies-for="${post.id}">${replies.map(reply => renderPost(reply, childrenByParent, nextAncestry, {
       repliesMode: 'recursive',
       depth: depth + 1,
       maxDepth,
+      contextParentId,
     })).join('')}</div>`;
   }
 
   const terminalProfile = repliesMode === 'recursive' && depth >= maxDepth;
-  const terminalAttribute = terminalProfile ? ` data-terminal-profile="/perfil/${encodeURIComponent(post.author)}"` : '';
+  const terminalAttribute = terminalProfile
+    ? ` data-terminal-profile="/perfil/${encodeURIComponent(post.author)}?murmurio=${encodeURIComponent(post.id)}"`
+    : '';
   const terminalClass = terminalProfile ? ' murmur-terminal-level' : '';
+  const contextParentClass = sameId(post.id, contextParentId) ? ' murmur-context-parent' : '';
 
-  return `<article id="murmurio-${post.id}" class="panel murmur-card ${sexClass}${post.parentPostId ? ' murmur-reply-card' : ''}${terminalClass}" data-post-id="${post.id}"${terminalAttribute}>
+  return `<article id="murmurio-${post.id}" class="panel murmur-card ${sexClass}${post.parentPostId ? ' murmur-reply-card' : ''}${terminalClass}${contextParentClass}" data-post-id="${post.id}"${terminalAttribute}>
     <div class="murmur-head">
       <a class="avatar murmur-profile-link" href="/perfil/${encodeURIComponent(post.author)}" aria-label="Abrir perfil de @${escapeHtml(post.author)}">${post.avatarUrl ? `<img src="${escapeHtml(post.avatarUrl)}" alt="Foto de @${escapeHtml(post.author)}" loading="lazy">` : escapeHtml(post.author.slice(0, 2).toUpperCase())}</a>
       <div class="murmur-author"><a href="/perfil/${encodeURIComponent(post.author)}"><strong>@${escapeHtml(post.author)}</strong></a><span>${new Date(post.createdAt).toLocaleString()}</span></div>
       ${renderPostHeaderActions(post)}
     </div>
-    ${replyContext}
-    <p class="murmur-text">${escapeHtml(post.text)}</p>
+    <a class="murmur-text-link" href="/perfil/${encodeURIComponent(post.author)}?murmurio=${encodeURIComponent(post.id)}" aria-label="Abrir esta mensagem no perfil de @${escapeHtml(post.author)}"><p class="murmur-text">${escapeHtml(post.text)}</p></a>
     <div class="score-line">
       <span class="score ${score < 0 ? 'negative' : ''}">${score}</span>
       <div class="murmur-actions">
@@ -459,13 +461,57 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
   </article>`;
 }
 
-function renderLane(feed, posts, repliesMode = 'none') {
+function collectPostSubtree(items, rootPostId) {
+  const rootId = String(rootPostId || '');
+  if (!rootId) return items;
+  const byParent = groupPostsByParent(items);
+  const byId = new Map(items.map(post => [String(post.id), post]));
+  const root = byId.get(rootId);
+  if (!root) return [];
+  const selected = [];
+  const visited = new Set();
+  const visit = post => {
+    const key = String(post.id);
+    if (visited.has(key)) return;
+    visited.add(key);
+    selected.push(post);
+    (byParent.get(key) || []).forEach(visit);
+  };
+  if (root.parentPostId != null) {
+    const parent = byId.get(String(root.parentPostId));
+    if (parent) visit(parent);
+  }
+  visit(root);
+  return selected;
+}
+
+function getSpecificThreadContext(posts, rootPostId) {
+  const rootId = String(rootPostId || '');
+  if (!rootId) return { contextRootId: '', contextParentId: '' };
+  const root = posts.find(post => sameId(post.id, rootId));
+  if (!root) return { contextRootId: '', contextParentId: '' };
+  const parent = root.parentPostId == null
+    ? null
+    : posts.find(post => sameId(post.id, root.parentPostId));
+  return {
+    contextRootId: parent ? String(parent.id) : String(root.id),
+    contextParentId: parent ? String(parent.id) : '',
+  };
+}
+
+function renderLane(feed, posts, repliesMode = 'none', rootPostId = '') {
   if (!feed) return;
-  const childrenByParent = groupPostsByParent(posts);
-  const roots = getRootPosts(posts);
+  const visiblePosts = rootPostId ? collectPostSubtree(posts, rootPostId) : posts;
+  const childrenByParent = groupPostsByParent(visiblePosts);
+  const { contextRootId, contextParentId } = rootPostId
+    ? getSpecificThreadContext(visiblePosts, rootPostId)
+    : { contextRootId: '', contextParentId: '' };
+  const roots = rootPostId
+    ? visiblePosts.filter(post => sameId(post.id, contextRootId || rootPostId))
+    : getRootPosts(visiblePosts);
   feed.innerHTML = roots.length
-    ? roots.map(post => renderPost(post, childrenByParent, new Set(), { repliesMode })).join('')
-    : '<p class="empty-state">Nenhum murmúrio nesta visualização.</p>';
+    ? roots.map(post => renderPost(post, childrenByParent, new Set(), { repliesMode, contextParentId })).join('')
+    : '<p class="empty-state">Murmúrio não encontrado.</p>';
 }
 
 function disconnectFeedColumnObservers() {
@@ -592,7 +638,12 @@ async function loadFeed(force = false) {
   feedRequestRunning = true;
   try {
     const profileUsername = profileFeed?.dataset.profileUsername || '';
-    const endpoint = profileUsername ? `/api/posts?username=${encodeURIComponent(profileUsername)}` : '/api/posts';
+    const profilePostId = profileFeed?.dataset.profilePostId || '';
+    const endpoint = profilePostId
+      ? '/api/posts'
+      : profileUsername
+        ? `/api/posts?username=${encodeURIComponent(profileUsername)}`
+        : '/api/posts';
     const data = await api(endpoint);
     const nextPosts = data.posts || [];
     const nextSignature = getFeedSignature(nextPosts);
@@ -604,7 +655,7 @@ async function loadFeed(force = false) {
     feedBuckets.all = posts;
     renderSplitFeeds();
     renderLane(allListFeed, feedBuckets.all, 'compact');
-    renderLane(profileFeed, feedBuckets.all, profileFeed?.dataset.feedIncludeReplies === 'true' ? 'recursive' : 'none');
+    renderLane(profileFeed, feedBuckets.all, profileFeed?.dataset.feedIncludeReplies === 'true' ? 'recursive' : 'none', profilePostId);
     restoreFeedAnchor(anchor);
   } finally {
     feedRequestRunning = false;

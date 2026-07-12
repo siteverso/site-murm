@@ -109,6 +109,9 @@ input:focus, textarea:focus { border-color: var(--strong); box-shadow: 0 0 0 3px
 .murmur-author strong { display: block; }
 .murmur-author span { color: var(--muted); font-size: .84rem; }
 .murmur-text { margin: 16px 0; white-space: pre-wrap; line-height: 1.62; }
+.murmur-text-link { display: block; color: inherit; text-decoration: none; }
+.murmur-text-link:hover .murmur-text,
+.murmur-text-link:focus-visible .murmur-text { color: var(--text); }
 .score-line { min-height: 36px; display: flex; align-items: center; justify-content: flex-start; gap: 12px; }
 .score { flex: 0 0 auto; min-width: 18px; font-weight: 900; letter-spacing: -.02em; }
 .score.negative { color: var(--negative); }
@@ -827,10 +830,8 @@ html[data-theme="dark"] .field-help[data-type="waiting"] { color: #91baf0; }
 .murmur-delete-confirm-actions { justify-content: flex-end; }
 
 
-.murmur-reply-context { display: inline-flex; margin: 8px 0 0 60px; color: var(--muted); font-size: .78rem; font-weight: 750; }
-.murmur-reply-context:hover { color: var(--text); }
 
-.replies-compact { margin: 12px 0 0 60px; padding: 0; border-left: 0; }
+.replies-compact { margin: 12px 0 0; padding: 0; border-left: 0; }
 .reply-preview-list {
   margin: 0;
   padding: 0;
@@ -930,6 +931,19 @@ html[data-theme="dark"] .field-help[data-type="waiting"] { color: #91baf0; }
 .reply-inline-delete-confirm button:hover { color: var(--text); }
 
 .replies.replies-recursive { margin: 14px 0 0; padding: 0; border-left: 0; }
+.murmur-context-parent {
+  opacity: .8;
+  background: color-mix(in srgb, var(--surface) 88%, var(--surface-2) 12%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 78%, transparent);
+}
+.murmur-context-parent > .murmur-text-link .murmur-text,
+.murmur-context-parent > .score-line,
+.murmur-context-parent > .murmur-head .murmur-author span {
+  opacity: .9;
+}
+.murmur-context-parent > .replies.replies-recursive {
+  opacity: 1;
+}
 .murmur-terminal-level { cursor: pointer; }
 .murmur-terminal-level::after {
   content: 'Abrir perfil para continuar';
@@ -1036,8 +1050,10 @@ html[data-theme="dark"] .field-help[data-type="waiting"] { color: #91baf0; }
 .murmur-author a { color: inherit; text-decoration: none; }
 .murmur-author a:hover { text-decoration: underline; }
 .public-profile-content { min-width: 0; padding: 0; }
-.profile-feed-heading { margin-bottom: 16px; }
+.profile-feed-heading { margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .profile-feed-heading h2 { margin: 0; }
+.profile-show-all { color: var(--muted); font-size: .82rem; font-weight: 750; }
+.profile-show-all:hover { color: var(--text); }
 .profile-feed { display: grid; gap: 16px; }
 .profile-feed > .murmur-card { margin: 0; }
 
