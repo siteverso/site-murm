@@ -168,9 +168,13 @@ function renderPostHeaderActions(post) {
         ? ''
         : `<button class="direct-card-button" type="button" data-direct-user="${post.userId}" data-direct-name="${escapeHtml(post.author)}" title="Enviar bilhete" aria-label="Enviar bilhete">${ICONS.direct}</button>`;
     const deleteAttribute = post.parentPostId ? `data-delete-reply="${post.id}"` : `data-delete-post="${post.id}"`;
-    const deleteButton = sameId(currentUser?.id, post.userId)
+    const isOwner = sameId(currentUser?.id, post.userId);
+    const editButton = isOwner
+        ? `<button class="direct-card-button murmur-edit-button" type="button" data-edit-post="${post.id}" title="Editar murmúrio" aria-label="Editar murmúrio">${ICONS.edit}</button>`
+        : '';
+    const deleteButton = isOwner
         ? `<button class="direct-card-button murmur-delete-button" type="button" ${deleteAttribute} title="Apagar murmúrio" aria-label="Apagar murmúrio">${ICONS.delete}</button>`
         : '';
-    return `<div class="murmur-head-actions">${deleteButton}${directButton}</div>`;
+    return `<div class="murmur-head-actions">${editButton}${deleteButton}${directButton}</div>`;
 }
 

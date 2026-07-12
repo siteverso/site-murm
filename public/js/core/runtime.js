@@ -59,6 +59,14 @@ const ICONS = {
         <path d="M11.2 5.8C14.7 8.25 14.7 11.75 11.2 14.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
       </svg>
     </span>`,
+    edit: `
+    <span class="action-icon" aria-hidden="true">
+      <svg viewBox="0 0 20 20" fill="none">
+        <path d="M5 14.8L5.8 11.7L12.9 4.6C13.5 4 14.4 4 15 4.6L15.4 5C16 5.6 16 6.5 15.4 7.1L8.3 14.2L5 14.8Z" stroke="currentColor" stroke-width="1.55" stroke-linejoin="round"/>
+        <path d="M11.9 5.6L14.4 8.1" stroke="currentColor" stroke-width="1.55" stroke-linecap="round"/>
+        <path d="M4.5 16H15.5" stroke="currentColor" stroke-width="1.55" stroke-linecap="round"/>
+      </svg>
+    </span>`,
     delete: `
     <span class="action-icon" aria-hidden="true">
       <svg viewBox="0 0 20 20" fill="none">

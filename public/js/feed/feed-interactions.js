@@ -209,6 +209,34 @@ function scheduleSpecificHoverExpansion(line) {
     }, SPECIFIC_HOVER_DELAY_MS);
 }
 
+function closeInlineEditor(card) {
+    const editor = card?.querySelector('[data-inline-edit-form]');
+    const textLink = card?.querySelector(':scope > .murmur-text-link');
+    editor?.remove();
+    if (textLink) textLink.hidden = false;
+    card?.classList.remove('is-editing');
+}
+
+function openInlineEditor(card) {
+    if (!card || card.querySelector('[data-inline-edit-form]')) return;
+    document.querySelectorAll('[data-inline-edit-form]').forEach(editor => closeInlineEditor(editor.closest('[data-post-id]')));
+    const textLink = card.querySelector(':scope > .murmur-text-link');
+    const textNode = textLink?.querySelector('.murmur-text');
+    if (!textLink || !textNode) return;
+
+    const form = document.createElement('form');
+    form.className = 'murmur-inline-edit';
+    form.dataset.inlineEditForm = '';
+    form.innerHTML = `<textarea maxlength="${TEXT_LIMIT}" required aria-label="Texto do murmúrio"></textarea><div class="murmur-inline-edit-actions"><button class="button" type="button" data-cancel-edit-post>Cancelar</button><button class="button primary" type="submit">Salvar</button></div>`;
+    const textarea = form.querySelector('textarea');
+    textarea.value = textNode.textContent || '';
+    textLink.hidden = true;
+    textLink.insertAdjacentElement('afterend', form);
+    card.classList.add('is-editing');
+    textarea.focus({preventScroll: true});
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+}
+
 function applyOptimisticVoteState(card, selectedButton) {
     const selectedValue = Number(selectedButton?.dataset.vote || 0);
     const wasActive = selectedButton?.getAttribute('aria-pressed') === 'true';
@@ -229,6 +257,8 @@ function bindFeed() {
         }
         const card = target.closest('[data-post-id]');
         try {
+            if (target.matches('[data-edit-post]')) openInlineEditor(card);
+            if (target.matches('[data-cancel-edit-post]')) closeInlineEditor(card);
             if (target.matches('[data-reply]')) openReplyForm(card, {toggle: true});
             if (target.matches('[data-vote]')) {
                 const postId = card.dataset.postId;
@@ -402,6 +432,29 @@ function bindFeed() {
 
     document.addEventListener('submit', async event => {
         const form = event.target;
+        if (form.matches('[data-inline-edit-form]')) {
+            event.preventDefault();
+            const card = form.closest('[data-post-id]');
+            const textarea = form.querySelector('textarea');
+            const text = textarea.value.trim();
+            if (!text) {
+                toast('O murmúrio não pode ficar vazio.');
+                textarea.focus();
+                return;
+            }
+            const submitButton = form.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            try {
+                await api(`/api/posts/${card.dataset.postId}`, {method: 'PUT', body: JSON.stringify({text})});
+                announceFeedChanged();
+                if (!(await refreshReplyHistoryPage(card.dataset.postId))) await loadFeed(true);
+                toast('Murmúrio atualizado.');
+            } catch (error) {
+                submitButton.disabled = false;
+                toast(error.message);
+            }
+            return;
+        }
         if (form.matches('[data-composer], [data-floating-composer]')) {
             event.preventDefault();
             const text = form.querySelector('textarea').value.trim();

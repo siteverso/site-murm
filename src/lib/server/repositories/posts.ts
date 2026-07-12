@@ -529,6 +529,23 @@ export async function share(postId: number, userId: number): Promise<void> {
     });
 }
 
+export async function updatePost(postId: number, userId: number, contents: string): Promise<void> {
+    await withConnection(async connection => {
+        const result = await connection.execute(
+            `UPDATE murm_post
+             SET contents = :contents,
+                 updated_at = systimestamp
+             WHERE id = :post_id
+                 AND user_id = :user_id
+                 AND status = 'published'
+                 AND lower(trim(post_type)) = 'murmur'`,
+            {post_id: postId, user_id: userId, contents},
+            {autoCommit: true},
+        );
+        if (Number(result.rowsAffected || 0) !== 1) throw new Error('POST_NAO_ENCONTRADO');
+    });
+}
+
 export async function deletePost(postId: number, userId: number): Promise<void> {
     await withConnection(async connection => {
         const owner = await connection.execute<Record<string, unknown>>(
