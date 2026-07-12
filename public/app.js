@@ -440,6 +440,38 @@ function renderSiblingVacuumLine(post, direction = '') {
   </button>`;
 }
 
+function getDistantAncestorChain(post, loadedById) {
+  const ancestors = [];
+  const visited = new Set([String(post?.id || '')]);
+  let current = post;
+
+  while (current?.parentPostId != null) {
+    const parentId = String(current.parentPostId);
+    if (!parentId || visited.has(parentId)) break;
+    const parent = loadedById.get(parentId);
+    if (!parent) break;
+    visited.add(parentId);
+    ancestors.push(parent);
+    current = parent;
+  }
+
+  return ancestors.reverse();
+}
+
+function renderDistantAncestorLine(post) {
+  const dateTime = post?.createdAt ? new Date(post.createdAt).toLocaleString() : '';
+  const preview = post?.isDeleted ? 'Este murmúrio foi removido.' : String(post?.text || '').trim();
+  const author = String(post?.author || '').trim();
+  const href = author
+    ? `/perfil/${encodeURIComponent(author)}?murmurio=${encodeURIComponent(post.id)}`
+    : '#';
+  const disabled = !author ? ' is-disabled' : '';
+  return `<a class="thread-ancestor-line${disabled}" href="${href}"${!author ? ' aria-disabled="true" tabindex="-1"' : ''}>
+    <time class="thread-ancestor-line__time">${escapeHtml(dateTime)}</time>
+    <span class="thread-ancestor-line__preview">${escapeHtml(preview)}</span>
+  </a>`;
+}
+
 function renderSpecificThread(parentPost, rootPost, allPosts, siblingStubs = []) {
   const rootId = String(rootPost.id);
   const state = getSpecificThreadState(rootId);
@@ -495,7 +527,12 @@ function renderSpecificThread(parentPost, rootPost, allPosts, siblingStubs = [])
   });
   const parentShell = renderPost(parentPost, new Map([[String(parentPost.id), []]]), new Set(), { repliesMode: 'none', contextParentId: String(parentPost.id) });
   const specificReplies = `${loadBefore}<div class="thread-sibling-stack thread-sibling-stack--before">${beforeHtml}</div><div class="thread-selected-card">${selectedCard}</div><div class="thread-sibling-stack thread-sibling-stack--after">${afterHtml}</div>${loadAfter}`;
-  return parentShell.replace('</article>', `<div class="replies replies-recursive replies-specific-thread" data-specific-thread-root="${rootId}">${specificReplies}</div></article>`);
+  const fullParentCard = parentShell.replace('</article>', `<div class="replies replies-recursive replies-specific-thread" data-specific-thread-root="${rootId}">${specificReplies}</div></article>`);
+  const distantAncestors = getDistantAncestorChain(parentPost, loadedById);
+  const ancestorContext = distantAncestors.length
+    ? `<div class="thread-ancestor-context" aria-label="Murmúrios anteriores">${distantAncestors.map(renderDistantAncestorLine).join('')}</div>`
+    : '';
+  return `${ancestorContext}${fullParentCard}`;
 }
 
 function selectVisibleReplies(replies, limit = 3) {
@@ -1259,7 +1296,27 @@ function bindFeed() {
         if (!refreshReplyHistoryPage()) await loadFeed(true);
         toast('Murmúrio apagado.');
       }
-      if (target.matches('[data-delete-reply]')) { await api(`/api/replies/${target.dataset.deleteReply}`, { method: 'DELETE' }); announceFeedChanged(); await loadFeed(true); toast('Murmúrio apagado.'); }
+      if (target.matches('[data-delete-reply]')) {
+        const replyId = target.dataset.deleteReply;
+        modal(`<h2>Apagar resposta?</h2><p class="modal-subtitle">A resposta será removida. Se houver respostas abaixo dela, o lugar do card será preservado como murmúrio removido para não quebrar a conversa.</p><div class="modal-actions murmur-delete-confirm-actions"><button class="button" type="button" data-modal-close>Cancelar</button><button class="button primary" type="button" data-confirm-delete-reply-card="${replyId}">Apagar</button></div>`, 'confirm-delete-modal');
+      }
+      if (target.matches('[data-confirm-delete-reply-card]')) {
+        target.disabled = true;
+        const replyId = target.dataset.confirmDeleteReplyCard;
+        const deletedCard = document.querySelector(`[data-post-id="${CSS.escape(String(replyId))}"]`);
+        deletedCard?.classList.add('is-deleting');
+        try {
+          await api(`/api/replies/${replyId}`, { method: 'DELETE' });
+          announceFeedChanged();
+          closeModal();
+          if (!refreshReplyHistoryPage()) await loadFeed(true);
+          toast('Resposta apagada.');
+        } catch (error) {
+          deletedCard?.classList.remove('is-deleting');
+          target.disabled = false;
+          throw error;
+        }
+      }
       if (target.matches('[data-delete-post]')) {
         const postId = target.dataset.deletePost;
         modal(`<h2>Apagar murmúrio?</h2><p class="modal-subtitle">O murmúrio inteiro e todas as respostas deixarão de aparecer.</p><div class="modal-actions murmur-delete-confirm-actions"><button class="button" type="button" data-modal-close>Cancelar</button><button class="button primary" type="button" data-confirm-delete-post="${postId}">Apagar</button></div>`, 'confirm-delete-modal');

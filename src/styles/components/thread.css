@@ -236,3 +236,52 @@
 .murmur-card:hover .murmur-head-actions .direct-card-button,
 .murmur-card:focus-within .murmur-head-actions .direct-card-button { opacity: 1; pointer-events: auto; transform: none; }
 
+
+.thread-ancestor-context {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+.thread-ancestor-line {
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  border: 1px solid color-mix(in srgb, var(--line) 86%, var(--surface));
+  border-radius: 999px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface-2) 82%, black 18%);
+  text-decoration: none;
+  overflow: hidden;
+  transition: color .18s ease, border-color .18s ease, background-color .18s ease;
+}
+.thread-ancestor-line:hover,
+.thread-ancestor-line:focus-visible {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--line));
+  background: color-mix(in srgb, var(--surface-2) 74%, var(--accent) 7%, black 19%);
+}
+.thread-ancestor-line.is-disabled {
+  pointer-events: none;
+}
+.thread-ancestor-line__time {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: .72rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.thread-ancestor-line__preview {
+  min-width: 0;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--text) 76%, var(--muted));
+  font-size: .78rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

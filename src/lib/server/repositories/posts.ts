@@ -129,8 +129,14 @@ export async function listSpecificThread(postId: number): Promise<{ posts: unkno
                LEFT JOIN murm_user parent_user ON parent_user.id = parent_post.user_id
               WHERE LOWER(TRIM(p.post_type)) = 'murmur'
                 AND (
-                    (p.id = :parent_id AND LOWER(TRIM(p.status)) IN ('published', 'deleted'))
-                    OR (p.id = :post_id AND LOWER(TRIM(p.status)) IN ('published', 'deleted'))
+                    p.id IN (
+                        SELECT id
+                          FROM murm_post
+                         WHERE LOWER(TRIM(status)) IN ('published', 'deleted')
+                           AND LOWER(TRIM(post_type)) = 'murmur'
+                         START WITH id = :post_id
+                         CONNECT BY PRIOR parent_post_id = id
+                    )
                     OR p.id IN (
                         SELECT id
                           FROM murm_post
@@ -141,7 +147,7 @@ export async function listSpecificThread(postId: number): Promise<{ posts: unkno
                     )
                 )
               ORDER BY p.created_at ASC`,
-            {post_id: postId, parent_id: parentId},
+            {post_id: postId},
         );
 
         let siblingStubs: unknown[] = [];

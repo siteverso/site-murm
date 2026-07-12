@@ -90,3 +90,5 @@
 .trend-list ol { margin: 0; padding-left: 20px; color: var(--muted); }
 .trend-list li + li { margin-top: 9px; }
 
+
+.murmur-card.is-deleting { opacity: .5; pointer-events: none; transition: opacity .18s ease; }
