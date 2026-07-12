@@ -4,7 +4,7 @@ import { withConnection } from '../oracle';
 const DIRECT_SEND_INTERVAL_MS = 2000;
 const lastDirectSentAtByUser = new Map<number, number>();
 
-export async function listConversations(userId: number): Promise<unknown[]> {
+export async function listConversations(userId: number, archived = false): Promise<unknown[]> {
     return withConnection(async connection => {
         const result = await connection.execute<Record<string, unknown>>(
             `WITH participant_messages AS
@@ -33,7 +33,12 @@ export async function listConversations(userId: number): Promise<unknown[]> {
                     AND s.other_user_id = p.other_user_id
                   WHERE p.user_id = :user_id
                     AND p.id > NVL(s.deleted_before_id, 0)
-                    AND (s.archived_at IS NULL OR p.created_at > s.archived_at)
+                    AND
+                    (
+                        (:archived = 0 AND (s.archived_at IS NULL OR p.created_at > s.archived_at))
+                        OR
+                        (:archived = 1 AND s.archived_at IS NOT NULL AND p.created_at <= s.archived_at)
+                    )
              ), ranked AS
              (
                  SELECT p.*,
@@ -73,7 +78,7 @@ export async function listConversations(userId: number): Promise<unknown[]> {
                  ON u.id = r.other_user_id
               WHERE r.rn = 1
               ORDER BY r.created_at DESC`,
-            { user_id: userId },
+            { user_id: userId, archived: archived ? 1 : 0 },
         );
         return (result.rows || []).map(row => ({
             otherUserId: Number(row.OTHER_USER_ID),
@@ -347,6 +352,22 @@ export async function archiveConversation(userId: number, otherUserId: number): 
              WHEN NOT MATCHED THEN INSERT
                   (user_id, other_user_id, archived_at, deleted_before_id, updated_at)
                   VALUES (source.user_id, source.other_user_id, SYSTIMESTAMP, 0, SYSTIMESTAMP)`,
+            { user_id: userId, other_user_id: otherUserId },
+            { autoCommit: true },
+        );
+    });
+}
+
+
+export async function restoreConversation(userId: number, otherUserId: number): Promise<void> {
+    await withConnection(async connection => {
+        await assertConversationUser(connection, userId, otherUserId);
+        await connection.execute(
+            `UPDATE murm_direct_user_state
+                SET archived_at = NULL,
+                    updated_at = SYSTIMESTAMP
+              WHERE user_id = :user_id
+                AND other_user_id = :other_user_id`,
             { user_id: userId, other_user_id: otherUserId },
             { autoCommit: true },
         );

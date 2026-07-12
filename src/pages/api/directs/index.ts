@@ -8,7 +8,8 @@ export const GET: APIRoute = async context => {
     try {
         const user = await requireUser(context);
         const otherUserId = Number(context.url.searchParams.get('otherUserId') || 0);
-        const conversations = await listConversations(user.id);
+        const archived = context.url.searchParams.get('archived') === '1';
+        const conversations = await listConversations(user.id, archived);
         const beforeId = Number(context.url.searchParams.get('beforeId') || 0);
         const limit = Math.min(50, Math.max(1, Number(context.url.searchParams.get('limit') || 20)));
         const messagePage = otherUserId ? await listMessages(user.id, otherUserId, { beforeId, limit }) : undefined;

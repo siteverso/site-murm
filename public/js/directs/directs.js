@@ -38,6 +38,9 @@ function bindDirectsPage() {
     const conversationMenu = $('[data-direct-conversation-menu]', root);
     const blockedNotice = $('[data-direct-blocked-notice]', root);
     const blockMenuButton = $('[data-block-direct-user]', root);
+    const archiveMenuButton = $('[data-archive-direct-conversation]', root);
+    const restoreMenuButton = $('[data-restore-direct-conversation]', root);
+    const archiveToggle = $('[data-direct-archive-toggle]', root);
     const textarea = $('textarea[name="contents"]', form);
     const locale = window.__MURMUR_LOCALE__ === 'en' ? 'en' : 'pt-BR';
     const pendingDeletes = new Map();
@@ -63,21 +66,27 @@ function bindDirectsPage() {
     let activeConversationUsername = '';
     let activeBlockedByMe = false;
     let activeBlockedEither = false;
+    let archivedView = new URLSearchParams(window.location.search).get('archived') === '1';
 
     const labels = locale === 'en'
-        ? {remove: 'Delete', edit: 'Edit', save: 'Save', confirm: 'Confirm', cancel: 'Cancel', undo: 'Undo', deleted: 'Message deleted.', loadMore: 'Load 20 earlier', loadingMore: 'Loading…', edited: 'edited', pending: 'sending…', reportTitle: 'Report conversation', reportReason: 'Reason', reportDetails: 'Optional details', reportSubmit: 'Send report', reportSent: 'Report sent to @murmurinho.', block: 'Block person', unblock: 'Unblock person', archived: 'Conversation archived.', conversationDeleted: 'Conversation removed from your inbox.', blocked: 'Person blocked.', unblocked: 'Person unblocked.'}
-        : {remove: 'Excluir', edit: 'Editar', save: 'Salvar', confirm: 'Confirmar', cancel: 'Cancelar', undo: 'Desfazer', deleted: 'Bilhete excluído.', loadMore: 'Carregar 20 anteriores', loadingMore: 'Carregando…', edited: 'editado', pending: 'enviando…', reportTitle: 'Denunciar conversa', reportReason: 'Motivo', reportDetails: 'Detalhes opcionais', reportSubmit: 'Enviar denúncia', reportSent: 'Denúncia enviada para @murmurinho.', block: 'Bloquear pessoa', unblock: 'Desbloquear pessoa', archived: 'Conversa arquivada.', conversationDeleted: 'Conversa excluída da sua caixa.', blocked: 'Pessoa bloqueada.', unblocked: 'Pessoa desbloqueada.'};
+        ? {remove: 'Delete', edit: 'Edit', save: 'Save', confirm: 'Confirm', cancel: 'Cancel', undo: 'Undo', deleted: 'Message deleted.', loadMore: 'Load 20 earlier', loadingMore: 'Loading…', edited: 'edited', pending: 'sending…', reportTitle: 'Report conversation', reportReason: 'Reason', reportDetails: 'Optional details', reportSubmit: 'Send report', reportSent: 'Report sent to @murmurinho.', block: 'Block person', unblock: 'Unblock person', archived: 'Conversation archived.', conversationDeleted: 'Conversation removed from your inbox.', blocked: 'Person blocked.', unblocked: 'Person unblocked.', showArchived: 'Show archived chats', showActive: 'Show active chats', restored: 'Conversation restored.', blockedLabel: 'Blocked'}
+        : {remove: 'Excluir', edit: 'Editar', save: 'Salvar', confirm: 'Confirmar', cancel: 'Cancelar', undo: 'Desfazer', deleted: 'Bilhete excluído.', loadMore: 'Carregar 20 anteriores', loadingMore: 'Carregando…', edited: 'editado', pending: 'enviando…', reportTitle: 'Denunciar conversa', reportReason: 'Motivo', reportDetails: 'Detalhes opcionais', reportSubmit: 'Enviar denúncia', reportSent: 'Denúncia enviada para @murmurinho.', block: 'Bloquear pessoa', unblock: 'Desbloquear pessoa', archived: 'Conversa arquivada.', conversationDeleted: 'Conversa excluída da sua caixa.', blocked: 'Pessoa bloqueada.', unblocked: 'Pessoa desbloqueada.', showArchived: 'Exibir chats arquivados', showActive: 'Exibir chats ativos', restored: 'Conversa restaurada.', blockedLabel: 'Bloqueado'};
 
     const sexClass = value => value === 'M' ? 'sex-m' : value === 'F' ? 'sex-f' : '';
 
     const renderConversations = conversations => {
-        list.innerHTML = (conversations || []).map(item => `
-      <button class="direct-thread ${String(item.otherUserId) === String(activeUserId) ? 'active' : ''} ${hasUnreadMessages(item.unreadCount) ? 'has-unread' : ''} ${sexClass(item.sexCode)}" data-open-direct="${item.otherUserId}" type="button">
+        const items = conversations || [];
+        list.innerHTML = items.length ? items.map(item => `
+      <button class="direct-thread ${String(item.otherUserId) === String(activeUserId) ? 'active' : ''} ${hasUnreadMessages(item.unreadCount) ? 'has-unread' : ''} ${item.blockedEither ? 'is-blocked' : ''} ${sexClass(item.sexCode)}" data-open-direct="${item.otherUserId}" type="button">
         <span class="direct-thread-head"><strong>@${escapeHtml(item.username)}</strong><time>${formatDateTime(item.lastAt)}</time></span>
         <span class="direct-thread-preview">${escapeHtml(item.lastMessage)}</span>
-        <small>${item.unreadCount ? `${item.unreadCount} novo(s)` : ''}</small>
+        <small>${item.blockedEither ? `<span class="direct-thread-blocked" aria-label="${labels.blockedLabel}">🔒 ${labels.blockedLabel}</span>` : (item.unreadCount ? `${item.unreadCount} novo(s)` : '')}</small>
       </button>
-    `).join('');
+    `).join('') : `<div class="direct-list-empty">${archivedView ? (locale === 'en' ? 'No archived chats.' : 'Nenhum chat arquivado.') : (locale === 'en' ? 'No chats yet.' : 'Nenhum bilhete ainda.')}</div>`;
+        if (archiveToggle) {
+            archiveToggle.textContent = archivedView ? labels.showActive : labels.showArchived;
+            archiveToggle.setAttribute('aria-pressed', String(archivedView));
+        }
     };
 
     const messageHtml = message => {
@@ -146,7 +155,8 @@ function bindDirectsPage() {
 
     const load = async (otherUserId = activeUserId, updateUrl = false, replaceUrl = false) => {
         const token = ++requestToken;
-        const url = otherUserId ? `/api/directs?otherUserId=${otherUserId}&limit=20` : '/api/directs';
+        const modeQuery = archivedView ? '&archived=1' : '';
+        const url = otherUserId ? `/api/directs?otherUserId=${otherUserId}&limit=20${modeQuery}` : `/api/directs?archived=${archivedView ? 1 : 0}`;
         const data = await api(url);
         if (token !== requestToken) return;
 
@@ -163,6 +173,8 @@ function bindDirectsPage() {
             if (activeUsername) activeUsername.textContent = activeConversationUsername ? `@${activeConversationUsername}` : '';
             if (blockMenuButton) blockMenuButton.textContent = activeBlockedByMe ? labels.unblock : labels.block;
             if (blockedNotice) blockedNotice.hidden = !activeBlockedByMe;
+            if (archiveMenuButton) archiveMenuButton.hidden = archivedView;
+            if (restoreMenuButton) restoreMenuButton.hidden = !archivedView;
             textarea.disabled = activeBlockedEither;
             form.querySelector('button[type="submit"]').disabled = activeBlockedEither;
 
@@ -186,7 +198,8 @@ function bindDirectsPage() {
             const requestedUserId = activeUserId;
             const renderedCount = $$('[data-direct-message]:not([data-direct-pending])', messageList).length;
             const refreshLimit = Math.max(20, renderedCount);
-            const url = requestedUserId ? `/api/directs?otherUserId=${requestedUserId}&limit=${refreshLimit}` : '/api/directs';
+            const modeQuery = archivedView ? '&archived=1' : '';
+            const url = requestedUserId ? `/api/directs?otherUserId=${requestedUserId}&limit=${refreshLimit}${modeQuery}` : `/api/directs?archived=${archivedView ? 1 : 0}`;
             const data = await api(url);
             if (requestedUserId !== activeUserId) return;
 
@@ -351,11 +364,14 @@ function bindDirectsPage() {
         closeConversationMenu();
         const isDelete = kind === 'delete';
         const isArchive = kind === 'archive';
-        const title = isDelete ? 'Excluir conversa' : isArchive ? 'Arquivar conversa' : activeBlockedByMe ? 'Desbloquear pessoa' : 'Bloquear pessoa';
+        const isRestore = kind === 'restore';
+        const title = isDelete ? 'Excluir conversa' : isArchive ? 'Arquivar conversa' : isRestore ? 'Restaurar conversa' : activeBlockedByMe ? 'Desbloquear pessoa' : 'Bloquear pessoa';
         const message = isDelete
             ? `A conversa com @${escapeHtml(activeConversationUsername)} será removida somente da sua caixa. A outra pessoa continuará vendo o histórico.`
             : isArchive
                 ? `A conversa com @${escapeHtml(activeConversationUsername)} sairá da lista e reaparecerá quando chegar um novo bilhete.`
+                : isRestore
+                    ? `A conversa com @${escapeHtml(activeConversationUsername)} voltará para a lista de chats ativos.`
                 : activeBlockedByMe
                     ? `@${escapeHtml(activeConversationUsername)} poderá voltar a enviar bilhetes para você.`
                     : `@${escapeHtml(activeConversationUsername)} não poderá trocar novos bilhetes com você. O bloqueio não será avisado diretamente.`;
@@ -411,6 +427,27 @@ function bindDirectsPage() {
         const archiveConversationButton = event.target.closest('[data-archive-direct-conversation]');
         if (archiveConversationButton) {
             openConversationConfirm('archive');
+            return;
+        }
+
+        const restoreConversationButton = event.target.closest('[data-restore-direct-conversation]');
+        if (restoreConversationButton) {
+            openConversationConfirm('restore');
+            return;
+        }
+
+        const archiveViewToggle = event.target.closest('[data-direct-archive-toggle]');
+        if (archiveViewToggle) {
+            archivedView = !archivedView;
+            const url = new URL(window.location.href);
+            if (archivedView) url.searchParams.set('archived', '1');
+            else url.searchParams.delete('archived');
+            url.searchParams.delete('userId');
+            window.history.pushState({}, '', `${url.pathname}${url.search}${url.hash}`);
+            activeUserId = '';
+            stage.hidden = true;
+            empty.hidden = false;
+            load('').catch(error => toast(error.message));
             return;
         }
 
@@ -516,6 +553,7 @@ function bindDirectsPage() {
             try {
                 const action = actionForm.dataset.action;
                 if (action === 'archive') await runConversationAction('archive', labels.archived);
+                else if (action === 'restore') await runConversationAction('restore', labels.restored);
                 else if (action === 'delete') await runConversationAction('delete', labels.conversationDeleted);
                 else await setBlockedState(!activeBlockedByMe);
                 closeModal();
@@ -612,6 +650,7 @@ function bindDirectsPage() {
     });
 
     window.addEventListener('popstate', () => {
+        archivedView = new URLSearchParams(window.location.search).get('archived') === '1';
         const urlUserId = getUrlUserId();
         load(urlUserId).catch(error => toast(error.message));
     });

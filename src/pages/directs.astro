@@ -9,6 +9,7 @@ import Header from '../components/Header.astro';
     <aside class="directs-sidebar panel">
       <div class="directs-sidebar-head"><h1>Bilhetes</h1><span>Directs</span></div>
       <div class="direct-list" data-direct-list></div>
+      <button class="direct-archive-toggle" type="button" data-direct-archive-toggle aria-pressed="false">Exibir chats arquivados</button>
     </aside>
     <section class="directs-stage panel">
       <div class="direct-empty" data-direct-empty><strong>Escolha um bilhete</strong><span>As conversas chegam como correspondência, sem cara de chat.</span></div>
@@ -21,6 +22,7 @@ import Header from '../components/Header.astro';
           <button class="direct-conversation-menu-button" type="button" data-direct-conversation-menu-button aria-label="Opções da conversa" title="Opções da conversa" aria-expanded="false">⋯</button>
           <div class="direct-conversation-menu" data-direct-conversation-menu hidden>
             <button type="button" data-archive-direct-conversation>Arquivar conversa</button>
+            <button type="button" data-restore-direct-conversation hidden>Restaurar conversa</button>
             <button type="button" data-block-direct-user>Bloquear pessoa</button>
             <button type="button" data-report-direct>Denunciar conversa</button>
             <button class="is-danger" type="button" data-delete-direct-conversation>Excluir da minha caixa</button>

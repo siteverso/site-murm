@@ -3,11 +3,15 @@
 .direct-badge { position: absolute; top: 2px; right: 1px; min-width: 18px; height: 18px; padding: 0 5px; display: grid; place-items: center; border-radius: 999px; color: var(--inverse); background: var(--strong); font-size: .68rem; }
 .directs-page { width: min(var(--page-width), calc(100% - var(--page-gutter))); height: calc(100dvh - 92px); min-height: 0; margin: 16px auto 0; display: grid; grid-template-columns: minmax(260px, 330px) minmax(0, 1fr); gap: 16px; overflow: hidden; }
 .directs-sidebar, .directs-stage { min-height: 0; height: 100%; overflow: hidden; }
-.directs-sidebar { display: grid; grid-template-rows: auto minmax(0, 1fr); }
+.directs-sidebar { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
 .directs-sidebar-head { padding: 20px; display: flex; align-items: end; justify-content: space-between; }
 .directs-sidebar-head h1 { margin: 0; }
 .directs-sidebar-head span { color: var(--muted); }
 .direct-list { min-height: 0; overflow-y: auto; border-top: 1px solid var(--line); }
+.direct-list-empty { min-height: 120px; padding: 24px 18px; display: grid; place-items: center; color: var(--muted); text-align: center; font-size: .82rem; }
+.direct-archive-toggle { min-height: 46px; padding: 0 18px; border: 0; border-top: 1px solid var(--line); color: var(--muted); background: color-mix(in srgb, var(--surface) 96%, transparent); cursor: pointer; text-align: left; font-size: .78rem; font-weight: 800; transition: color .18s ease, background-color .18s ease; }
+.direct-archive-toggle:hover, .direct-archive-toggle:focus-visible { color: var(--text); background: var(--surface-2); }
+.direct-archive-toggle[aria-pressed="true"] { color: var(--text); }
 .direct-thread { width: 100%; padding: 15px 18px; display: grid; gap: 4px; text-align: left; border: 0; border-left: 2px solid transparent; border-bottom: 1px solid var(--line); background: transparent; cursor: pointer; transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease; }
 .direct-thread:hover, .direct-thread.active { background: var(--surface-2); }
 .direct-thread.sex-m { border-left-color: color-mix(in srgb, #4f84ff 42%, transparent); box-shadow: inset 3px 0 0 color-mix(in srgb, #4f84ff 14%, transparent); }
@@ -16,6 +20,8 @@
 .direct-thread.sex-f:hover, .direct-thread.sex-f.active { background: color-mix(in srgb, #f28bb8 9%, var(--surface-2)); }
 .direct-thread span { overflow: hidden; color: var(--muted); white-space: nowrap; text-overflow: ellipsis; }
 .direct-thread small { min-height: 14px; font-weight: 800; }
+.direct-thread.is-blocked { opacity: .82; }
+.direct-thread-blocked { display: inline-flex; align-items: center; gap: 4px; color: color-mix(in srgb, #d69b53 74%, var(--muted)); font-size: .68rem; font-weight: 800; letter-spacing: .01em; }
 .directs-stage { position: relative; background: var(--surface); }
 .direct-empty { height: 100%; min-height: 0; display: grid; place-content: center; gap: 8px; padding: 24px; text-align: center; color: var(--muted); }
 .direct-empty strong { color: var(--text); font-size: 1.4rem; }
