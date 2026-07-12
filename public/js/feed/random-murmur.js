@@ -1,6 +1,8 @@
-const RANDOM_MURMUR_INTERVAL_MS = 5000;
+const RANDOM_MURMUR_INTERVAL_MS = 1000;
 let randomMurmurTimer = null;
-let currentRandomMurmurId = '';
+let randomMurmurQueue = [];
+let randomMurmurIndex = 0;
+let randomMurmurSignature = '';
 
 function eligibleRandomMurmurs(items = posts) {
     return getRootPosts(Array.isArray(items) ? items : []).filter(post => {
@@ -9,41 +11,74 @@ function eligibleRandomMurmurs(items = posts) {
     });
 }
 
-function chooseRandomMurmur(items) {
+function shuffleRandomMurmurs(items) {
+    const shuffled = [...items];
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+    }
+    return shuffled;
+}
+
+function syncRandomMurmurQueue(items) {
+    const signature = items.map(post => String(post.id)).sort().join('|');
+    if (signature === randomMurmurSignature && randomMurmurQueue.length) return;
+
+    randomMurmurSignature = signature;
+    randomMurmurQueue = shuffleRandomMurmurs(items);
+    randomMurmurIndex = 0;
+}
+
+function nextRandomMurmur(items) {
     if (!items.length) return null;
-    const alternatives = items.length > 1
-        ? items.filter(post => String(post.id) !== currentRandomMurmurId)
-        : items;
-    return alternatives[Math.floor(Math.random() * alternatives.length)] || items[0];
+    syncRandomMurmurQueue(items);
+
+    if (randomMurmurIndex >= randomMurmurQueue.length) {
+        randomMurmurQueue = shuffleRandomMurmurs(items);
+        randomMurmurIndex = 0;
+    }
+
+    const post = randomMurmurQueue[randomMurmurIndex] || null;
+    randomMurmurIndex += 1;
+    return post;
 }
 
 function showRandomMurmur({animate = true} = {}) {
     const root = $('[data-random-murmur]');
-    const link = $('[data-random-murmur-link]', root);
+    const content = $('[data-random-murmur-content]', root);
+    const userLink = $('[data-random-murmur-user]', root);
+    const textLink = $('[data-random-murmur-link]', root);
     const text = $('[data-random-murmur-text]', root);
     const placeholder = $('[data-random-murmur-placeholder]', root);
-    if (!root || !link || !text) return;
+    if (!root || !content || !userLink || !textLink || !text) return;
 
-    const post = chooseRandomMurmur(eligibleRandomMurmurs());
+    const post = nextRandomMurmur(eligibleRandomMurmurs());
     if (!post) {
-        link.hidden = true;
+        content.hidden = true;
         if (placeholder) placeholder.hidden = false;
         return;
     }
 
     const apply = () => {
-        currentRandomMurmurId = String(post.id);
+        const author = String(post.author).trim().replace(/^@+/, '');
+        const postUrl = `/perfil/${encodeURIComponent(author)}?murmurio=${encodeURIComponent(post.id)}`;
+
+        userLink.textContent = `@${author}`;
+        userLink.href = `/perfil/${encodeURIComponent(author)}`;
+        userLink.setAttribute('aria-label', `Abrir perfil de @${author}`);
+
         text.textContent = String(post.text).trim();
-        link.href = `/perfil/${encodeURIComponent(post.author)}?murmurio=${encodeURIComponent(post.id)}`;
-        link.setAttribute('aria-label', 'Abrir este murmúrio');
-        link.hidden = false;
+        textLink.href = postUrl;
+        textLink.setAttribute('aria-label', 'Abrir este murmúrio');
+
+        content.hidden = false;
         if (placeholder) placeholder.hidden = true;
-        requestAnimationFrame(() => link.classList.remove('is-changing'));
+        requestAnimationFrame(() => content.classList.remove('is-changing'));
     };
 
-    if (animate && !link.hidden && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        link.classList.add('is-changing');
-        window.setTimeout(apply, 220);
+    if (animate && !content.hidden && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        content.classList.add('is-changing');
+        window.setTimeout(apply, 180);
     } else {
         apply();
     }
@@ -51,7 +86,7 @@ function showRandomMurmur({animate = true} = {}) {
 
 function syncRandomMurmur() {
     if (!$('[data-random-murmur]')) return;
-    showRandomMurmur({animate: Boolean(currentRandomMurmurId)});
+    showRandomMurmur({animate: false});
     clearInterval(randomMurmurTimer);
     randomMurmurTimer = window.setInterval(() => {
         if (document.visibilityState === 'visible') showRandomMurmur();
