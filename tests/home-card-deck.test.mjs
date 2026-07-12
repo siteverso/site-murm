@@ -31,7 +31,9 @@ test('deck uses 100 static cards without auto refresh and throws cards using dra
   assert.match(renderer, /if \(\$\('\[data-feed-deck\]'\)\) \{/);
   assert.match(deck, /measureDeckVelocity/);
   assert.match(deck, /animateDeckThrow/);
-  assert.match(deck, /targetRotation/);
+  assert.match(deck, /targetRotateZ/);
+  assert.match(deck, /rotateY/);
+  assert.match(deck, /duration = Math\.round\(Math\.max\(820/);
   assert.match(page, /100 murmúrios carregados sem atualização automática/);
 });
 

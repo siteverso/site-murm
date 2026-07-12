@@ -92,7 +92,7 @@ function updateDeckDragState(card, x = 0, y = 0) {
     card.dataset.deckDirection = direction;
     card.dataset.deckArmed = armed ? 'true' : 'false';
     card.style.setProperty('--deck-drag-progress', String(progress));
-    card.style.transform = `translate3d(${x}px, ${displayedY}px, 0) rotate(${x / 22}deg)`;
+    card.style.transform = `translate3d(${x}px, ${displayedY}px, ${-Math.min(34, Math.abs(x) * .08)}px) rotateX(${Math.max(-5, Math.min(5, -y / 45))}deg) rotateY(${Math.max(-9, Math.min(9, x / 34))}deg) rotateZ(${x / 24}deg)`;
 }
 
 function clearDeckDragState(card) {
@@ -145,27 +145,65 @@ function animateDeckThrow(card, dragState, direction) {
     const {x = 0, y = 0, history = []} = dragState || {};
     const {vx, vy} = measureDeckVelocity(history);
     const startY = getDeckDisplayedY(y);
-    const startRotation = x / 22;
-    const speedFactor = Math.max(1, Math.min(2.5, Math.abs(vx) * 5.8));
-    const targetX = x + direction * Math.max(window.innerWidth * DECK_THROW_DISTANCE * speedFactor, card.getBoundingClientRect().width * 1.25);
-    const targetY = startY + (vy * 220) + (y * 0.06);
-    const targetRotation = startRotation + (direction * (10 + Math.min(24, Math.abs(vx) * 12))) + (vy * 7);
-    const duration = Math.max(360, Math.min(620, 520 - Math.min(160, Math.abs(vx) * 95)));
+    const startRotateZ = x / 24;
+    const startRotateY = Math.max(-9, Math.min(9, x / 34));
+    const startRotateX = Math.max(-5, Math.min(5, -y / 45));
+    const speed = Math.max(.35, Math.min(2.2, Math.abs(vx)));
+    const travel = Math.max(window.innerWidth * 1.16, card.getBoundingClientRect().width * 1.45);
+    const targetX = x + direction * travel;
+    const windLift = Math.max(-150, Math.min(150, (vy * 150) + (y * .12)));
+    const targetY = startY + windLift;
+    const targetRotateZ = startRotateZ + direction * (20 + speed * 9) + (vy * 5);
+    const targetRotateY = direction * (22 + speed * 7);
+    const targetRotateX = Math.max(-18, Math.min(18, startRotateX - vy * 9));
+    const duration = Math.round(Math.max(820, Math.min(1320, 1180 - speed * 150)));
     const postId = card.dataset.deckPostId || card.querySelector('[data-post-id]')?.dataset.postId || '';
 
     card.dataset.deckDirection = direction > 0 ? 'right' : 'left';
     card.dataset.deckArmed = 'true';
+    card.classList.add('is-flying');
 
-    const midX = x + (targetX - x) * .46;
-    const midY = startY + (targetY - startY) * .34;
-    const midRotation = startRotation + (targetRotation - startRotation) * .42;
+    const p1x = x + (targetX - x) * .18;
+    const p2x = x + (targetX - x) * .48;
+    const p3x = x + (targetX - x) * .76;
+    const p1y = startY + windLift * .08 - 14;
+    const p2y = startY + windLift * .34 + 10;
+    const p3y = startY + windLift * .70 - 8;
+
     const animation = card.animate([
-        {transform: `translate3d(${x}px, ${startY}px, 0) rotate(${startRotation}deg)`, opacity: 1, offset: 0},
-        {transform: `translate3d(${midX}px, ${midY}px, 0) rotate(${midRotation}deg)`, opacity: 1, offset: .58},
-        {transform: `translate3d(${targetX}px, ${targetY}px, 0) rotate(${targetRotation}deg)`, opacity: .05, offset: 1},
+        {
+            transform: `translate3d(${x}px, ${startY}px, -18px) rotateX(${startRotateX}deg) rotateY(${startRotateY}deg) rotateZ(${startRotateZ}deg)`,
+            opacity: 1,
+            filter: 'blur(0px)',
+            offset: 0,
+        },
+        {
+            transform: `translate3d(${p1x}px, ${p1y}px, 28px) rotateX(${startRotateX - 3}deg) rotateY(${startRotateY + direction * 8}deg) rotateZ(${startRotateZ + direction * 5}deg)`,
+            opacity: 1,
+            filter: 'blur(0px)',
+            offset: .24,
+        },
+        {
+            transform: `translate3d(${p2x}px, ${p2y}px, 6px) rotateX(${targetRotateX * .55}deg) rotateY(${targetRotateY * .62}deg) rotateZ(${targetRotateZ * .52}deg)`,
+            opacity: .96,
+            filter: 'blur(.2px)',
+            offset: .54,
+        },
+        {
+            transform: `translate3d(${p3x}px, ${p3y}px, -18px) rotateX(${targetRotateX * .82}deg) rotateY(${targetRotateY * .86}deg) rotateZ(${targetRotateZ * .82}deg)`,
+            opacity: .72,
+            filter: 'blur(.7px)',
+            offset: .80,
+        },
+        {
+            transform: `translate3d(${targetX}px, ${targetY}px, -70px) rotateX(${targetRotateX}deg) rotateY(${targetRotateY}deg) rotateZ(${targetRotateZ}deg)`,
+            opacity: 0,
+            filter: 'blur(1.6px)',
+            offset: 1,
+        },
     ], {
         duration,
-        easing: 'cubic-bezier(.18, .72, .18, 1)',
+        easing: 'cubic-bezier(.12, .62, .18, 1)',
         fill: 'forwards',
     });
 
