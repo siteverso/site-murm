@@ -22,5 +22,5 @@ test('cards e imagens usam lazy loading progressivo por viewport', () => {
 });
 
 test('cache do aplicativo foi atualizado para entregar o novo comportamento', () => {
-  assert.match(layout, /app\.js\?v=20260712-ancestor-context-1/);
+  assert.match(layout, /app\.js\?v=20260712-reply-partial-refresh-1/);
 });

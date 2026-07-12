@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { TEXT_LIMIT } from '../../../lib/config/text';
 import { body, errorResponse, json } from '../../../lib/server/http';
-import { requireUser } from '../../../lib/server/session';
+import { currentUser, requireUser } from '../../../lib/server/session';
 import { createPost, listPosts, listSpecificThread } from '../../../lib/server/repositories/posts';
 
 export const GET: APIRoute = async context => {
@@ -13,7 +13,8 @@ export const GET: APIRoute = async context => {
             const data = await listSpecificThread(specificId);
             return json({ ok: true, ...data });
         }
-        return json({ ok: true, posts: await listPosts(null, username) });
+        const user = await currentUser(context);
+        return json({ ok: true, posts: await listPosts(user?.id || null, username, user?.preferredLanguageCode || null) });
     } catch (error) {
         return errorResponse(error);
     }

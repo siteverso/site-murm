@@ -21,6 +21,7 @@ export type SessionUser = {
     sexChangeAvailableAt: number | null;
     avatarUrl: string;
     languageCode: string;
+    preferredLanguageCode: 'pt-BR' | 'en' | 'es';
     themeCode: string;
     regionCode: string;
     columnGroupCode: 'sex' | 'region';
@@ -130,6 +131,7 @@ export async function currentUser(context: APIContext): Promise<SessionUser | nu
                         ELSE NVL(u.avatar_url, '')
                     END AS avatar_url,
                     u.language_code,
+                    NVL(u.preferred_language_code, 'pt-BR') AS preferred_language_code,
                     NVL(u.theme_code, 'auto') AS theme_code,
                     NVL(u.region_code, '') AS region_code,
                     NVL(u.column_group_code, 'sex') AS column_group_code,
@@ -190,6 +192,9 @@ export async function currentUser(context: APIContext): Promise<SessionUser | nu
             sexChangeAvailableAt,
             avatarUrl: String(row.AVATAR_URL || ''),
             languageCode: String(row.LANGUAGE_CODE || 'pt-BR'),
+            preferredLanguageCode: ['pt-BR', 'en', 'es'].includes(String(row.PREFERRED_LANGUAGE_CODE || 'pt-BR'))
+                ? String(row.PREFERRED_LANGUAGE_CODE || 'pt-BR') as 'pt-BR' | 'en' | 'es'
+                : 'pt-BR',
             themeCode: String(row.THEME_CODE || 'auto'),
             regionCode: String(row.REGION_CODE || ''),
             columnGroupCode: String(row.COLUMN_GROUP_CODE || 'sex') === 'region' ? 'region' : 'sex',

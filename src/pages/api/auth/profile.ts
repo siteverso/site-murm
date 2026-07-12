@@ -9,18 +9,20 @@ import { withConnection } from '../../../lib/server/oracle';
 export const PATCH: APIRoute = async context => {
     try {
         const user = await requireUser(context);
-        const input = await body<{ username?: string; email?: string; bio?: string; sexCode?: string; regionCode?: string; columnGroupCode?: string }>(context.request);
+        const input = await body<{ username?: string; email?: string; bio?: string; sexCode?: string; regionCode?: string; columnGroupCode?: string; preferredLanguageCode?: string }>(context.request);
         const username = normalizeUsername(input.username);
         const email = normalizeEmail(input.email);
         const bio = String(input.bio || '').trim().slice(0, 180);
         const sexCode = String(input.sexCode || '').trim().toUpperCase();
         const regionCode = String(input.regionCode || '').trim().toUpperCase();
         const columnGroupCode = String(input.columnGroupCode || 'sex').trim().toLowerCase();
+        const preferredLanguageCode = String(input.preferredLanguageCode || 'pt-BR').trim();
         validateUsername(username);
         validateEmail(email);
         if (sexCode && !['M', 'F'].includes(sexCode)) throw new Error('JSON_INVALIDO');
         if (regionCode && !['N', 'NE', 'CO', 'SE', 'S'].includes(regionCode)) throw new Error('JSON_INVALIDO');
         if (!['sex', 'region'].includes(columnGroupCode)) throw new Error('JSON_INVALIDO');
+        if (!['pt-BR', 'en', 'es'].includes(preferredLanguageCode)) throw new Error('JSON_INVALIDO');
 
         await withConnection(async connection => {
             try {
@@ -100,6 +102,7 @@ export const PATCH: APIRoute = async context => {
                          bio = :bio,
                          region_code = :region_code,
                          column_group_code = :column_group_code,
+                         preferred_language_code = :preferred_language_code,
                          sex_code = CASE
                              WHEN :sex_changed = 1 THEN :sex_code
                              ELSE sex_code
@@ -122,6 +125,7 @@ export const PATCH: APIRoute = async context => {
                         bio: bio || null,
                         region_code: regionCode || null,
                         column_group_code: columnGroupCode,
+                        preferred_language_code: preferredLanguageCode,
                         sex_code: sexCode || null,
                         sex_changed: sexChanged ? 1 : 0,
                         id: user.id,

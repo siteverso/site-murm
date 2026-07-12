@@ -329,6 +329,7 @@ function renderUser(user) {
 
     profileForm.regionCode.value = user.regionCode || '';
     profileForm.columnGroupCode.value = user.columnGroupCode || 'sex';
+    profileForm.preferredLanguageCode.value = user.preferredLanguageCode || 'pt-BR';
     profileForm.bio.value = user.bio || '';
 
     const columnGroupSelect = $('[data-column-group-select]');
@@ -609,7 +610,7 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
   const contextParentClass = sameId(post.id, contextParentId) ? ' murmur-context-parent' : '';
 
   if (post.isDeleted) {
-    return `<article id="murmurio-${post.id}" class="panel murmur-card lazy-reveal reply-history-parent-card--deleted${contextParentClass}" data-post-id="${post.id}">
+    return `<article id="murmurio-${post.id}" class="panel murmur-card lazy-reveal reply-history-parent-card--deleted${contextParentClass}" data-post-id="${post.id}" data-user-id="${post.userId || 0}">
       <div class="murmur-head">
         <span class="avatar murmur-profile-link reply-history-disabled-avatar" aria-hidden="true">××</span>
         <div class="murmur-author"><strong>Murmúrio removido</strong><span>${post.createdAt ? new Date(post.createdAt).toLocaleString() : ''}</span></div>
@@ -643,43 +644,86 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
   </article>`;
 }
 
+function renderReplyHistoryGroup(group) {
+  const threadPosts = Array.isArray(group?.posts) ? group.posts : [];
+  if (!threadPosts.length) return '';
+
+  const rootId = String(group?.rootPostId || '');
+  const byId = new Map(threadPosts.map(post => [String(post.id), post]));
+  const root = byId.get(rootId) || getRootPosts(threadPosts)[0] || null;
+  if (!root) return '';
+
+  const childrenByParent = groupPostsByParent(threadPosts);
+  return `<div class="reply-history-group" data-reply-history-root="${escapeHtml(rootId)}">${renderPost(root, childrenByParent, new Set(), {
+    repliesMode: 'recursive',
+    depth: 1,
+    maxDepth: 5,
+    contextParentId: String(root.id),
+  })}</div>`;
+}
+
+function readReplyHistoryGroups(dataNode = $('[data-reply-history-data]')) {
+  if (!dataNode) return [];
+  return JSON.parse(dataNode.textContent || '[]');
+}
+
 function renderReplyHistory() {
   const feed = $('[data-reply-history]');
   const dataNode = $('[data-reply-history-data]');
   if (!feed || !dataNode) return;
 
-  let groups = [];
   try {
-    groups = JSON.parse(dataNode.textContent || '[]');
+    feed.innerHTML = readReplyHistoryGroups(dataNode).map(renderReplyHistoryGroup).join('');
   } catch (error) {
     feed.innerHTML = `<p class="empty-state">Erro ao carregar respostas: ${escapeHtml(error?.message || String(error))}</p>`;
     return;
   }
 
-  feed.innerHTML = groups.map(group => {
-    const threadPosts = Array.isArray(group?.posts) ? group.posts : [];
-    if (!threadPosts.length) return '';
-
-    const rootId = String(group?.rootPostId || '');
-    const byId = new Map(threadPosts.map(post => [String(post.id), post]));
-    const root = byId.get(rootId) || getRootPosts(threadPosts)[0] || null;
-    if (!root) return '';
-
-    const childrenByParent = groupPostsByParent(threadPosts);
-    return renderPost(root, childrenByParent, new Set(), {
-      repliesMode: 'recursive',
-      depth: 1,
-      maxDepth: 5,
-      contextParentId: String(root.id),
-    });
-  }).join('');
-
-  setupLazyVisuals();
+  setupLazyVisuals(feed);
 }
 
-function refreshReplyHistoryPage() {
-  if (!$('[data-reply-history]')) return false;
-  window.location.reload();
+async function refreshReplyHistoryPage(affectedPostId = '') {
+  const feed = $('[data-reply-history]');
+  const dataNode = $('[data-reply-history-data]');
+  if (!feed || !dataNode) return false;
+
+  const escapedPostId = affectedPostId ? CSS.escape(String(affectedPostId)) : '';
+  const affectedCard = escapedPostId ? feed.querySelector(`[data-post-id="${escapedPostId}"]`) : null;
+  const currentGroup = affectedCard?.closest('[data-reply-history-root]') || null;
+  const currentRootId = currentGroup?.dataset.replyHistoryRoot || '';
+  const anchor = currentGroup || affectedCard;
+  const anchorTop = anchor?.getBoundingClientRect().top ?? null;
+
+  const response = await fetch(`${location.href}${location.href.includes('?') ? '&' : '?'}_partial=${Date.now()}`, {
+    headers: { 'X-Requested-With': 'reply-history-partial' },
+    cache: 'no-store',
+  });
+  if (!response.ok) throw new Error('Erro ao atualizar as respostas.');
+
+  const documentCopy = new DOMParser().parseFromString(await response.text(), 'text/html');
+  const nextDataNode = documentCopy.querySelector('[data-reply-history-data]');
+  if (!nextDataNode) throw new Error('Resposta atualizada inválida.');
+
+  const nextGroups = readReplyHistoryGroups(nextDataNode);
+  dataNode.textContent = nextDataNode.textContent || '[]';
+
+  if (currentRootId) {
+    const nextGroup = nextGroups.find(group => String(group?.rootPostId || '') === currentRootId);
+    if (nextGroup) currentGroup.outerHTML = renderReplyHistoryGroup(nextGroup);
+    else currentGroup.remove();
+  } else {
+    feed.innerHTML = nextGroups.map(renderReplyHistoryGroup).join('');
+  }
+
+  if (!feed.children.length) {
+    feed.innerHTML = '<p class="empty-state">Ainda não há respostas publicadas.</p>';
+  }
+
+  setupLazyVisuals(feed);
+  if (anchorTop != null && currentRootId) {
+    const nextAnchor = feed.querySelector(`[data-reply-history-root="${CSS.escape(currentRootId)}"]`);
+    if (nextAnchor) window.scrollBy(0, nextAnchor.getBoundingClientRect().top - anchorTop);
+  }
   return true;
 }
 
@@ -1267,7 +1311,7 @@ function bindFeed() {
           method: 'POST',
           body: JSON.stringify({ value: Number(target.dataset.vote) }),
         });
-        if (!refreshReplyHistoryPage()) {
+        if (!(await refreshReplyHistoryPage(postId))) {
           await loadFeed();
           pinCardActions(postId);
         }
@@ -1276,7 +1320,7 @@ function bindFeed() {
         await api(`/api/posts/${card.dataset.postId}/share`, { method: 'POST' });
         await navigator.clipboard?.writeText(`${location.origin}/#murmurio-${card.dataset.postId}`);
         toast('Link copiado.');
-        if (!refreshReplyHistoryPage()) await loadFeed();
+        if (!(await refreshReplyHistoryPage(card.dataset.postId))) await loadFeed();
       }
       if (target.matches('[data-toggle-delete-reply]')) {
         const confirm = target.parentElement?.querySelector('[data-reply-delete-confirm]');
@@ -1293,7 +1337,7 @@ function bindFeed() {
         target.disabled = true;
         await api(`/api/replies/${target.dataset.confirmDeleteReply}`, { method: 'DELETE' });
         announceFeedChanged();
-        if (!refreshReplyHistoryPage()) await loadFeed(true);
+        if (!(await refreshReplyHistoryPage(target.dataset.confirmDeleteReply))) await loadFeed(true);
         toast('Murmúrio apagado.');
       }
       if (target.matches('[data-delete-reply]')) {
@@ -1309,7 +1353,7 @@ function bindFeed() {
           await api(`/api/replies/${replyId}`, { method: 'DELETE' });
           announceFeedChanged();
           closeModal();
-          if (!refreshReplyHistoryPage()) await loadFeed(true);
+          if (!(await refreshReplyHistoryPage(replyId))) await loadFeed(true);
           toast('Resposta apagada.');
         } catch (error) {
           deletedCard?.classList.remove('is-deleting');
@@ -1326,7 +1370,7 @@ function bindFeed() {
         await api(`/api/posts/${target.dataset.confirmDeletePost}`, { method: 'DELETE' });
         announceFeedChanged();
         closeModal();
-        if (!refreshReplyHistoryPage()) await loadFeed(true);
+        if (!(await refreshReplyHistoryPage(target.dataset.confirmDeletePost))) await loadFeed(true);
         toast('Murmúrio apagado.');
       }
       if (target.matches('[data-feed-more]')) { expandSplitFeed(target.dataset.feedMore); }
@@ -1411,7 +1455,7 @@ function bindFeed() {
       try {
         await api(`/api/posts/${card.dataset.postId}/reply`, { method: 'POST', body: JSON.stringify({ text }) });
         announceFeedChanged();
-        if (!refreshReplyHistoryPage()) await loadFeed(true);
+        if (!(await refreshReplyHistoryPage(card.dataset.postId))) await loadFeed(true);
       } catch (error) { toast(error.message); }
     }
   });
@@ -1736,6 +1780,7 @@ function bindProfile() {
           sexCode: profileForm.sexCode.value,
           regionCode: profileForm.regionCode.value,
           columnGroupCode: profileForm.columnGroupCode.value,
+          preferredLanguageCode: profileForm.preferredLanguageCode.value,
           bio: profileForm.bio.value,
         }),
       });

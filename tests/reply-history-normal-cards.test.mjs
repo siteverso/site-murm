@@ -9,8 +9,9 @@ test('página de respostas reutiliza o renderizador completo dos cards normais',
   assert.match(component, /data-reply-history/);
   assert.match(component, /data-reply-history-data/);
   assert.match(app, /function renderReplyHistory\(\)/);
+  assert.match(app, /function renderReplyHistoryGroup\(group\)/);
   assert.match(app, /const threadPosts = Array\.isArray\(group\?\.posts\) \? group\.posts : \[\]/);
-  assert.match(app, /return renderPost\(root, childrenByParent/);
+  assert.match(app, /renderPost\(root, childrenByParent/);
   assert.doesNotMatch(component, /murmur-actions is-static/);
 });
 

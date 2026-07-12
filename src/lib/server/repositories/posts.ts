@@ -1,7 +1,7 @@
 import oracledb from 'oracledb';
 import {withConnection} from '../oracle';
 
-export async function listPosts(_currentUserId: number | null, profileUsername: string | null = null): Promise<unknown[]> {
+export async function listPosts(_currentUserId: number | null, profileUsername: string | null = null, preferredLanguageCode: string | null = null): Promise<unknown[]> {
     return withConnection(async connection => {
         // Feed principal e listagem normal de perfil exibem somente murmúrios raiz.
         // Respostas permanecem acessíveis exclusivamente pelas páginas de thread/respostas,
@@ -16,6 +16,7 @@ export async function listPosts(_currentUserId: number | null, profileUsername: 
                     NVL(p.share_count, 0) AS share_count,
                     p.created_at,
                     p.status,
+                    NVL(p.language_code, NVL(u.language_code, 'pt-BR')) AS language_code,
                     u.username,
                     NVL(u.sex_code, '') AS sex_code,
                     '' AS region_code,
@@ -41,8 +42,15 @@ export async function listPosts(_currentUserId: number | null, profileUsername: 
                          FETCH FIRST 1 ROW ONLY
                     )
                 )
-              ORDER BY p.created_at DESC`,
-            { profile_username: profileUsername },
+              ORDER BY CASE
+                           WHEN :profile_username IS NULL
+                            AND :preferred_language_code IS NOT NULL
+                            AND NVL(p.language_code, NVL(u.language_code, 'pt-BR')) = :preferred_language_code
+                           THEN 0
+                           ELSE 1
+                       END,
+                       p.created_at DESC`,
+            { profile_username: profileUsername, preferred_language_code: preferredLanguageCode },
         );
 
         return (result.rows || []).map(row => ({
@@ -55,6 +63,7 @@ export async function listPosts(_currentUserId: number | null, profileUsername: 
             regionCode: '',
             avatarUrl: '',
             text: String(row.CONTENTS || ''),
+            languageCode: String(row.LANGUAGE_CODE || 'pt-BR'),
             positive: Number(row.POSITIVE_COUNT || 0),
             negative: Number(row.NEGATIVE_COUNT || 0),
             shares: Number(row.SHARE_COUNT || 0),
@@ -253,14 +262,16 @@ export async function createPost(userId: number, contents: string, parentPostId:
                         user_id,
                         parent_post_id,
                         contents,
-                        post_type
+                        post_type,
+                        language_code
                     )
                     VALUES
                     (
                         :user_id,
                         :parent_post_id,
                         :contents,
-                        'murmur'
+                        'murmur',
+                        (SELECT NVL(language_code, 'pt-BR') FROM murm_user WHERE id = :user_id)
                     )
                     RETURNING id INTO :id;
                 END;

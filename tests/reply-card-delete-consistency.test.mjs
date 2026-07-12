@@ -12,9 +12,12 @@ test('card completo de resposta pede confirmação antes de apagar', () => {
   assert.doesNotMatch(app, /if \(target\.matches\('\[data-delete-reply\]'\)\) \{ await api/);
 });
 
-test('exclusão confirmada atualiza a página de respostas e o feed normal', () => {
+test('exclusão confirmada atualiza somente o grupo afetado na página de respostas e o feed normal', () => {
   assert.match(app, /await api\(`\/api\/replies\/\$\{replyId\}`/);
-  assert.match(app, /if \(!refreshReplyHistoryPage\(\)\) await loadFeed\(true\)/);
+  assert.match(app, /await refreshReplyHistoryPage\(replyId\)/);
+  assert.match(app, /data-reply-history-root/);
+  assert.match(app, /currentGroup\.outerHTML = renderReplyHistoryGroup\(nextGroup\)/);
+  assert.doesNotMatch(app, /window\.location\.reload\(\)/);
   assert.match(app, /toast\('Resposta apagada\.'\)/);
   assert.match(css, /\.murmur-card\.is-deleting/);
 });
