@@ -10,4 +10,3 @@ TODO, um de cada vez:
  
 - deve exibir imagem do perfil nos murmurios ![img_6.png](img_6.png)
 - se a pessoa ecoou ou ocultou tem q deixar o icone da acao daquele card com efeito blur led ligado contorno ![img_7.png](img_7.png)
-- 
