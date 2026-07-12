@@ -20,7 +20,10 @@ import Header from '../components/Header.astro';
           </div>
           <button class="direct-conversation-menu-button" type="button" data-direct-conversation-menu-button aria-label="Opções da conversa" title="Opções da conversa" aria-expanded="false">⋯</button>
           <div class="direct-conversation-menu" data-direct-conversation-menu hidden>
+            <button type="button" data-archive-direct-conversation>Arquivar conversa</button>
+            <button type="button" data-block-direct-user>Bloquear pessoa</button>
             <button type="button" data-report-direct>Denunciar conversa</button>
+            <button class="is-danger" type="button" data-delete-direct-conversation>Excluir da minha caixa</button>
           </div>
         </header>
         <div class="direct-messages" data-direct-messages>
@@ -28,6 +31,10 @@ import Header from '../components/Header.astro';
             <button class="direct-load-more" type="button" data-load-more-direct>Carregar 20 anteriores</button>
           </div>
           <div class="direct-message-list" data-direct-message-list></div>
+        </div>
+        <div class="direct-blocked-notice" data-direct-blocked-notice hidden>
+          <span>Você bloqueou esta pessoa.</span>
+          <button type="button" data-unblock-direct-user>Desbloquear</button>
         </div>
         <form class="direct-form" data-direct-form>
           <textarea name="contents" maxlength={TEXT_LIMIT} placeholder="Responder com outro bilhete…" required></textarea>

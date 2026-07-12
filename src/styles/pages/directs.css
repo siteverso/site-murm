@@ -134,3 +134,10 @@
 .direct-report-field > span { color: var(--muted); font-size: .78rem; font-weight: 800; }
 .direct-report-field select, .direct-report-field textarea { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid var(--line); border-radius: 12px; color: var(--text); background: var(--bg); }
 .direct-report-field textarea { min-height: 110px; resize: vertical; }
+.direct-conversation-menu button.is-danger { color: #ef8f8f; }
+.direct-conversation-menu button.is-danger:hover,
+.direct-conversation-menu button.is-danger:focus-visible { color: #ffb0b0; background: color-mix(in srgb, #d94c4c 11%, var(--surface-2)); }
+.direct-blocked-notice { min-height: 48px; padding: 10px 16px; display: flex; align-items: center; justify-content: center; gap: 12px; border-top: 1px solid color-mix(in srgb, #d69b53 28%, var(--line)); color: var(--muted); background: color-mix(in srgb, #d69b53 6%, var(--surface)); font-size: .82rem; }
+.direct-blocked-notice[hidden] { display: none; }
+.direct-blocked-notice button { min-height: 32px; padding: 0 11px; border: 1px solid var(--line); border-radius: 999px; color: var(--text); background: var(--surface-2); cursor: pointer; font-weight: 800; }
+.direct-form textarea:disabled { opacity: .55; cursor: not-allowed; }

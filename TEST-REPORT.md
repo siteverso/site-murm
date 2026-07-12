@@ -1,14 +1,19 @@
-# Relatório de validação
+# Test report
 
-## Alteração
+## Direct privacy controls
 
-- Mantido o LED de ecoar/ignorar já aprovado.
-- O botão **Responder** agora recebe estado ligado quando o usuário atual possui ao menos uma resposta publicada diretamente naquele murmúrio.
-- O estado vem do banco (`hasMyReply`), sem armazenamento paralelo no navegador.
-- O comportamento também foi aplicado às consultas de thread e de expansão de ramo.
+Implemented and validated:
 
-## Validação
+- Archive conversation for the current user.
+- Remove conversation only from the current user's inbox.
+- Block and unblock another user.
+- Backend block enforcement before sending a direct.
+- Report conversation by sending a direct to `@murmurinho`.
+- Incremental Oracle patch for conversation state and block relationships.
 
-- `node --test tests/reply-led-state.test.mjs tests/vote-led-state.test.mjs`: 6 testes aprovados.
-- `npm run build`: build Astro concluído com sucesso.
-- A suíte completa ainda contém assertions antigas e frágeis de formatação/assinatura que já falhavam por diferenças textuais; não indicam erro de execução desta alteração.
+## Validation
+
+- `npm run build`: passed.
+- `node --test tests/direct-report.test.mjs tests/direct-privacy-controls.test.mjs`: 5 passed, 0 failed.
+
+The complete legacy test suite still contains failures that were already present outside this change set; the targeted privacy tests and production build pass.

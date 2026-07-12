@@ -41,6 +41,7 @@ export function errorResponse(error: unknown): Response {
         RESPOSTA_NAO_ENCONTRADA: [404, 'Resposta não encontrada.'],
         DIRECT_INVALIDO: [400, 'Bilhete inválido ou destinatário indisponível.'],
         DIRECT_AGUARDE: [429, 'Aguarde 2 segundos antes de enviar outro bilhete.'],
+        DIRECT_BLOQUEADO: [403, 'Não foi possível entregar este bilhete.'],
         DIRECT_NAO_ENCONTRADO: [404, 'Bilhete não encontrado ou sem permissão para alterar.'],
         SEM_PERMISSAO: [403, 'Você não pode executar esta ação.'],
         SEXO_NAO_PODE_REMOVER: [400, 'Depois de definido, o sexo não pode ser removido.'],

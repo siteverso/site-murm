@@ -36,6 +36,8 @@ function bindDirectsPage() {
     const activeUsername = $('[data-direct-active-username]', root);
     const conversationMenuButton = $('[data-direct-conversation-menu-button]', root);
     const conversationMenu = $('[data-direct-conversation-menu]', root);
+    const blockedNotice = $('[data-direct-blocked-notice]', root);
+    const blockMenuButton = $('[data-block-direct-user]', root);
     const textarea = $('textarea[name="contents"]', form);
     const locale = window.__MURMUR_LOCALE__ === 'en' ? 'en' : 'pt-BR';
     const pendingDeletes = new Map();
@@ -59,10 +61,12 @@ function bindDirectsPage() {
     let refreshingDirects = false;
     let directsRefreshTimer = null;
     let activeConversationUsername = '';
+    let activeBlockedByMe = false;
+    let activeBlockedEither = false;
 
     const labels = locale === 'en'
-        ? {remove: 'Delete', edit: 'Edit', save: 'Save', confirm: 'Confirm', cancel: 'Cancel', undo: 'Undo', deleted: 'Message deleted.', loadMore: 'Load 20 earlier', loadingMore: 'Loading…', edited: 'edited', pending: 'sending…', reportTitle: 'Report conversation', reportReason: 'Reason', reportDetails: 'Optional details', reportSubmit: 'Send report', reportSent: 'Report sent to @murmurinho.'}
-        : {remove: 'Excluir', edit: 'Editar', save: 'Salvar', confirm: 'Confirmar', cancel: 'Cancelar', undo: 'Desfazer', deleted: 'Bilhete excluído.', loadMore: 'Carregar 20 anteriores', loadingMore: 'Carregando…', edited: 'editado', pending: 'enviando…', reportTitle: 'Denunciar conversa', reportReason: 'Motivo', reportDetails: 'Detalhes opcionais', reportSubmit: 'Enviar denúncia', reportSent: 'Denúncia enviada para @murmurinho.'};
+        ? {remove: 'Delete', edit: 'Edit', save: 'Save', confirm: 'Confirm', cancel: 'Cancel', undo: 'Undo', deleted: 'Message deleted.', loadMore: 'Load 20 earlier', loadingMore: 'Loading…', edited: 'edited', pending: 'sending…', reportTitle: 'Report conversation', reportReason: 'Reason', reportDetails: 'Optional details', reportSubmit: 'Send report', reportSent: 'Report sent to @murmurinho.', block: 'Block person', unblock: 'Unblock person', archived: 'Conversation archived.', conversationDeleted: 'Conversation removed from your inbox.', blocked: 'Person blocked.', unblocked: 'Person unblocked.'}
+        : {remove: 'Excluir', edit: 'Editar', save: 'Salvar', confirm: 'Confirmar', cancel: 'Cancelar', undo: 'Desfazer', deleted: 'Bilhete excluído.', loadMore: 'Carregar 20 anteriores', loadingMore: 'Carregando…', edited: 'editado', pending: 'enviando…', reportTitle: 'Denunciar conversa', reportReason: 'Motivo', reportDetails: 'Detalhes opcionais', reportSubmit: 'Enviar denúncia', reportSent: 'Denúncia enviada para @murmurinho.', block: 'Bloquear pessoa', unblock: 'Desbloquear pessoa', archived: 'Conversa arquivada.', conversationDeleted: 'Conversa excluída da sua caixa.', blocked: 'Pessoa bloqueada.', unblocked: 'Pessoa desbloqueada.'};
 
     const sexClass = value => value === 'M' ? 'sex-m' : value === 'F' ? 'sex-f' : '';
 
@@ -154,7 +158,13 @@ function bindDirectsPage() {
         if (activeUserId) {
             const activeConversation = conversations.find(item => String(item.otherUserId) === String(activeUserId));
             activeConversationUsername = activeConversation?.username || '';
+            activeBlockedByMe = Boolean(activeConversation?.blockedByMe);
+            activeBlockedEither = Boolean(activeConversation?.blockedEither);
             if (activeUsername) activeUsername.textContent = activeConversationUsername ? `@${activeConversationUsername}` : '';
+            if (blockMenuButton) blockMenuButton.textContent = activeBlockedByMe ? labels.unblock : labels.block;
+            if (blockedNotice) blockedNotice.hidden = !activeBlockedByMe;
+            textarea.disabled = activeBlockedEither;
+            form.querySelector('button[type="submit"]').disabled = activeBlockedEither;
 
             renderMessages(data.messages || []);
             hasMoreMessages = Boolean(data.hasMore);
@@ -299,6 +309,67 @@ function bindDirectsPage() {
         conversationMenuButton.setAttribute('aria-expanded', 'false');
     };
 
+    const closeActiveConversation = async () => {
+        activeUserId = '';
+        activeConversationUsername = '';
+        activeBlockedByMe = false;
+        activeBlockedEither = false;
+        setUrlUserId('', true);
+        stage.hidden = true;
+        empty.hidden = false;
+        closeConversationMenu();
+        await load('');
+    };
+
+    const runConversationAction = async (action, successMessage) => {
+        if (!activeUserId) return;
+        await api('/api/directs/conversation', {
+            method: 'POST',
+            body: JSON.stringify({otherUserId: Number(activeUserId), action}),
+        });
+        await closeActiveConversation();
+        toast(successMessage);
+    };
+
+    const setBlockedState = async shouldBlock => {
+        if (!activeUserId) return;
+        const otherUserId = Number(activeUserId);
+        if (shouldBlock) {
+            await api('/api/directs/block', {
+                method: 'POST',
+                body: JSON.stringify({otherUserId}),
+            });
+        } else {
+            await api(`/api/directs/block?otherUserId=${otherUserId}`, {method: 'DELETE'});
+        }
+        await load(activeUserId);
+        toast(shouldBlock ? labels.blocked : labels.unblocked);
+    };
+
+    const openConversationConfirm = (kind) => {
+        if (!activeUserId || !activeConversationUsername) return;
+        closeConversationMenu();
+        const isDelete = kind === 'delete';
+        const isArchive = kind === 'archive';
+        const title = isDelete ? 'Excluir conversa' : isArchive ? 'Arquivar conversa' : activeBlockedByMe ? 'Desbloquear pessoa' : 'Bloquear pessoa';
+        const message = isDelete
+            ? `A conversa com @${escapeHtml(activeConversationUsername)} será removida somente da sua caixa. A outra pessoa continuará vendo o histórico.`
+            : isArchive
+                ? `A conversa com @${escapeHtml(activeConversationUsername)} sairá da lista e reaparecerá quando chegar um novo bilhete.`
+                : activeBlockedByMe
+                    ? `@${escapeHtml(activeConversationUsername)} poderá voltar a enviar bilhetes para você.`
+                    : `@${escapeHtml(activeConversationUsername)} não poderá trocar novos bilhetes com você. O bloqueio não será avisado diretamente.`;
+        modal(`
+          <h2>${title}</h2>
+          <p class="modal-subtitle">${message}</p>
+          <form data-direct-conversation-action data-action="${kind}">
+            <div class="modal-actions">
+              <button class="button" type="button" data-modal-close>Cancelar</button>
+              <button class="button ${isDelete ? 'danger' : 'primary'}" type="submit">Confirmar</button>
+            </div>
+          </form>`, 'direct-conversation-action-modal');
+    };
+
     const openReportDialog = () => {
         if (!activeUserId || !activeConversationUsername) return;
         closeConversationMenu();
@@ -334,6 +405,30 @@ function bindDirectsPage() {
             const willOpen = conversationMenu.hidden;
             conversationMenu.hidden = !willOpen;
             conversationMenuButton.setAttribute('aria-expanded', String(willOpen));
+            return;
+        }
+
+        const archiveConversationButton = event.target.closest('[data-archive-direct-conversation]');
+        if (archiveConversationButton) {
+            openConversationConfirm('archive');
+            return;
+        }
+
+        const blockUserButton = event.target.closest('[data-block-direct-user]');
+        if (blockUserButton) {
+            openConversationConfirm('block');
+            return;
+        }
+
+        const unblockUserButton = event.target.closest('[data-unblock-direct-user]');
+        if (unblockUserButton) {
+            openConversationConfirm('block');
+            return;
+        }
+
+        const deleteConversationButton = event.target.closest('[data-delete-direct-conversation]');
+        if (deleteConversationButton) {
+            openConversationConfirm('delete');
             return;
         }
 
@@ -412,7 +507,25 @@ function bindDirectsPage() {
         }
     });
 
-    root.addEventListener('submit', async event => {
+    document.addEventListener('submit', async event => {
+        const actionForm = event.target.closest('[data-direct-conversation-action]');
+        if (actionForm) {
+            event.preventDefault();
+            const submit = actionForm.querySelector('button[type="submit"]');
+            setButtonLoading(submit, true, '');
+            try {
+                const action = actionForm.dataset.action;
+                if (action === 'archive') await runConversationAction('archive', labels.archived);
+                else if (action === 'delete') await runConversationAction('delete', labels.conversationDeleted);
+                else await setBlockedState(!activeBlockedByMe);
+                closeModal();
+            } catch (error) {
+                toast(error.message);
+                setButtonLoading(submit, false);
+            }
+            return;
+        }
+
         const editForm = event.target.closest('[data-direct-edit-form]');
         if (!editForm) return;
         event.preventDefault();
