@@ -19,7 +19,9 @@ const countryCallingCode = profile?.countryCallingCode || '';
 <aside class="panel profile-card public-profile-card">
   {editableAvatar ? (
     <div class="account-avatar-editor">
-      <button class="avatar account-avatar-trigger" type="button" aria-label="Alterar foto do perfil" title="Alterar foto" data-profile-avatar data-avatar-trigger>{initials}</button>
+      <button class="avatar account-avatar-trigger" type="button" aria-label="Alterar foto do perfil" title="Alterar foto" data-profile-avatar data-avatar-trigger>
+        {profile?.avatarUrl ? <img src={profile.avatarUrl} alt={`Foto de @${username}`} /> : initials}
+      </button>
       <form class="account-avatar-form" data-avatar-form>
         <label class="button secondary compact" for="profileAvatar">Alterar foto</label>
         <input id="profileAvatar" name="avatar" type="file" accept="image/jpeg,image/png,image/webp" hidden data-avatar-input />

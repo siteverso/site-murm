@@ -71,3 +71,13 @@ test('foto do perfil público abre visualização ampliada simples', async () =>
   assert.match(css, /border: 1px solid/);
   assert.match(css, /background: rgb\(0 0 0 \/ 78%\)/);
 });
+
+
+test('conta renderiza o avatar atual no servidor e mantém atualização dinâmica', async () => {
+  const account = await read('src/pages/conta.astro');
+  const sidebar = await read('src/components/ProfileSidebar.astro');
+
+  assert.match(account, /const profile = await requireUser\(Astro\)/);
+  assert.match(account, /<ProfileSidebar dynamic editableAvatar profile=\{profile\}/);
+  assert.match(sidebar, /editableAvatar[\s\S]*profile\?\.avatarUrl[\s\S]*<img src=\{profile\.avatarUrl\}/);
+});

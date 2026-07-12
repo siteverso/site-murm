@@ -3,13 +3,15 @@ import AppLayout from '../layouts/AppLayout.astro';
 import Header from '../components/Header.astro';
 import ProfileSidebar from '../components/ProfileSidebar.astro';
 import { getMessages, normalizeLocale } from '../i18n';
+import { requireUser } from '../lib/server/session';
 const locale = normalizeLocale(Astro.cookies.get('murmurinho-language')?.value);
 const t = getMessages(locale);
+const profile = await requireUser(Astro);
 ---
 <AppLayout title={`${t.profile.title} — ${t.site.title}`}>
   <Header />
   <main class="shell profile-grid">
-    <ProfileSidebar dynamic editableAvatar labels={t.profile} />
+    <ProfileSidebar dynamic editableAvatar profile={profile} labels={t.profile} />
 
     <div class="profile-sections">
       <section class="panel profile-edit">
