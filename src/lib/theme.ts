@@ -1,4 +1,4 @@
-export const THEME_CODES = ['graphite', 'pearl', 'ocean', 'forest', 'sunset', 'rose', 'purple'] as const;
+export const THEME_CODES = ['graphite', 'graphite-bright', 'pearl', 'ocean', 'forest', 'sunset', 'rose', 'purple'] as const;
 export type ThemeCode = typeof THEME_CODES[number];
 
 export function normalizeThemeCode(value: unknown): ThemeCode | 'auto' {

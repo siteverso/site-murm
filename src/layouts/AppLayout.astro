@@ -28,7 +28,7 @@ const clientTextLimit = JSON.stringify(TEXT_LIMIT);
         const match = document.cookie.match(/(?:^|; )murmurinho-theme=([^;]+)/);
         const saved = match ? decodeURIComponent(match[1]) : '';
         const aliases = { light: 'pearl', dark: 'graphite' };
-        const allowed = ['graphite', 'pearl', 'ocean', 'forest', 'sunset', 'rose', 'purple'];
+        const allowed = ['graphite', 'graphite-bright', 'pearl', 'ocean', 'forest', 'sunset', 'rose', 'purple'];
         const candidate = aliases[saved] || saved;
         const theme = allowed.includes(candidate) ? candidate : 'graphite';
         document.documentElement.dataset.theme = theme;
@@ -38,6 +38,6 @@ const clientTextLimit = JSON.stringify(TEXT_LIMIT);
   </head>
   <body data-auth-required={auth ? 'true' : 'false'}>
     <slot />
-    <script type="module" is:inline src="/app.js?v=20260713-graphite-default-1"></script>
+    <script type="module" is:inline src="/app.js?v=20260713-graphite-bright-1"></script>
   </body>
 </html>

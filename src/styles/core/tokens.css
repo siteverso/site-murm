@@ -86,6 +86,23 @@ html[data-theme="graphite"] {
   --shadow: 0 24px 65px rgb(0 0 0 / 38%);
 }
 
+html[data-theme="graphite-bright"] {
+  color: #202226;
+  background: #e7e8ea;
+  --bg: #e7e8ea;
+  --surface: #f7f7f8;
+  --surface-2: #d9dbde;
+  --text: #202226;
+  --muted: #666b72;
+  --line: #c4c7cb;
+  --strong: #111317;
+  --inverse: #f7f7f8;
+  --positive: #292c31;
+  --negative: #777c83;
+  --danger: #b52d32;
+  --shadow: 0 22px 58px rgb(27 30 35 / 13%);
+}
+
 html[data-theme="ocean"] {
   color: #eaf8ff;
   background: #071b2a;

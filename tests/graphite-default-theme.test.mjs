@@ -9,7 +9,7 @@ test('graphite is the first theme and deterministic client fallback', async () =
   const layout = await read('src/layouts/AppLayout.astro');
   assert.ok(ui.indexOf("code: 'graphite'") < ui.indexOf("code: 'pearl'"));
   assert.match(ui, /return 'graphite';/);
-  assert.match(layout, /const allowed = \['graphite', 'pearl', 'ocean', 'forest', 'sunset', 'rose', 'purple'\]/);
+  assert.match(layout, /const allowed = \['graphite', 'graphite-bright', 'pearl', 'ocean', 'forest', 'sunset', 'rose', 'purple'\]/);
   assert.match(layout, /allowed\.includes\(candidate\) \? candidate : 'graphite'/);
 });
 

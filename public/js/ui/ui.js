@@ -1,5 +1,6 @@
 const THEMES = Object.freeze([
     {code: 'graphite', name: 'Grafite'},
+    {code: 'graphite-bright', name: 'Grafite Bright'},
     {code: 'pearl', name: 'Pérola'},
     {code: 'ocean', name: 'Oceano'},
     {code: 'forest', name: 'Floresta'},
