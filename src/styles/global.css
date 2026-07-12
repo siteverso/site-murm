@@ -14,6 +14,7 @@
 @import './components/reply-actions.css';
 @import './components/floating-actions.css';
 @import './components/modal.css';
+@import './components/theme-picker.css';
 @import './pages/directs.css';
 @import './components/thread.css';
 @import './components/direct-message-actions.css';

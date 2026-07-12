@@ -1,6 +1,7 @@
 import type { APIContext } from 'astro';
 import { createToken, hashToken } from './security';
 import { withConnection } from './oracle';
+import { normalizeThemeCode, type ThemeCode } from '../theme';
 
 export type SessionUser = {
     id: number;
@@ -22,7 +23,7 @@ export type SessionUser = {
     avatarUrl: string;
     languageCode: string;
     preferredLanguageCode: 'pt-BR' | 'en' | 'es';
-    themeCode: string;
+    themeCode: ThemeCode | 'auto';
     countryCode: string;
     countryName: string;
     countryCallingCode: string;
@@ -197,7 +198,7 @@ export async function currentUser(context: APIContext): Promise<SessionUser | nu
             preferredLanguageCode: ['pt-BR', 'en', 'es'].includes(String(row.PREFERRED_LANGUAGE_CODE || 'pt-BR'))
                 ? String(row.PREFERRED_LANGUAGE_CODE || 'pt-BR') as 'pt-BR' | 'en' | 'es'
                 : 'pt-BR',
-            themeCode: String(row.THEME_CODE || 'auto'),
+            themeCode: normalizeThemeCode(row.THEME_CODE),
             countryCode: String(row.COUNTRY_CODE || ''),
             countryName: String(row.COUNTRY_NAME || ''),
             countryCallingCode: String(row.COUNTRY_CALLING_CODE || ''),

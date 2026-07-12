@@ -27,7 +27,10 @@ const clientTextLimit = JSON.stringify(TEXT_LIMIT);
       (() => {
         const match = document.cookie.match(/(?:^|; )murmurinho-theme=([^;]+)/);
         const saved = match ? decodeURIComponent(match[1]) : '';
-        const theme = saved || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        const aliases = { light: 'pearl', dark: 'graphite' };
+        const allowed = ['pearl', 'graphite', 'ocean', 'forest', 'sunset'];
+        const candidate = aliases[saved] || saved;
+        const theme = allowed.includes(candidate) ? candidate : (matchMedia('(prefers-color-scheme: dark)').matches ? 'graphite' : 'pearl');
         document.documentElement.dataset.theme = theme;
       })();
     </script>

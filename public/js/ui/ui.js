@@ -1,3 +1,50 @@
+const THEMES = Object.freeze([
+    {code: 'pearl', name: 'Pérola'},
+    {code: 'graphite', name: 'Grafite'},
+    {code: 'ocean', name: 'Oceano'},
+    {code: 'forest', name: 'Floresta'},
+    {code: 'sunset', name: 'Pôr do sol'},
+]);
+
+function normalizeClientTheme(value) {
+    const code = String(value || '').toLowerCase();
+    if (THEMES.some(theme => theme.code === code)) return code;
+    if (code === 'dark') return 'graphite';
+    if (code === 'light') return 'pearl';
+    return matchMedia('(prefers-color-scheme: dark)').matches ? 'graphite' : 'pearl';
+}
+
+function applyTheme(themeCode, persistCookie = true) {
+    const code = normalizeClientTheme(themeCode);
+    document.documentElement.dataset.theme = code;
+    if (persistCookie) document.cookie = `murmurinho-theme=${encodeURIComponent(code)};path=/;max-age=31536000;samesite=lax`;
+    $$('[data-theme-code]').forEach(choice => choice.setAttribute('aria-pressed', String(choice.dataset.themeCode === code)));
+    return code;
+}
+
+function openThemePicker() {
+    const active = normalizeClientTheme(document.documentElement.dataset.theme);
+    const choices = THEMES.map(theme => `<button class="theme-choice" type="button" data-theme-code="${theme.code}" aria-pressed="${theme.code === active}"><span class="theme-choice-preview" aria-hidden="true"></span><span class="theme-choice-name">${theme.name}</span></button>`).join('');
+    modal(`<h2>Escolha seu tema</h2><p class="theme-picker-intro">A aparência é salva na sua conta e volta com você em qualquer acesso.</p><div class="theme-picker-grid">${choices}</div><p class="theme-picker-status" data-theme-status></p>`, 'theme-picker-modal');
+}
+
+async function selectTheme(themeCode) {
+    const previous = normalizeClientTheme(document.documentElement.dataset.theme);
+    const selected = applyTheme(themeCode);
+    const status = $('[data-theme-status]');
+    if (status) status.textContent = 'Salvando tema…';
+    try {
+        await api('/api/auth/theme', {method: 'PATCH', body: JSON.stringify({themeCode: selected})});
+        if (currentUser) currentUser.themeCode = selected;
+        if (status) status.textContent = 'Tema salvo na sua conta.';
+        toast('Tema atualizado.');
+    } catch (error) {
+        applyTheme(previous);
+        if (status) status.textContent = error.message;
+        toast(error.message);
+    }
+}
+
 function closeModal() {
     $('[data-modal]')?.remove();
 }
@@ -81,6 +128,9 @@ function bindUi() {
         if (event.target.matches('[data-modal], [data-modal-close]')) closeModal();
         if (event.target.closest('[data-new-murmur]')) openComposer();
         if (event.target.closest('[data-scroll-top]')) window.scrollTo({top: 0, behavior: 'smooth'});
+        if (event.target.closest('[data-theme-toggle]')) openThemePicker();
+        const themeChoice = event.target.closest('[data-theme-code]');
+        if (themeChoice) selectTheme(themeChoice.dataset.themeCode);
     });
     document.addEventListener('keydown', event => {
         const activeModal = $('[data-modal]');
@@ -108,11 +158,6 @@ function bindUi() {
         }
     });
     window.addEventListener('scroll', () => $('[data-scroll-top]')?.classList.toggle('visible', scrollY > 500), {passive: true});
-    $('[data-theme-toggle]')?.addEventListener('click', () => {
-        const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-        document.documentElement.dataset.theme = next;
-        document.cookie = `murmurinho-theme=${next};path=/;max-age=31536000`;
-    });
     $('[data-logout]')?.addEventListener('click', async () => {
         await api('/api/auth/logout', {method: 'POST'});
         location.href = '/login';

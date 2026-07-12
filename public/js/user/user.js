@@ -24,6 +24,8 @@ function renderAvatar(el, user) {
 function renderUser(user) {
     if (!user) return;
 
+    if (typeof applyTheme === 'function') applyTheme(user.themeCode);
+
     $$('[data-user-avatar]').forEach(el => renderAvatar(el, user));
     $$('[data-user-name]').forEach(el => {
         el.textContent = `@${user.username}`;
