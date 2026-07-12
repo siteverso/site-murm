@@ -135,7 +135,7 @@ export async function currentUser(context: APIContext): Promise<SessionUser | nu
                     END AS avatar_url,
                     u.language_code,
                     NVL(u.preferred_language_code, 'pt-BR') AS preferred_language_code,
-                    NVL(u.theme_code, 'auto') AS theme_code,
+                    NVL(u.theme_code, 'graphite') AS theme_code,
                     NVL(u.country_code, '') AS country_code,
                     NVL(u.country_name, '') AS country_name,
                     NVL(u.country_calling_code, '') AS country_calling_code,

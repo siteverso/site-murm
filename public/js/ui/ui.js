@@ -1,6 +1,6 @@
 const THEMES = Object.freeze([
-    {code: 'pearl', name: 'Pérola'},
     {code: 'graphite', name: 'Grafite'},
+    {code: 'pearl', name: 'Pérola'},
     {code: 'ocean', name: 'Oceano'},
     {code: 'forest', name: 'Floresta'},
     {code: 'sunset', name: 'Pôr do sol'},
@@ -13,7 +13,7 @@ function normalizeClientTheme(value) {
     if (THEMES.some(theme => theme.code === code)) return code;
     if (code === 'dark') return 'graphite';
     if (code === 'light') return 'pearl';
-    return matchMedia('(prefers-color-scheme: dark)').matches ? 'graphite' : 'pearl';
+    return 'graphite';
 }
 
 function applyTheme(themeCode, persistCookie = true) {
