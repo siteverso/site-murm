@@ -1,19 +1,15 @@
-# TEST REPORT — site-murm-baralho-tinder-glow
+# TEST REPORT — site-murm-baralho-fullstage-arremesso-v2
 
-## Escopo
-- reforço visual do modo Baralho 3D na Home
-- swipe estilo Tinder
-- direita = Ecoar
-- esquerda = Silenciar
-- glow visível ao atingir o limiar mínimo da ação
-- saída automática da carta ao soltar após o limiar
-- fila contínua com buffer de até 100 murmúrios e reposição contínua
+## Correções
+- cartas alinhadas e retas no repouso
+- ícones de Ecoar/Silenciar reposicionados dentro da própria carta
+- fullstage mantido sem clipping lateral
+- arremesso visível após soltar acima do limiar
+- animação segue direção, velocidade e torque do gesto
+- removido desaparecimento instantâneo causado por animação reduzida a 1 ms
 
-## Validações executadas
-- `node --test tests/home-card-deck.test.mjs` ✅ 3/3
+## Validações
+- `node --check public/app.js` ✅
+- `node --check public/js/feed/card-deck.js` ✅
+- `node --test tests/home-card-deck.test.mjs` ✅ 4/4
 - `npm run build` ✅
-
-## Observações
-- a ação do swipe usa o endpoint real de voto (`/api/posts/:id/vote`)
-- o baralho mantém pilha visual contínua e reabastece a fila antes de esgotar
-- ícones laterais e glow mudam conforme a direção armada

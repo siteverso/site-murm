@@ -10,6 +10,7 @@ function bindFeedView() {
     const applyView = view => {
         const mode = validViews.has(view) ? view : 'split';
         board.dataset.feedViewMode = mode;
+        board.closest('.network-board-page')?.classList.toggle('deck-stage-active', mode === 'deck');
         buttons.forEach(button => {
             const active = button.dataset.feedView === mode;
             button.classList.toggle('active', active);

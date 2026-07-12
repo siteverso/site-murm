@@ -18,22 +18,28 @@ test('home offers isolated 3D deck mode', () => {
   assert.match(app, /\/js\/feed\/card-deck\.js/);
 });
 
-test('deck supports tinder-like swipe actions and visible threshold glow', () => {
-  assert.match(deck, /DECK_SWIPE_THRESHOLD/);
-  assert.match(deck, /deckDirection/);
-  assert.match(deck, /deckArmed/);
-  assert.match(deck, /applyDeckAction/);
-  assert.match(deck, /value: voteValue/);
-  assert.match(css, /deck-overlay/);
-  assert.match(css, /data-deck-armed="true"/);
-  assert.match(css, /box-shadow: 0 0 0 1px/);
+test('deck removes clipper and opens a full-width stage for the throw animation', () => {
+  assert.match(interactions, /deck-stage-active/);
+  assert.match(css, /\.network-board-page\.deck-stage-active \.deck-view/);
+  assert.match(css, /overflow:\s*visible/);
+  assert.match(css, /width:\s*calc\(100vw - max\(20px, var\(--page-gutter\)\)\)/);
 });
 
-test('deck keeps a rotating buffered queue up to 100 items and refills while swiping', () => {
-  assert.match(deck, /DECK_BUFFER_LIMIT = 100/);
-  assert.match(deck, /DECK_REPLENISH_THRESHOLD/);
-  assert.match(deck, /refillDeckQueue/);
-  assert.match(deck, /consumeDeckCard/);
-  assert.match(deck, /shuffleDeckIds/);
-  assert.match(page, /direita para Ecoar, esquerda para Silenciar/);
+test('deck uses 100 static cards without auto refresh and throws cards using drag velocity', () => {
+  assert.match(deck, /DECK_MAX_CARDS = 100/);
+  assert.match(deck, /slice\(0, DECK_MAX_CARDS\)/);
+  assert.match(renderer, /if \(\$\('\[data-feed-deck\]'\)\) \{/);
+  assert.match(deck, /measureDeckVelocity/);
+  assert.match(deck, /animateDeckThrow/);
+  assert.match(deck, /targetRotation/);
+  assert.match(page, /100 murmúrios carregados sem atualização automática/);
+});
+
+test('deck keeps visible action glow and commits vote after threshold release', () => {
+  assert.match(deck, /DECK_SWIPE_THRESHOLD/);
+  assert.match(deck, /applyDeckAction/);
+  assert.match(deck, /value: voteValue/);
+  assert.match(css, /data-deck-armed="true"/);
+  assert.match(css, /0 0 56px/);
+  assert.match(css, /deck-overlay/);
 });

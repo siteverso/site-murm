@@ -314,6 +314,11 @@ function pinCardActions(postId) {
 function startFeedPolling() {
     if (!$('[data-feed-columns]') && !$('[data-feed-relevance-columns]') && !$('[data-feed-user-columns]') && !$('[data-feed-grid]') && !$('[data-feed-deck]') && !$('[data-feed-all-list]') && !$('[data-profile-feed]')) return;
 
+    if ($('[data-feed-deck]')) {
+        clearInterval(feedTimer);
+        return;
+    }
+
     bindFeedSyncEvents();
     clearInterval(feedTimer);
     feedTimer = setInterval(() => {

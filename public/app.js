@@ -13,7 +13,7 @@ const scripts = ["/js/core/runtime.js", "/js/user/user.js", "/js/posts/murmur-pu
 async function loadClassicScript(src) {
   await new Promise((resolve, reject) => {
     const script = document.createElement('script');
-    script.src = `${src}?v=20260713-card-deck-tinder-glow-1`;
+    script.src = `${src}?v=20260713-deck-throw-fullstage-2`;
     script.async = false;
     script.onload = resolve;
     script.onerror = () => reject(new Error(`Falha ao carregar módulo JavaScript: ${src}`));

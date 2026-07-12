@@ -1,10 +1,11 @@
 const DECK_VISIBLE_CARDS = 5;
+const DECK_MAX_CARDS = 100;
 const DECK_SWIPE_THRESHOLD = 118;
-const DECK_BUFFER_LIMIT = 100;
-const DECK_REPLENISH_THRESHOLD = 24;
-let deckQueue = [];
-let deckSourceIds = [];
-let deckFeedCursor = 0;
+const DECK_DRAG_ACTIVATION = 8;
+const DECK_THROW_DISTANCE = 1.2;
+let deckOrder = [];
+let deckCursor = 0;
+let deckSignature = '';
 let deckDragging = null;
 let deckSuppressClickUntil = 0;
 
@@ -18,58 +19,26 @@ function shuffleDeckIds(ids) {
 }
 
 function getDeckSourcePosts(items = []) {
-    return shuffleDeckIds(getRootPosts(items));
+    return getRootPosts(items).slice(0, DECK_MAX_CARDS);
 }
 
-function initializeDeckState(items = []) {
+function syncDeckOrder(items = []) {
     const roots = getDeckSourcePosts(items);
-    deckSourceIds = roots.map(post => String(post.id));
-    deckFeedCursor = 0;
-    deckQueue = [];
-    refillDeckQueue();
+    const ids = roots.map(post => String(post.id));
+    const nextSignature = ids.join(',');
+    if (nextSignature !== deckSignature) {
+        deckSignature = nextSignature;
+        deckOrder = shuffleDeckIds(ids);
+        deckCursor = 0;
+    }
+    return roots;
 }
 
-function refillDeckQueue() {
-    if (!deckSourceIds.length) {
-        deckQueue = [];
-        deckFeedCursor = 0;
-        return;
-    }
-
-    while (deckQueue.length < DECK_BUFFER_LIMIT && deckSourceIds.length) {
-        if (deckFeedCursor >= deckSourceIds.length) {
-            deckSourceIds = shuffleDeckIds(deckSourceIds);
-            deckFeedCursor = 0;
-        }
-        const nextId = deckSourceIds[deckFeedCursor];
-        deckFeedCursor += 1;
-        deckQueue.push(nextId);
-    }
-}
-
-function syncDeckPool(items = []) {
-    const roots = getDeckSourcePosts(items);
-    const nextIds = roots.map(post => String(post.id));
-    const currentSet = new Set(deckQueue);
-    const samePopulation = nextIds.length === deckSourceIds.length
-        && nextIds.every(id => deckSourceIds.includes(id));
-
-    if (!samePopulation) {
-        initializeDeckState(items);
-        return;
-    }
-
-    deckSourceIds = nextIds;
-    deckQueue = deckQueue.filter(id => deckSourceIds.includes(id));
-    if (!deckQueue.length) refillDeckQueue();
-    if (deckQueue.length < DECK_REPLENISH_THRESHOLD) refillDeckQueue();
-}
-
-function getDeckPosts(items) {
-    syncDeckPool(items);
-    const byId = new Map(getRootPosts(items).map(post => [String(post.id), post]));
-    return deckQueue
-        .slice(0, DECK_VISIBLE_CARDS)
+function getDeckPosts(items = []) {
+    const roots = syncDeckOrder(items);
+    const byId = new Map(roots.map(post => [String(post.id), post]));
+    return deckOrder
+        .slice(deckCursor, deckCursor + DECK_VISIBLE_CARDS)
         .map(id => byId.get(id))
         .filter(Boolean);
 }
@@ -85,8 +54,13 @@ function createDeckOverlay(direction) {
 function renderDeck(items = []) {
     const deck = $('[data-feed-deck]');
     if (!deck) return;
+
     const visible = getDeckPosts(items);
     const childrenByParent = groupPostsByParent(posts);
+    const remaining = Math.max(0, deckOrder.length - deckCursor);
+    deck.dataset.deckRemaining = String(remaining);
+    deck.dataset.deckTotal = String(deckOrder.length);
+
     deck.innerHTML = visible.length
         ? visible.map((post, index) => `
             <div class="deck-card" data-deck-card="" data-deck-index="${index}" data-deck-post-id="${post.id}" style="--deck-index:${index}; --deck-count:${visible.length}">
@@ -94,16 +68,19 @@ function renderDeck(items = []) {
               ${createDeckOverlay('right')}
               ${renderPost(post, childrenByParent, new Set(), {repliesMode: 'compact'})}
             </div>`).join('')
-        : '<p class="empty-state">Nenhum murmúrio no baralho.</p>';
-    deck.dataset.deckCount = String(visible.length);
+        : '<p class="empty-state">Os 100 murmúrios carregados acabaram.</p>';
+
     setupLazyVisuals(deck);
 }
 
 function consumeDeckCard() {
-    if (!deckQueue.length) return;
-    deckQueue.shift();
-    if (deckQueue.length < DECK_REPLENISH_THRESHOLD) refillDeckQueue();
+    if (deckCursor >= deckOrder.length) return;
+    deckCursor += 1;
     renderDeck(feedBuckets.all);
+}
+
+function getDeckDisplayedY(y = 0) {
+    return y * 0.16;
 }
 
 function updateDeckDragState(card, x = 0, y = 0) {
@@ -111,12 +88,11 @@ function updateDeckDragState(card, x = 0, y = 0) {
     const progress = Math.min(1, Math.abs(x) / DECK_SWIPE_THRESHOLD);
     const direction = x > 0 ? 'right' : x < 0 ? 'left' : '';
     const armed = Math.abs(x) >= DECK_SWIPE_THRESHOLD;
+    const displayedY = getDeckDisplayedY(y);
     card.dataset.deckDirection = direction;
     card.dataset.deckArmed = armed ? 'true' : 'false';
     card.style.setProperty('--deck-drag-progress', String(progress));
-    card.style.setProperty('--deck-drag-x', `${x}px`);
-    card.style.setProperty('--deck-drag-y', `${y}px`);
-    card.style.transform = `translate3d(${x}px, ${y * .15}px, 0) rotate(${x / 22}deg)`;
+    card.style.transform = `translate3d(${x}px, ${displayedY}px, 0) rotate(${x / 22}deg)`;
 }
 
 function clearDeckDragState(card) {
@@ -124,9 +100,22 @@ function clearDeckDragState(card) {
     delete card.dataset.deckDirection;
     delete card.dataset.deckArmed;
     card.style.removeProperty('--deck-drag-progress');
-    card.style.removeProperty('--deck-drag-x');
-    card.style.removeProperty('--deck-drag-y');
     card.style.transform = '';
+}
+
+function measureDeckVelocity(history = []) {
+    if (history.length < 2) return {vx: 0, vy: 0};
+    const end = history[history.length - 1];
+    let start = history[0];
+    for (let index = history.length - 2; index >= 0; index -= 1) {
+        if (end.t - history[index].t > 90) break;
+        start = history[index];
+    }
+    const dt = Math.max(16, end.t - start.t);
+    return {
+        vx: (end.x - start.x) / dt,
+        vy: (end.y - start.y) / dt,
+    };
 }
 
 function applyDeckAction(direction, postId) {
@@ -139,32 +128,47 @@ function applyDeckAction(direction, postId) {
     }).then(() => {
         toast(actionLabel);
         const targetPost = posts.find(post => String(post.id) === String(postId));
-        if (targetPost) {
-            const previousVote = Number(targetPost.myVote || 0);
-            if (previousVote !== voteValue) {
-                if (previousVote === 1) targetPost.positive = Math.max(0, Number(targetPost.positive || 0) - 1);
-                if (previousVote === -1) targetPost.negative = Math.max(0, Number(targetPost.negative || 0) - 1);
-                if (voteValue === 1) targetPost.positive = Number(targetPost.positive || 0) + 1;
-                if (voteValue === -1) targetPost.negative = Number(targetPost.negative || 0) + 1;
-                targetPost.myVote = voteValue;
-            }
-        }
+        if (!targetPost) return;
+        const previousVote = Number(targetPost.myVote || 0);
+        if (previousVote === voteValue) return;
+        if (previousVote === 1) targetPost.positive = Math.max(0, Number(targetPost.positive || 0) - 1);
+        if (previousVote === -1) targetPost.negative = Math.max(0, Number(targetPost.negative || 0) - 1);
+        if (voteValue === 1) targetPost.positive = Number(targetPost.positive || 0) + 1;
+        if (voteValue === -1) targetPost.negative = Number(targetPost.negative || 0) + 1;
+        targetPost.myVote = voteValue;
     }).catch(error => {
         toast(error?.message || 'Não foi possível concluir a ação.');
     });
 }
 
-function animateDeckDismiss(card, direction) {
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function animateDeckThrow(card, dragState, direction) {
+    const {x = 0, y = 0, history = []} = dragState || {};
+    const {vx, vy} = measureDeckVelocity(history);
+    const startY = getDeckDisplayedY(y);
+    const startRotation = x / 22;
+    const speedFactor = Math.max(1, Math.min(2.5, Math.abs(vx) * 5.8));
+    const targetX = x + direction * Math.max(window.innerWidth * DECK_THROW_DISTANCE * speedFactor, card.getBoundingClientRect().width * 1.25);
+    const targetY = startY + (vy * 220) + (y * 0.06);
+    const targetRotation = startRotation + (direction * (10 + Math.min(24, Math.abs(vx) * 12))) + (vy * 7);
+    const duration = Math.max(360, Math.min(620, 520 - Math.min(160, Math.abs(vx) * 95)));
     const postId = card.dataset.deckPostId || card.querySelector('[data-post-id]')?.dataset.postId || '';
+
     card.dataset.deckDirection = direction > 0 ? 'right' : 'left';
     card.dataset.deckArmed = 'true';
-    const width = Math.max(window.innerWidth * 1.08, card.getBoundingClientRect().width * 2.2);
-    const targetX = direction * width;
+
+    const midX = x + (targetX - x) * .46;
+    const midY = startY + (targetY - startY) * .34;
+    const midRotation = startRotation + (targetRotation - startRotation) * .42;
     const animation = card.animate([
-        {transform: card.style.transform || 'translate3d(0,0,0) rotate(0deg)', opacity: 1},
-        {transform: `translate3d(${targetX}px, ${direction > 0 ? -16 : 10}px, 0) rotate(${direction * 18}deg)`, opacity: 0},
-    ], {duration: reducedMotion ? 1 : 280, easing: 'cubic-bezier(.16,1,.3,1)', fill: 'forwards'});
+        {transform: `translate3d(${x}px, ${startY}px, 0) rotate(${startRotation}deg)`, opacity: 1, offset: 0},
+        {transform: `translate3d(${midX}px, ${midY}px, 0) rotate(${midRotation}deg)`, opacity: 1, offset: .58},
+        {transform: `translate3d(${targetX}px, ${targetY}px, 0) rotate(${targetRotation}deg)`, opacity: .05, offset: 1},
+    ], {
+        duration,
+        easing: 'cubic-bezier(.18, .72, .18, 1)',
+        fill: 'forwards',
+    });
+
     return animation.finished.catch(() => {}).then(() => {
         consumeDeckCard();
         void applyDeckAction(direction, postId);
@@ -178,37 +182,52 @@ function bindCardDeck() {
 
     deck.addEventListener('pointerdown', event => {
         const card = event.target.closest('[data-deck-card=""][data-deck-index="0"]');
-        if (!card || event.button !== 0 || event.target.closest('button, input, textarea, select, a')) return;
-        deckDragging = {card, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, x: 0, y: 0};
+        if (!card || event.button !== 0 || event.target.closest('button, input, textarea, select, form')) return;
+        deckDragging = {
+            card,
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            x: 0,
+            y: 0,
+            moved: false,
+            history: [{x: event.clientX, y: event.clientY, t: performance.now()}],
+        };
         card.classList.add('is-dragging');
         card.setPointerCapture?.(event.pointerId);
     });
 
     deck.addEventListener('pointermove', event => {
         if (!deckDragging || deckDragging.pointerId !== event.pointerId) return;
-        const {card, startX, startY} = deckDragging;
+        const {card, startX, startY, history} = deckDragging;
         const x = event.clientX - startX;
         const y = event.clientY - startY;
         deckDragging.x = x;
         deckDragging.y = y;
+        deckDragging.moved ||= Math.abs(x) > DECK_DRAG_ACTIVATION || Math.abs(y) > DECK_DRAG_ACTIVATION;
+        history.push({x: event.clientX, y: event.clientY, t: performance.now()});
+        if (history.length > 8) history.shift();
         updateDeckDragState(card, x, y);
-        if (Math.abs(x) > 8) event.preventDefault();
+        if (deckDragging.moved) event.preventDefault();
     });
 
     const finishDrag = event => {
         if (!deckDragging || deckDragging.pointerId !== event.pointerId) return;
-        const {card, x, y} = deckDragging;
+        const dragState = deckDragging;
+        const {card, x} = dragState;
         deckDragging = null;
         card.classList.remove('is-dragging');
         card.releasePointerCapture?.(event.pointerId);
+
         if (Math.abs(x) >= DECK_SWIPE_THRESHOLD) {
-            deckSuppressClickUntil = Date.now() + 500;
-            updateDeckDragState(card, x, y);
-            void animateDeckDismiss(card, x < 0 ? -1 : 1);
+            deckSuppressClickUntil = Date.now() + 520;
+            void animateDeckThrow(card, dragState, x < 0 ? -1 : 1);
             return;
         }
+
         clearDeckDragState(card);
     };
+
     deck.addEventListener('pointerup', finishDrag);
     deck.addEventListener('pointercancel', finishDrag);
 
@@ -224,9 +243,16 @@ function bindCardDeck() {
         if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
         event.preventDefault();
         const topCard = deck.querySelector('[data-deck-card=""][data-deck-index="0"]');
-        if (topCard) {
-            deckSuppressClickUntil = Date.now() + 500;
-            void animateDeckDismiss(topCard, event.key === 'ArrowLeft' ? -1 : 1);
-        }
+        if (!topCard) return;
+        deckSuppressClickUntil = Date.now() + 520;
+        const direction = event.key === 'ArrowLeft' ? -1 : 1;
+        void animateDeckThrow(topCard, {
+            x: direction * (DECK_SWIPE_THRESHOLD + 12),
+            y: 0,
+            history: [
+                {x: 0, y: 0, t: performance.now() - 64},
+                {x: direction * 160, y: 0, t: performance.now()},
+            ],
+        }, direction);
     });
 }
