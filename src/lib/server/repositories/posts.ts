@@ -9,7 +9,6 @@ export async function listPosts(_currentUserId: number | null, profileUsername: 
             `SELECT p.id,
                     p.user_id,
                     p.parent_post_id,
-                    p.post_type,
                     p.contents,
                     NVL(p.positive_count, 0) AS positive_count,
                     NVL(p.negative_count, 0) AS negative_count,
@@ -29,26 +28,12 @@ export async function listPosts(_currentUserId: number | null, profileUsername: 
                LEFT JOIN murm_user parent_user
                  ON parent_user.id = parent_post.user_id
               WHERE LOWER(TRIM(p.status)) = 'published'
-                AND (
-                    NVL(LOWER(TRIM(p.post_type)), 'murmur') IN ('murmur', 'text')
-                    OR (
-                        LOWER(TRIM(p.post_type)) = 'photo'
-                        AND p.parent_post_id IS NULL
-                        AND TRIM(p.contents) IS NOT NULL
-                    )
-                )
                 AND p.id IN (
                     SELECT tree.id
                       FROM murm_post tree
                      WHERE LOWER(TRIM(tree.status)) = 'published'
                      START WITH tree.parent_post_id IS NULL
-                            AND (
-                                NVL(LOWER(TRIM(tree.post_type)), 'murmur') IN ('murmur', 'text')
-                                OR (
-                                    LOWER(TRIM(tree.post_type)) = 'photo'
-                                    AND TRIM(tree.contents) IS NOT NULL
-                                )
-                            )
+                            AND LOWER(TRIM(tree.post_type)) = 'murmur'
                             AND (
                                 :profile_username IS NULL
                                 OR tree.user_id = (
@@ -77,7 +62,6 @@ export async function listPosts(_currentUserId: number | null, profileUsername: 
             userId: Number(row.USER_ID),
             parentPostId: row.PARENT_POST_ID == null ? null : Number(row.PARENT_POST_ID),
             parentAuthor: String(row.PARENT_USERNAME || ''),
-            postType: String(row.POST_TYPE || 'murmur').trim().toLowerCase(),
             author: String(row.USERNAME || ''),
             sexCode: String(row.SEX_CODE || '').trim().toUpperCase(),
             regionCode: '',
@@ -108,7 +92,6 @@ function mapPostRows(rows: PostRow[]): unknown[] {
         userId: Number(row.USER_ID || 0),
         parentPostId: row.PARENT_POST_ID == null ? null : Number(row.PARENT_POST_ID),
         parentAuthor: String(row.PARENT_USERNAME || ''),
-        postType: String(row.POST_TYPE || 'murmur').trim().toLowerCase(),
         author: String(row.USERNAME || ''),
         sexCode: String(row.SEX_CODE || '').trim().toUpperCase(),
         regionCode: '',
@@ -130,26 +113,12 @@ export async function listSpecificThread(postId: number): Promise<{ posts: unkno
                FROM murm_post
               WHERE id = :post_id
                 AND LOWER(TRIM(status)) = 'published'
-                AND (
-                    NVL(LOWER(TRIM(post_type)), 'murmur') IN ('murmur', 'text')
-                    OR (
-                        LOWER(TRIM(post_type)) = 'photo'
-                        AND parent_post_id IS NULL
-                        AND TRIM(contents) IS NOT NULL
-                    )
-                )
                 AND id IN (
                     SELECT tree.id
                       FROM murm_post tree
                      WHERE LOWER(TRIM(tree.status)) = 'published'
                      START WITH tree.parent_post_id IS NULL
-                            AND (
-                                NVL(LOWER(TRIM(tree.post_type)), 'murmur') IN ('murmur', 'text')
-                                OR (
-                                    LOWER(TRIM(tree.post_type)) = 'photo'
-                                    AND TRIM(tree.contents) IS NOT NULL
-                                )
-                            )
+                            AND LOWER(TRIM(tree.post_type)) = 'murmur'
                      CONNECT BY NOCYCLE PRIOR tree.id = tree.parent_post_id
                 )`,
             {post_id: postId},
@@ -162,7 +131,6 @@ export async function listSpecificThread(postId: number): Promise<{ posts: unkno
             `SELECT p.id,
                     p.user_id,
                     p.parent_post_id,
-                    p.post_type,
                     p.contents,
                     NVL(p.positive_count, 0) AS positive_count,
                     NVL(p.negative_count, 0) AS negative_count,
@@ -176,14 +144,7 @@ export async function listSpecificThread(postId: number): Promise<{ posts: unkno
                LEFT JOIN murm_post parent_post ON parent_post.id = p.parent_post_id
                LEFT JOIN murm_user parent_user ON parent_user.id = parent_post.user_id
               WHERE LOWER(TRIM(p.status)) = 'published'
-                AND (
-                    NVL(LOWER(TRIM(p.post_type)), 'murmur') IN ('murmur', 'text')
-                    OR (
-                        LOWER(TRIM(p.post_type)) = 'photo'
-                        AND p.parent_post_id IS NULL
-                        AND TRIM(p.contents) IS NOT NULL
-                    )
-                )
+                AND LOWER(TRIM(p.post_type)) = 'murmur'
                 AND (
                     p.id = :post_id
                     OR p.id = :parent_id
@@ -191,6 +152,7 @@ export async function listSpecificThread(postId: number): Promise<{ posts: unkno
                         SELECT id
                           FROM murm_post
                          WHERE LOWER(TRIM(status)) = 'published'
+                           AND LOWER(TRIM(post_type)) = 'murmur'
                          START WITH parent_post_id = :post_id
                          CONNECT BY PRIOR id = parent_post_id
                     )
@@ -212,7 +174,7 @@ export async function listSpecificThread(postId: number): Promise<{ posts: unkno
                   WHERE p.parent_post_id = :parent_id
                     AND p.id <> :post_id
                     AND LOWER(TRIM(p.status)) = 'published'
-                    AND NVL(LOWER(TRIM(p.post_type)), 'murmur') IN ('murmur', 'text')
+                    AND LOWER(TRIM(p.post_type)) = 'murmur'
                   ORDER BY p.created_at ASC, p.id ASC`,
                 {parent_id: parentId, post_id: postId},
             );
@@ -235,7 +197,6 @@ export async function getPostBranch(postId: number): Promise<unknown[]> {
             `SELECT p.id,
                     p.user_id,
                     p.parent_post_id,
-                    p.post_type,
                     p.contents,
                     NVL(p.positive_count, 0) AS positive_count,
                     NVL(p.negative_count, 0) AS negative_count,
@@ -249,18 +210,12 @@ export async function getPostBranch(postId: number): Promise<unknown[]> {
                LEFT JOIN murm_post parent_post ON parent_post.id = p.parent_post_id
                LEFT JOIN murm_user parent_user ON parent_user.id = parent_post.user_id
               WHERE LOWER(TRIM(p.status)) = 'published'
-                AND (
-                    NVL(LOWER(TRIM(p.post_type)), 'murmur') IN ('murmur', 'text')
-                    OR (
-                        LOWER(TRIM(p.post_type)) = 'photo'
-                        AND p.parent_post_id IS NULL
-                        AND TRIM(p.contents) IS NOT NULL
-                    )
-                )
+                AND LOWER(TRIM(p.post_type)) = 'murmur'
                 AND p.id IN (
                     SELECT id
                       FROM murm_post
                      WHERE LOWER(TRIM(status)) = 'published'
+                       AND LOWER(TRIM(post_type)) = 'murmur'
                      START WITH id = :post_id
                      CONNECT BY PRIOR id = parent_post_id
                 )
@@ -384,7 +339,8 @@ export async function deletePost(postId: number, userId: number): Promise<void> 
              WHERE id = :post_id
                  AND user_id = :user_id
                  AND parent_post_id IS NULL
-                 AND status = 'published'`,
+                 AND status = 'published'
+                 AND LOWER(TRIM(post_type)) = 'murmur'`,
             {post_id: postId, user_id: userId},
         );
         if (!owner.rows?.length) throw new Error('POST_NAO_ENCONTRADO');
@@ -396,7 +352,8 @@ export async function deletePost(postId: number, userId: number): Promise<void> 
                  deleted_by_user_id = :user_id,
                  updated_at = systimestamp
              WHERE (id = :post_id OR parent_post_id = :post_id)
-                 AND status = 'published'`,
+                 AND status = 'published'
+                 AND LOWER(TRIM(post_type)) = 'murmur'`,
             {post_id: postId, user_id: userId},
             {autoCommit: true},
         );
@@ -414,7 +371,8 @@ export async function deleteReply(replyId: number, userId: number): Promise<void
              WHERE id = :reply_id
                  AND user_id = :user_id
                  AND parent_post_id IS NOT NULL
-                 AND status = 'published'`,
+                 AND status = 'published'
+                 AND LOWER(TRIM(post_type)) = 'murmur'`,
             {reply_id: replyId, user_id: userId},
             {autoCommit: true},
         );
@@ -434,7 +392,8 @@ export async function restoreReply(replyId: number, userId: number): Promise<voi
                  AND user_id = :user_id
                  AND deleted_by_user_id = :user_id
                  AND parent_post_id IS NOT NULL
-                 AND status = 'deleted'`,
+                 AND status = 'deleted'
+                 AND LOWER(TRIM(post_type)) = 'murmur'`,
             {reply_id: replyId, user_id: userId},
             {autoCommit: true},
         );
