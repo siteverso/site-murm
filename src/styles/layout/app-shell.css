@@ -9,6 +9,8 @@
 .header-user-avatar { width: 32px; height: 32px; font-size: .72rem; }
 .header-user-name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nav-link { padding: 9px 11px; border-radius: 999px; color: var(--muted); font-size: .92rem; font-weight: 700; }
+.direct-nav { display: inline-flex; align-items: center; gap: 7px; }
+.direct-nav-icon { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .nav-link:hover { color: var(--text); background: var(--surface-2); }
 .icon-button { width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); cursor: pointer; }
 
