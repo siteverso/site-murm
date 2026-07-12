@@ -209,6 +209,17 @@ function scheduleSpecificHoverExpansion(line) {
     }, SPECIFIC_HOVER_DELAY_MS);
 }
 
+function applyOptimisticVoteState(card, selectedButton) {
+    const selectedValue = Number(selectedButton?.dataset.vote || 0);
+    const wasActive = selectedButton?.getAttribute('aria-pressed') === 'true';
+    card?.querySelectorAll('[data-vote]').forEach(button => {
+        const active = !wasActive && Number(button.dataset.vote) === selectedValue;
+        button.classList.toggle('active', active);
+        button.classList.toggle('is-led-active', active);
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+}
+
 function bindFeed() {
     document.addEventListener('click', async event => {
         const target = event.target.closest('button');
@@ -222,6 +233,7 @@ function bindFeed() {
             if (target.matches('[data-vote]')) {
                 const postId = card.dataset.postId;
                 card.classList.add('actions-pinned');
+                applyOptimisticVoteState(card, target);
                 await api(`/api/posts/${postId}/vote`, {
                     method: 'POST',
                     body: JSON.stringify({value: Number(target.dataset.vote)}),

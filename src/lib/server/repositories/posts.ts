@@ -1,8 +1,10 @@
+// noinspection TypeScriptUnresolvedReference,TypeScriptValidateTypes,SqlResolve
+
 import oracledb from 'oracledb';
 import {withConnection} from '../oracle';
 import {avatarSql, getUserSchema} from '../user-schema';
 
-export async function listPosts(_currentUserId: number | null, profileUsername: string | null = null, preferredLanguageCode: string | null = null): Promise<unknown[]> {
+export async function listPosts(currentUserId: number | null, profileUsername: string | null = null, preferredLanguageCode: string | null = null): Promise<unknown[]> {
     return withConnection(async connection => {
         const userSchema = await getUserSchema(connection);
         const userAvatarSql = avatarSql(userSchema, 'u');
@@ -12,48 +14,48 @@ export async function listPosts(_currentUserId: number | null, profileUsername: 
         // inclusive quando o pai foi removido do banco.
         const result = await connection.execute<Record<string, unknown>>(
             `SELECT p.id,
-                    p.user_id,
-                    p.parent_post_id,
-                    p.contents,
-                    NVL(p.positive_count, 0) AS positive_count,
-                    NVL(p.negative_count, 0) AS negative_count,
-                    NVL(p.share_count, 0) AS share_count,
-                    p.created_at,
-                    p.status,
-                    NVL(p.language_code, NVL(u.language_code, 'pt-BR')) AS language_code,
-                    u.username,
-                    NVL(u.sex_code, '') AS sex_code,
-                    ${userAvatarSql} AS avatar_url,
-                    0 AS my_vote,
-                    (SELECT COUNT(*)
-                       FROM murm_post reply
-                      WHERE reply.parent_post_id = p.id
-                        AND LOWER(TRIM(reply.status)) = 'published'
-                        AND LOWER(TRIM(reply.post_type)) = 'murmur') AS reply_count
-               FROM murm_post p
-               JOIN murm_user u
-                 ON u.id = p.user_id
-              WHERE LOWER(TRIM(p.status)) = 'published'
-                AND LOWER(TRIM(p.post_type)) = 'murmur'
-                AND p.parent_post_id IS NULL
-                AND (
-                    :profile_username IS NULL
-                    OR p.user_id = (
-                        SELECT profile_user.id
-                          FROM murm_user profile_user
-                         WHERE LOWER(profile_user.username) = LOWER(:profile_username)
-                         FETCH FIRST 1 ROW ONLY
-                    )
-                )
-              ORDER BY CASE
-                           WHEN :profile_username IS NULL
-                            AND :preferred_language_code IS NOT NULL
-                            AND NVL(p.language_code, NVL(u.language_code, 'pt-BR')) = :preferred_language_code
-                           THEN 0
-                           ELSE 1
-                       END,
-                       p.created_at DESC`,
-            { profile_username: profileUsername, preferred_language_code: preferredLanguageCode },
+                 p.user_id,
+                 p.parent_post_id,
+                 p.contents,
+                 nvl(p.positive_count, 0) AS positive_count,
+                 nvl(p.negative_count, 0) AS negative_count,
+                 nvl(p.share_count, 0) AS share_count,
+                 p.created_at,
+                 p.status,
+                 nvl(p.language_code, nvl(u.language_code, 'pt-BR')) AS language_code,
+                 u.username,
+                 nvl(u.sex_code, '') AS sex_code,
+                 ${userAvatarSql} AS avatar_url,
+                 nvl((SELECT max(v.vote_value)
+                      FROM murm_vote v
+                      WHERE v.post_id = p.id
+                          AND v.user_id = :current_user_id), 0) AS my_vote,
+                 (SELECT count(*)
+                  FROM murm_post reply
+                  WHERE reply.parent_post_id = p.id
+                      AND lower(trim(reply.status)) = 'published'
+                      AND lower(trim(reply.post_type)) = 'murmur') AS reply_count
+             FROM murm_post p
+             JOIN murm_user u
+                  ON u.id = p.user_id
+             WHERE lower(trim(p.status)) = 'published'
+                 AND lower(trim(p.post_type)) = 'murmur'
+                 AND p.parent_post_id IS NULL
+                 AND (
+                 :profile_username IS NULL
+                     OR p.user_id = (SELECT profile_user.id
+                                     FROM murm_user profile_user
+                                     WHERE lower(profile_user.username) = lower(:profile_username) FETCH FIRST 1 ROW ONLY)
+                 )
+             ORDER BY CASE
+                 WHEN :profile_username IS NULL
+                     AND :preferred_language_code IS NOT NULL
+                     AND nvl(p.language_code, nvl(u.language_code, 'pt-BR')) = :preferred_language_code
+                     THEN 0
+                 ELSE 1
+                 END,
+                 p.created_at DESC`,
+            {profile_username: profileUsername, preferred_language_code: preferredLanguageCode, current_user_id: currentUserId},
         );
 
         return (result.rows || []).map(row => ({
@@ -69,7 +71,7 @@ export async function listPosts(_currentUserId: number | null, profileUsername: 
             positive: Number(row.POSITIVE_COUNT || 0),
             negative: Number(row.NEGATIVE_COUNT || 0),
             shares: Number(row.SHARE_COUNT || 0),
-            myVote: 0,
+            myVote: Number(row.MY_VOTE || 0),
             createdAt: new Date(String(row.CREATED_AT)).getTime(),
             replyCount: Number(row.REPLY_COUNT || 0),
         }));
@@ -111,11 +113,11 @@ export async function listSpecificThread(postId: number): Promise<{ posts: unkno
         const userAvatarSql = avatarSql(userSchema, 'u');
         const rootResult = await connection.execute<PostRow>(
             `SELECT parent_post_id,
-                    status
-               FROM murm_post
-              WHERE id = :post_id
-                AND LOWER(TRIM(status)) IN ('published', 'deleted')
-                AND LOWER(TRIM(post_type)) = 'murmur'`,
+                 status
+             FROM murm_post
+             WHERE id = :post_id
+                 AND lower(trim(status)) IN ('published', 'deleted')
+                 AND lower(trim(post_type)) = 'murmur'`,
             {post_id: postId},
         );
         const rootRow = rootResult.rows?.[0];
@@ -124,42 +126,40 @@ export async function listSpecificThread(postId: number): Promise<{ posts: unkno
 
         const fullResult = await connection.execute<PostRow>(
             `SELECT p.id,
-                    p.user_id,
-                    p.parent_post_id,
-                    p.contents,
-                    NVL(p.positive_count, 0) AS positive_count,
-                    NVL(p.negative_count, 0) AS negative_count,
-                    NVL(p.share_count, 0) AS share_count,
-                    p.created_at,
-                    p.status,
-                    u.username,
-                    NVL(u.sex_code, '') AS sex_code,
-                    ${userAvatarSql} AS avatar_url,
-                    parent_user.username AS parent_username
-               FROM murm_post p
-               JOIN murm_user u ON u.id = p.user_id
-               LEFT JOIN murm_post parent_post ON parent_post.id = p.parent_post_id
-               LEFT JOIN murm_user parent_user ON parent_user.id = parent_post.user_id
-              WHERE LOWER(TRIM(p.post_type)) = 'murmur'
-                AND (
-                    p.id IN (
-                        SELECT id
+                 p.user_id,
+                 p.parent_post_id,
+                 p.contents,
+                 nvl(p.positive_count, 0) AS positive_count,
+                 nvl(p.negative_count, 0) AS negative_count,
+                 nvl(p.share_count, 0) AS share_count,
+                 p.created_at,
+                 p.status,
+                 u.username,
+                 nvl(u.sex_code, '') AS sex_code,
+                 ${userAvatarSql} AS avatar_url,
+                 parent_user.username AS parent_username
+             FROM murm_post p
+             JOIN murm_user u ON u.id = p.user_id
+             LEFT JOIN murm_post parent_post ON parent_post.id = p.parent_post_id
+             LEFT JOIN murm_user parent_user ON parent_user.id = parent_post.user_id
+             WHERE lower(trim(p.post_type)) = 'murmur'
+                 AND (
+                 p.id IN (SELECT id
                           FROM murm_post
-                         WHERE LOWER(TRIM(status)) IN ('published', 'deleted')
-                           AND LOWER(TRIM(post_type)) = 'murmur'
-                         START WITH id = :post_id
-                         CONNECT BY PRIOR parent_post_id = id
-                    )
-                    OR p.id IN (
-                        SELECT id
-                          FROM murm_post
-                         WHERE LOWER(TRIM(status)) = 'published'
-                           AND LOWER(TRIM(post_type)) = 'murmur'
-                         START WITH parent_post_id = :post_id
-                         CONNECT BY PRIOR id = parent_post_id
-                    )
-                )
-              ORDER BY p.created_at ASC`,
+                          WHERE lower(trim(status)) IN ('published', 'deleted')
+                              AND lower(trim(post_type)) = 'murmur'
+                              START
+                          WITH id = :post_id
+                              CONNECT BY PRIOR parent_post_id = id)
+                     OR p.id IN (SELECT id
+                                 FROM murm_post
+                                 WHERE lower(trim(status)) = 'published'
+                                     AND lower(trim(post_type)) = 'murmur'
+                                     START
+                                 WITH parent_post_id = :post_id
+                                     CONNECT BY PRIOR id = parent_post_id)
+                 )
+             ORDER BY p.created_at ASC`,
             {post_id: postId},
         );
 
@@ -167,17 +167,17 @@ export async function listSpecificThread(postId: number): Promise<{ posts: unkno
         if (parentId != null) {
             const siblingResult = await connection.execute<PostRow>(
                 `SELECT p.id,
-                        p.parent_post_id,
-                        p.created_at,
-                        p.contents,
-                        NVL(u.sex_code, '') AS sex_code
-                   FROM murm_post p
-                   JOIN murm_user u ON u.id = p.user_id
-                  WHERE p.parent_post_id = :parent_id
-                    AND p.id <> :post_id
-                    AND LOWER(TRIM(p.status)) = 'published'
-                    AND LOWER(TRIM(p.post_type)) = 'murmur'
-                  ORDER BY p.created_at ASC, p.id ASC`,
+                     p.parent_post_id,
+                     p.created_at,
+                     p.contents,
+                     nvl(u.sex_code, '') AS sex_code
+                 FROM murm_post p
+                 JOIN murm_user u ON u.id = p.user_id
+                 WHERE p.parent_post_id = :parent_id
+                     AND p.id <> :post_id
+                     AND lower(trim(p.status)) = 'published'
+                     AND lower(trim(p.post_type)) = 'murmur'
+                 ORDER BY p.created_at ASC, p.id ASC`,
                 {parent_id: parentId, post_id: postId},
             );
             siblingStubs = (siblingResult.rows || []).map(row => ({
@@ -203,7 +203,7 @@ export async function listSpecificThread(postId: number): Promise<{ posts: unkno
                 author: '',
                 isDeleted: true,
                 sexCode: '',
-                    avatarUrl: '',
+                avatarUrl: '',
                 text: '',
                 positive: 0,
                 negative: 0,
@@ -224,33 +224,32 @@ export async function getPostBranch(postId: number): Promise<unknown[]> {
         const userAvatarSql = avatarSql(userSchema, 'u');
         const result = await connection.execute<PostRow>(
             `SELECT p.id,
-                    p.user_id,
-                    p.parent_post_id,
-                    p.contents,
-                    NVL(p.positive_count, 0) AS positive_count,
-                    NVL(p.negative_count, 0) AS negative_count,
-                    NVL(p.share_count, 0) AS share_count,
-                    p.created_at,
-                    p.status,
-                    u.username,
-                    NVL(u.sex_code, '') AS sex_code,
-                    ${userAvatarSql} AS avatar_url,
-                    parent_user.username AS parent_username
-               FROM murm_post p
-               JOIN murm_user u ON u.id = p.user_id
-               LEFT JOIN murm_post parent_post ON parent_post.id = p.parent_post_id
-               LEFT JOIN murm_user parent_user ON parent_user.id = parent_post.user_id
-              WHERE LOWER(TRIM(p.status)) = 'published'
-                AND LOWER(TRIM(p.post_type)) = 'murmur'
-                AND p.id IN (
-                    SELECT id
-                      FROM murm_post
-                     WHERE LOWER(TRIM(status)) = 'published'
-                       AND LOWER(TRIM(post_type)) = 'murmur'
-                     START WITH id = :post_id
-                     CONNECT BY PRIOR id = parent_post_id
-                )
-              ORDER BY p.created_at ASC`,
+                 p.user_id,
+                 p.parent_post_id,
+                 p.contents,
+                 nvl(p.positive_count, 0) AS positive_count,
+                 nvl(p.negative_count, 0) AS negative_count,
+                 nvl(p.share_count, 0) AS share_count,
+                 p.created_at,
+                 p.status,
+                 u.username,
+                 nvl(u.sex_code, '') AS sex_code,
+                 ${userAvatarSql} AS avatar_url,
+                 parent_user.username AS parent_username
+             FROM murm_post p
+             JOIN murm_user u ON u.id = p.user_id
+             LEFT JOIN murm_post parent_post ON parent_post.id = p.parent_post_id
+             LEFT JOIN murm_user parent_user ON parent_user.id = parent_post.user_id
+             WHERE lower(trim(p.status)) = 'published'
+                 AND lower(trim(p.post_type)) = 'murmur'
+                 AND p.id IN (SELECT id
+                              FROM murm_post
+                              WHERE lower(trim(status)) = 'published'
+                                  AND lower(trim(post_type)) = 'murmur'
+                                  START
+                              WITH id = :post_id
+                                  CONNECT BY PRIOR id = parent_post_id)
+             ORDER BY p.created_at ASC`,
             {post_id: postId},
         );
         if (!result.rows?.length) throw new Error('POST_NAO_ENCONTRADO');
@@ -373,7 +372,7 @@ export async function deletePost(postId: number, userId: number): Promise<void> 
                  AND user_id = :user_id
                  AND parent_post_id IS NULL
                  AND status = 'published'
-                 AND LOWER(TRIM(post_type)) = 'murmur'`,
+                 AND lower(trim(post_type)) = 'murmur'`,
             {post_id: postId, user_id: userId},
         );
         if (!owner.rows?.length) throw new Error('POST_NAO_ENCONTRADO');
@@ -386,7 +385,7 @@ export async function deletePost(postId: number, userId: number): Promise<void> 
                  updated_at = systimestamp
              WHERE id = :post_id
                  AND status = 'published'
-                 AND LOWER(TRIM(post_type)) = 'murmur'`,
+                 AND lower(trim(post_type)) = 'murmur'`,
             {post_id: postId, user_id: userId},
             {autoCommit: true},
         );
@@ -405,7 +404,7 @@ export async function deleteReply(replyId: number, userId: number): Promise<void
                  AND user_id = :user_id
                  AND parent_post_id IS NOT NULL
                  AND status = 'published'
-                 AND LOWER(TRIM(post_type)) = 'murmur'`,
+                 AND lower(trim(post_type)) = 'murmur'`,
             {reply_id: replyId, user_id: userId},
             {autoCommit: true},
         );
@@ -426,14 +425,13 @@ export async function restoreReply(replyId: number, userId: number): Promise<voi
                  AND deleted_by_user_id = :user_id
                  AND parent_post_id IS NOT NULL
                  AND status = 'deleted'
-                 AND LOWER(TRIM(post_type)) = 'murmur'`,
+                 AND lower(trim(post_type)) = 'murmur'`,
             {reply_id: replyId, user_id: userId},
             {autoCommit: true},
         );
         if (!result.rowsAffected) throw new Error('RESPOSTA_NAO_ENCONTRADA');
     });
 }
-
 
 
 type ReplyHistoryPost = {
@@ -499,46 +497,44 @@ async function fetchReplyHistoryBranch(connection: oracledb.Connection, replyId:
     const userAvatarSql = avatarSql(userSchema, 'u');
     const result = await connection.execute<PostRow>(
         `SELECT p.id,
-                p.user_id,
-                p.parent_post_id,
-                p.contents,
-                NVL(p.positive_count, 0) AS positive_count,
-                NVL(p.negative_count, 0) AS negative_count,
-                NVL(p.share_count, 0) AS share_count,
-                p.created_at,
-                p.status,
-                u.username,
-                NVL(u.sex_code, '') AS sex_code,
-                ${userAvatarSql} AS avatar_url,
-                parent_user.username AS parent_username
-           FROM murm_post p
-           JOIN murm_user u
-             ON u.id = p.user_id
-           LEFT JOIN murm_post parent_post
-             ON parent_post.id = p.parent_post_id
-           LEFT JOIN murm_user parent_user
-             ON parent_user.id = parent_post.user_id
-          WHERE LOWER(TRIM(p.post_type)) = 'murmur'
-            AND (
-                (p.id = :reply_id AND LOWER(TRIM(p.status)) IN ('published', 'deleted'))
-                OR p.id IN (
-                    SELECT id
-                      FROM murm_post
-                     WHERE LOWER(TRIM(post_type)) = 'murmur'
-                       AND LOWER(TRIM(status)) IN ('published', 'deleted')
-                     START WITH id = :reply_id
-                     CONNECT BY PRIOR parent_post_id = id
-                )
-                OR p.id IN (
-                    SELECT id
-                      FROM murm_post
-                     WHERE LOWER(TRIM(post_type)) = 'murmur'
-                       AND LOWER(TRIM(status)) = 'published'
-                     START WITH parent_post_id = :reply_id
-                     CONNECT BY PRIOR id = parent_post_id
-                )
-            )
-          ORDER BY p.created_at ASC, p.id ASC`,
+             p.user_id,
+             p.parent_post_id,
+             p.contents,
+             nvl(p.positive_count, 0) AS positive_count,
+             nvl(p.negative_count, 0) AS negative_count,
+             nvl(p.share_count, 0) AS share_count,
+             p.created_at,
+             p.status,
+             u.username,
+             nvl(u.sex_code, '') AS sex_code,
+             ${userAvatarSql} AS avatar_url,
+             parent_user.username AS parent_username
+         FROM murm_post p
+         JOIN murm_user u
+              ON u.id = p.user_id
+         LEFT JOIN murm_post parent_post
+                   ON parent_post.id = p.parent_post_id
+         LEFT JOIN murm_user parent_user
+                   ON parent_user.id = parent_post.user_id
+         WHERE lower(trim(p.post_type)) = 'murmur'
+             AND (
+             (p.id = :reply_id AND lower(trim(p.status)) IN ('published', 'deleted'))
+                 OR p.id IN (SELECT id
+                             FROM murm_post
+                             WHERE lower(trim(post_type)) = 'murmur'
+                                 AND lower(trim(status)) IN ('published', 'deleted')
+                                 START
+                             WITH id = :reply_id
+                                 CONNECT BY PRIOR parent_post_id = id)
+                 OR p.id IN (SELECT id
+                             FROM murm_post
+                             WHERE lower(trim(post_type)) = 'murmur'
+                                 AND lower(trim(status)) = 'published'
+                                 START
+                             WITH parent_post_id = :reply_id
+                                 CONNECT BY PRIOR id = parent_post_id)
+             )
+         ORDER BY p.created_at ASC, p.id ASC`,
         {reply_id: replyId},
     );
 
@@ -588,12 +584,12 @@ export async function listReplyHistoryByUser(userId: number): Promise<ReplyHisto
     return withConnection(async connection => {
         const result = await connection.execute<PostRow>(
             `SELECT r.id AS reply_id
-               FROM murm_post r
-              WHERE r.user_id = :user_id
-                AND r.parent_post_id IS NOT NULL
-                AND LOWER(TRIM(r.status)) = 'published'
-                AND LOWER(TRIM(r.post_type)) = 'murmur'
-              ORDER BY r.created_at DESC, r.id DESC`,
+             FROM murm_post r
+             WHERE r.user_id = :user_id
+                 AND r.parent_post_id IS NOT NULL
+                 AND lower(trim(r.status)) = 'published'
+                 AND lower(trim(r.post_type)) = 'murmur'
+             ORDER BY r.created_at DESC, r.id DESC`,
             {user_id: userId},
         );
 

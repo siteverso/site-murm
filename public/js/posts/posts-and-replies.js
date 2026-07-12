@@ -11,9 +11,11 @@ function groupPostsByParent(items) {
 }
 
 function getRootPosts(items) {
-    const publishedIds = new Set(items.map(post => String(post.id)));
-    return items.filter(post => post.parentPostId == null || !publishedIds.has(String(post.parentPostId)));
+    const posts = Array.from(items || []);
+    const publishedIds = new Set(posts.map(post => String(post.id)));
+    return posts.filter(post => post.parentPostId == null || !publishedIds.has(String(post.parentPostId)));
 }
+
 
 function compareRepliesByNewest(left, right) {
     const timeDifference = new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
@@ -245,8 +247,8 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
     <div class="score-line">
       <span class="score ${score < 0 ? 'negative' : ''}">${score}</span>
       <div class="murmur-actions">
-        <button class="action-button ${post.myVote === 1 ? 'active' : ''}" data-vote="1" title="Ecoar" aria-label="Ecoar este murmúrio">${ICONS.echo}<span>${post.positive}</span></button>
-        <button class="action-button ${post.myVote === -1 ? 'active' : ''}" data-vote="-1" title="Ignorar" aria-label="Ignorar este murmúrio">${ICONS.ignore}<span>${post.negative}</span></button>
+        <button class="action-button action-button--echo ${post.myVote === 1 ? 'active is-led-active' : ''}" data-vote="1" title="Ecoar" aria-label="Ecoar este murmúrio" aria-pressed="${post.myVote === 1 ? 'true' : 'false'}">${ICONS.echo}<span>${post.positive}</span></button>
+        <button class="action-button action-button--ignore ${post.myVote === -1 ? 'active is-led-active' : ''}" data-vote="-1" title="Ignorar" aria-label="Ignorar este murmúrio" aria-pressed="${post.myVote === -1 ? 'true' : 'false'}">${ICONS.ignore}<span>${post.negative}</span></button>
         <button class="action-button" data-reply title="Responder" aria-label="Responder a este murmúrio">${ICONS.reply}<span>${post.replyCount || 0}</span></button>
         <button class="action-button" data-share title="Compartilhar link" aria-label="Compartilhar link deste murmúrio">${ICONS.share}<span>${post.shares}</span></button>
       </div>
