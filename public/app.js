@@ -85,6 +85,64 @@ const toast = (message) => {
   el._timer = setTimeout(() => el.classList.remove('show'), 3200);
 };
 
+const scheduleDirectSend = ({ recipientId, contents, onPending, onSent, onUndone, onFailed }) => {
+  const el = $('[data-toast]');
+  if (!el || !recipientId || !contents) return;
+
+  const isEnglish = document.documentElement.lang?.toLowerCase().startsWith('en');
+  const pendingLabel = isEnglish ? 'Message sent.' : 'Mensagem enviada.';
+  const undoLabel = isEnglish ? 'Undo' : 'Desfazer';
+  el.replaceChildren();
+
+  const message = document.createElement('span');
+  message.textContent = pendingLabel;
+  const undo = document.createElement('button');
+  undo.type = 'button';
+  undo.className = 'toast-action';
+  undo.textContent = undoLabel;
+  el.append(message, undo);
+  el.classList.add('show');
+  clearTimeout(el._timer);
+
+  let pending = true;
+  const pendingToken = onPending?.();
+  const toastToken = Symbol('direct-send');
+  el._directSendToken = toastToken;
+  const dismiss = () => {
+    if (el._directSendToken !== toastToken) return;
+    el.classList.remove('show');
+    el._timer = setTimeout(() => {
+      if (el._directSendToken === toastToken) el.replaceChildren();
+    }, 220);
+  };
+
+  const sendTimer = setTimeout(async () => {
+    if (!pending) return;
+    pending = false;
+    undo.disabled = true;
+    dismiss();
+
+    try {
+      const result = await api('/api/directs', {
+        method: 'POST',
+        body: JSON.stringify({ recipientId, contents }),
+      });
+      await onSent?.(result, pendingToken);
+    } catch (error) {
+      await onFailed?.(error, pendingToken);
+      toast(error.message);
+    }
+  }, 5000);
+
+  undo.addEventListener('click', async () => {
+    if (!pending) return;
+    pending = false;
+    clearTimeout(sendTimer);
+    dismiss();
+    await onUndone?.(pendingToken);
+  }, { once: true });
+};
+
 
 const setFormMessage = (element, message = '', type = 'info') => {
   if (!element) return;
@@ -900,8 +958,8 @@ function bindDirectsPage() {
   let directsRefreshTimer = null;
 
   const labels = locale === 'en'
-    ? { remove: 'Delete', edit: 'Edit', save: 'Save', confirm: 'Confirm', cancel: 'Cancel', undo: 'Undo', deleted: 'Message deleted.', loadMore: 'Load 20 earlier', loadingMore: 'Loading…', edited: 'edited' }
-    : { remove: 'Excluir', edit: 'Editar', save: 'Salvar', confirm: 'Confirmar', cancel: 'Cancelar', undo: 'Desfazer', deleted: 'Bilhete excluído.', loadMore: 'Carregar 20 anteriores', loadingMore: 'Carregando…', edited: 'editado' };
+    ? { remove: 'Delete', edit: 'Edit', save: 'Save', confirm: 'Confirm', cancel: 'Cancel', undo: 'Undo', deleted: 'Message deleted.', loadMore: 'Load 20 earlier', loadingMore: 'Loading…', edited: 'edited', pending: 'sending…' }
+    : { remove: 'Excluir', edit: 'Editar', save: 'Salvar', confirm: 'Confirmar', cancel: 'Cancelar', undo: 'Desfazer', deleted: 'Bilhete excluído.', loadMore: 'Carregar 20 anteriores', loadingMore: 'Carregando…', edited: 'editado', pending: 'enviando…' };
 
   const sexClass = value => value === 'M' ? 'sex-m' : value === 'F' ? 'sex-f' : '';
 
@@ -917,9 +975,11 @@ function bindDirectsPage() {
 
   const messageHtml = message => {
     const own = sameId(message.senderId, currentUser.id);
+    const pending = Boolean(message.pending);
     const senderSexCode = message.senderSexCode || (own ? currentUser?.sexCode : '');
+    const pendingAttribute = pending ? ' data-direct-pending="true"' : '';
     return `
-      <article class="direct-note ${own ? 'sent' : 'received'} ${sexClass(senderSexCode)}" data-direct-message="${message.id}" data-direct-sender-id="${message.senderId}">
+      <article class="direct-note ${own ? 'sent' : 'received'} ${pending ? 'is-pending' : ''} ${sexClass(senderSexCode)}" data-direct-message="${message.id}" data-direct-sender-id="${message.senderId}"${pendingAttribute}>
         <p data-direct-contents>${escapeHtml(message.contents)}</p>
         <form class="direct-edit-form" data-direct-edit-form hidden>
           <textarea maxlength="256" required>${escapeHtml(message.contents)}</textarea>
@@ -927,8 +987,8 @@ function bindDirectsPage() {
           <button type="button" data-cancel-edit>${labels.cancel}</button>
         </form>
         <div class="direct-note-footer">
-          <time>${new Date(message.updatedAt || message.createdAt).toLocaleString()}${message.updatedAt > message.createdAt ? ` · ${labels.edited}` : ''}</time>
-          ${own ? `<div class="direct-delete-zone">
+          <time>${new Date(message.updatedAt || message.createdAt).toLocaleString()}${message.updatedAt > message.createdAt ? ` · ${labels.edited}` : ''}${pending ? ` · ${labels.pending}` : ''}</time>
+          ${own && !pending ? `<div class="direct-delete-zone">
             <button class="direct-edit-button" type="button" data-edit-direct="${message.id}" aria-label="${labels.edit}" title="${labels.edit}">✎</button>
             <div class="direct-delete-confirm" data-delete-confirm hidden>
               <button type="button" data-confirm-delete="${message.id}">${labels.confirm}</button>
@@ -1004,7 +1064,7 @@ function bindDirectsPage() {
 
     try {
       const requestedUserId = activeUserId;
-      const renderedCount = $$('[data-direct-message]', messageList).length;
+      const renderedCount = $$('[data-direct-message]:not([data-direct-pending])', messageList).length;
       const refreshLimit = Math.max(20, renderedCount);
       const url = requestedUserId ? `/api/directs?otherUserId=${requestedUserId}&limit=${refreshLimit}` : '/api/directs';
       const data = await api(url);
@@ -1014,7 +1074,7 @@ function bindDirectsPage() {
       if (!requestedUserId) return;
 
       const nearBottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 80;
-      const existingNotes = $$('[data-direct-message]', messageList);
+      const existingNotes = $$('[data-direct-message]:not([data-direct-pending])', messageList);
       const existingIds = new Set(existingNotes.map(item => String(item.dataset.directMessage)));
       const refreshedMessages = data.messages || [];
       const refreshedIds = new Set(refreshedMessages.map(message => String(message.id)));
@@ -1034,7 +1094,7 @@ function bindDirectsPage() {
 
       newMessages.forEach(message => {
         const messageId = Number(message.id);
-        const nextNote = $$('[data-direct-message]', messageList)
+        const nextNote = $$('[data-direct-message]:not([data-direct-pending])', messageList)
           .find(note => Number(note.dataset.directMessage) > messageId);
         const wrapper = document.createElement('div');
         wrapper.innerHTML = messageHtml(message).trim();
@@ -1206,6 +1266,32 @@ function bindDirectsPage() {
     }
   });
 
+  const addPendingDirect = contents => {
+    const pendingId = `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const now = new Date().toISOString();
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = messageHtml({
+      id: pendingId,
+      senderId: currentUser.id,
+      senderSexCode: currentUser.sexCode,
+      contents,
+      createdAt: now,
+      updatedAt: now,
+      pending: true,
+    }).trim();
+    const note = wrapper.firstElementChild;
+    messageList.appendChild(note);
+    applyDirectGrouping();
+    requestAnimationFrame(() => { messages.scrollTop = messages.scrollHeight; });
+    return pendingId;
+  };
+
+  const removePendingDirect = pendingId => {
+    if (!pendingId) return;
+    messageList.querySelector(`[data-direct-message="${CSS.escape(String(pendingId))}"]`)?.remove();
+    applyDirectGrouping();
+  };
+
   form?.addEventListener('submit', async event => {
     event.preventDefault();
     const contents = textarea.value.trim();
@@ -1213,19 +1299,27 @@ function bindDirectsPage() {
 
     const submit = $('button[type="submit"]', form);
     setButtonLoading(submit, true, '');
-    try {
-      await api('/api/directs', {
-        method: 'POST',
-        body: JSON.stringify({ recipientId: Number(activeUserId), contents }),
-      });
-      form.reset();
-      await load(activeUserId);
-      textarea.focus({ preventScroll: true });
-    } catch (error) {
-      toast(error.message);
-    } finally {
-      setButtonLoading(submit, false);
-    }
+    form.reset();
+    scheduleDirectSend({
+      recipientId: Number(activeUserId),
+      contents,
+      onPending: () => addPendingDirect(contents),
+      onSent: async (_result, pendingId) => {
+        removePendingDirect(pendingId);
+        await load(activeUserId);
+      },
+      onUndone: pendingId => {
+        removePendingDirect(pendingId);
+        if (!textarea.value) textarea.value = contents;
+        textarea.focus({ preventScroll: true });
+      },
+      onFailed: (_error, pendingId) => {
+        removePendingDirect(pendingId);
+        if (!textarea.value) textarea.value = contents;
+      },
+    });
+    textarea.focus({ preventScroll: true });
+    setButtonLoading(submit, false);
   });
 
   textarea?.addEventListener('keydown', event => {
@@ -1247,7 +1341,12 @@ document.addEventListener('submit', async event => {
   if (!event.target.matches('[data-direct-compose]')) return;
   event.preventDefault();
   const form = event.target;
-  try { await api('/api/directs', { method: 'POST', body: JSON.stringify({ recipientId: Number(form.recipientId.value), contents: form.querySelector('textarea').value.trim() }) }); closeModal(); toast('Bilhete enviado.'); } catch (error) { toast(error.message); }
+  const recipientId = Number(form.recipientId.value);
+  const contents = form.querySelector('textarea').value.trim();
+  if (!recipientId || !contents) return;
+
+  closeModal();
+  scheduleDirectSend({ recipientId, contents });
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
