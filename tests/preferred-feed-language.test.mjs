@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { readAppSourceSync } from './js-source-test-utils.mjs';
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('conta separa idioma preferencial do idioma de exibicao', () => {
   const account = read('src/pages/conta.astro');
-  const app = read('public/app.js');
+  const app = readAppSourceSync();
   assert.match(account, /name="preferredLanguageCode"/);
   assert.match(account, /Não altera o idioma da interface/);
   assert.match(app, /preferredLanguageCode: profileForm\.preferredLanguageCode\.value/);

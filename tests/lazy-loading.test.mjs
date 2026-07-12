@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { readGlobalCss } from './css-test-utils.mjs';
+import { readAppSource } from './js-source-test-utils.mjs';
 
-const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+const app = await readAppSource();
 const css = await readGlobalCss();
 const layout = await readFile(new URL('../src/layouts/AppLayout.astro', import.meta.url), 'utf8');
 
@@ -22,5 +23,5 @@ test('cards e imagens usam lazy loading progressivo por viewport', () => {
 });
 
 test('cache do aplicativo foi atualizado para entregar o novo comportamento', () => {
-  assert.match(layout, /app\.js\?v=20260712-reply-partial-refresh-1/);
+  assert.match(layout, /app\.js\?v=20260712-modular-js-1/);
 });

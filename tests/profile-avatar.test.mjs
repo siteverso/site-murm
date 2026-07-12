@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { readGlobalCss } from './css-test-utils.mjs';
+import { readAppSourceSync } from './js-source-test-utils.mjs';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -35,7 +36,7 @@ test('patch de avatar é incremental', async () => {
 
 
 test('upload abre recorte circular com posicionamento e zoom antes de enviar', async () => {
-  const app = await read('public/app.js');
+  const app = await readAppSourceSync();
   assert.match(app, /openAvatarCropper/);
   assert.match(app, /data-avatar-crop-stage/);
   assert.match(app, /data-avatar-crop-zoom/);
@@ -50,7 +51,7 @@ test('upload abre recorte circular com posicionamento e zoom antes de enviar', a
 test('clicar na imagem da conta abre o seletor de foto existente', async () => {
   const account = await read('src/pages/conta.astro');
   const sidebar = await read('src/components/ProfileSidebar.astro');
-  const app = await read('public/app.js');
+  const app = await readAppSourceSync();
   assert.match(account, /<ProfileSidebar dynamic editableAvatar/);
   assert.match(sidebar, /data-avatar-trigger/);
   assert.match(sidebar, /type="button"/);
@@ -60,7 +61,7 @@ test('clicar na imagem da conta abre o seletor de foto existente', async () => {
 
 test('foto do perfil público abre visualização ampliada simples', async () => {
   const sidebar = await read('src/components/ProfileSidebar.astro');
-  const app = await read('public/app.js');
+  const app = await readAppSourceSync();
   const css = await readGlobalCss();
   assert.match(sidebar, /data-profile-photo-open/);
   assert.match(sidebar, /data-profile-photo-viewer/);

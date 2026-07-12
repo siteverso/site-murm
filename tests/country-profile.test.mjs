@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { readAppSourceSync } from './js-source-test-utils.mjs';
 
 const read = file => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
 
 test('remove região brasileira da conta, home e aplicação', () => {
   const account = read('src/pages/conta.astro');
   const home = read('src/pages/index.astro');
-  const app = read('public/app.js');
+  const app = readAppSourceSync();
   assert.doesNotMatch(account, /Região do Brasil|regionCode|columnGroupCode/);
   assert.doesNotMatch(home, /Regiões do Brasil|data-column-group-select/);
   assert.doesNotMatch(app, /regionCode|columnGroupCode|data-profile-region/);
@@ -16,7 +17,7 @@ test('remove região brasileira da conta, home e aplicação', () => {
 test('conta oferece busca de país com ISO e DDI via endpoint público cacheado', () => {
   const account = read('src/pages/conta.astro');
   const countries = read('src/pages/api/countries.ts');
-  const app = read('public/app.js');
+  const app = readAppSourceSync();
   assert.match(account, /name="countryCode"/);
   assert.match(account, /name="countryCallingCode"/);
   assert.match(account, /Buscar país por nome, código ou DDI/);

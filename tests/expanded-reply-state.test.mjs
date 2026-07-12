@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readAppSource } from './js-source-test-utils.mjs';
 
-const appSource = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+const appSource = await readAppSource();
 
 test('mantem cards ocultos expandidos após responder', () => {
   assert.match(appSource, /async function hydrateExpandedSpecificPosts\(rootId, basePosts\)/);

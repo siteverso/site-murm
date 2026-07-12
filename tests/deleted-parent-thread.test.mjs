@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { readAppSource } from './js-source-test-utils.mjs';
 
-const appSource = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+const appSource = await readAppSource();
 const postsSource = await readFile(new URL('../src/lib/server/repositories/posts.ts', import.meta.url), 'utf8');
 
 test('não renderiza stub como card completo após recarregar thread específica', () => {

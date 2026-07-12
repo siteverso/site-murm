@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { readGlobalCss, readGlobalCssSync } from './css-test-utils.mjs';
 import { formatDateTime, getSexColumnDefinitions, hasUnreadMessages } from '../public/app-utils.mjs';
+import { readAppSource } from './js-source-test-utils.mjs';
 
 test('agrupamento por sexo inclui a terceira coluna para cadastros sem sexo', () => {
   assert.deepEqual(getSexColumnDefinitions().map(item => item.code), ['M', 'F', '']);
@@ -23,13 +24,13 @@ test('data e hora da conversa são formatadas em conjunto', () => {
 
 
 test('colunas do feed não renderizam títulos visuais', async () => {
-  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const source = await readAppSource();
   assert.doesNotMatch(source, /lane-inline-head/);
   assert.doesNotMatch(source, /<strong>\$\{definition\.label\}<\/strong>/);
 });
 
 test('envio de bilhete usa somente spinner e restaura o ícone original', async () => {
-  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const source = await readAppSource();
   assert.match(source, /setButtonLoading\(submit, true, ''\)/);
   assert.doesNotMatch(source, /Sending…|Enviando…/);
   assert.match(source, /button\.dataset\.originalContent = button\.innerHTML/);
@@ -44,7 +45,7 @@ test('CSS global não mantém regras antigas duplicadas de exclusão de resposta
 });
 
 test('duplo clique abre a resposta e o próximo duplo clique entra no perfil', async () => {
-  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const source = await readAppSource();
   assert.match(source, /function openReplyForm\(card/);
   assert.match(source, /function openPostAuthorProfile\(card\)/);
   assert.match(source, /replyForm\?\.classList\.contains\('open'\)/);
@@ -59,7 +60,7 @@ test('não existe cópia obsoleta do aplicativo em public\/public', async () => 
 });
 
 test('respostas são agrupadas e renderizadas em lista compacta dentro do murmúrio pai', async () => {
-  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const source = await readAppSource();
   const css = await readGlobalCss();
   assert.match(source, /function groupPostsByParent\(items\)/);
   assert.match(source, /function getRootPosts\(items\)/);
@@ -83,7 +84,7 @@ test('ícones de direct e exclusão do murmúrio aparecem juntos apenas no hover
 });
 
 test('bilhete só é enviado após cinco segundos sem desfazer', async () => {
-  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const source = await readAppSource();
   assert.match(source, /const scheduleDirectSend = \(\{ recipientId, contents, onPending, onSent, onUndone, onFailed \}\) =>/);
   assert.match(source, /const sendTimer = setTimeout\(async \(\) => \{[\s\S]*await api\('\/api\/directs',[\s\S]*method: 'POST'/);
   assert.match(source, /\}, 5000\);/);
@@ -95,7 +96,7 @@ test('bilhete só é enviado após cinco segundos sem desfazer', async () => {
 
 
 test('chat mostra bilhete pendente apenas ao remetente e remove ao desfazer', async () => {
-  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const source = await readAppSource();
   assert.match(source, /const pendingLabel = isEnglish \? 'Message sent\.' : 'Mensagem enviada\.'/);
   assert.match(source, /const addPendingDirect = contents =>/);
   assert.match(source, /pending: true/);
@@ -107,7 +108,7 @@ test('chat mostra bilhete pendente apenas ao remetente e remove ao desfazer', as
 
 test('usuário do topo abre /perfil', async () => {
   const header = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/components/Header.astro', import.meta.url), 'utf8'));
-  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const source = await readAppSource();
   assert.match(header, /data-own-profile-link/);
   assert.match(source, /el\.href = `\/perfil\/\$\{encodeURIComponent\(user\.username\)\}`/);
 });
@@ -131,7 +132,7 @@ test('conta oferece acesso ao perfil público na coluna esquerda', async () => {
 });
 
 test('botao de resposta direciona o foco ao input de forma robusta', async () => {
-  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const source = await readAppSource();
   assert.match(source, /function focusReplyInput\(form\)/);
   assert.match(source, /input\.focus\(\{ preventScroll: true \}\)/);
   assert.match(source, /requestAnimationFrame\(focus\)/);
@@ -141,7 +142,7 @@ test('botao de resposta direciona o foco ao input de forma robusta', async () =>
 
 
 test('cards exibem três respostas recentes e preservam a resposta do usuário logado', async () => {
-  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const source = await readAppSource();
   assert.match(source, /function selectVisibleReplies\(replies, limit = 3\)/);
   assert.match(source, /newest\.find\(reply => sameId\(reply\.userId, currentUser\.id\)\)/);
   assert.match(source, /slice\(0, Math\.max\(0, limit - 1\)\)/);
@@ -151,7 +152,7 @@ test('cards exibem três respostas recentes e preservam a resposta do usuário l
 });
 
 test('perfil renderiza cards recursivos até o quinto nível', async () => {
-  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const source = await readAppSource();
   assert.match(source, /repliesMode === 'recursive'/);
   assert.match(source, /depth < maxDepth/);
   assert.match(source, /depth: depth \+ 1/);
@@ -168,7 +169,7 @@ test('perfil recursivo usa apenas o espaçamento do card pai nas laterais', () =
 
 
 test('home usa margens compactas equilibradas e abre a própria resposta clicada', async () => {
-  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const source = await readAppSource();
   const css = await readGlobalCss();
   assert.match(source, /function renderReplyPreview\(reply, parentPost\)/);
   assert.match(source, /\?murmurio=\$\{encodeURIComponent\(reply\.id\)\}/);
@@ -176,7 +177,7 @@ test('home usa margens compactas equilibradas e abre a própria resposta clicada
 });
 
 test('perfil permite murmúrio específico, mostra o pai esmaecido e reinicia a recursão a cada quinto nível', async () => {
-  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const source = await readAppSource();
   const profile = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/pages/perfil/[username].astro', import.meta.url), 'utf8'));
   const css = await readGlobalCss();
   assert.match(source, /function collectPostSubtree\(items, rootPostId\)/);
@@ -190,7 +191,7 @@ test('perfil permite murmúrio específico, mostra o pai esmaecido e reinicia a 
 });
 
 test('interna específica renderiza linhas de irmãs e permite inflar card por clique', async () => {
-  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const source = await readAppSource();
   const css = await readGlobalCss();
   assert.match(source, /const SPECIFIC_SIBLING_WINDOW = 5/);
   assert.match(source, /function renderSpecificThread\(parentPost, rootPost, allPosts, siblingStubs = \[\]\)/);
@@ -207,7 +208,7 @@ test('interna específica renderiza linhas de irmãs e permite inflar card por c
 });
 
 test('stub lazy é substituído pelos dados completos antes de inflar o card', async () => {
-  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const source = await readAppSource();
   assert.match(source, /const safePosts = Array\.isArray\(allPosts\) \? allPosts : \[\]/);
   assert.match(source, /const loadedById = new Map\(safePosts\.map\(post => \[String\(post\.id\), post\]\)\)/);
   assert.match(source, /\.map\(post => loadedById\.get\(String\(post\.id\)\) \|\| post\)/);
@@ -216,7 +217,7 @@ test('stub lazy é substituído pelos dados completos antes de inflar o card', a
 });
 
 test('murmúrio específico mostra somente o pai direto e a mensagem selecionada, sem irmãos', async () => {
-  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const source = await readAppSource();
   assert.match(source, /visited\.add\(String\(parent\.id\)\);/);
   assert.match(source, /selected\.push\(parent\);/);
   assert.doesNotMatch(source, /if \(root\.parentPostId != null\) \{[\s\S]*visit\(parent\);/);
@@ -224,7 +225,7 @@ test('murmúrio específico mostra somente o pai direto e a mensagem selecionada
 });
 
 test('texto de cada mensagem abre o perfil no modo da própria mensagem e não exibe contexto redundante', async () => {
-  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const source = await readAppSource();
   assert.match(source, /class="murmur-text-link" href="\/perfil\/\$\{encodeURIComponent\(post\.author\)\}\?murmurio=\$\{encodeURIComponent\(post\.id\)\}"/);
   assert.doesNotMatch(source, /Resposta para @/);
   assert.doesNotMatch(source, /murmur-reply-context/);
@@ -232,7 +233,7 @@ test('texto de cada mensagem abre o perfil no modo da própria mensagem e não e
 
 
 test('irmãs minimizadas exibem somente data e prévia truncada e carregam o card no clique', async () => {
-  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const source = await readAppSource();
   const repository = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/lib/server/repositories/posts.ts', import.meta.url), 'utf8'));
   const css = await readGlobalCss();
   assert.match(source, /thread-sibling-line__time/);
@@ -245,7 +246,7 @@ test('irmãs minimizadas exibem somente data e prévia truncada e carregam o car
 });
 
 test('clique expande somente a linha escolhida e hover opcional usa espera curta', async () => {
-  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const source = await readAppSource();
   const profile = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/pages/perfil/[username].astro', import.meta.url), 'utf8'));
   assert.match(source, /async function expandOnlySpecificPost\(rootId, inflateId, sourceLine = null\)/);
   assert.match(source, /await loadAndExpandSpecificPost\(rootId, String\(inflateId\)\)/);
@@ -261,7 +262,7 @@ test('clique expande somente a linha escolhida e hover opcional usa espera curta
 
 
 test('slide de inflação usa altura real e mantém estilo por sexo', async () => {
-  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const source = await readAppSource();
   const css = await readGlobalCss();
   const repository = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/lib/server/repositories/posts.ts', import.meta.url), 'utf8'));
   assert.match(source, /sourceLine\?\.getBoundingClientRect\(\)\.height/);
@@ -284,7 +285,7 @@ test('perfil mantém lateral sticky rolável e não solta respostas de outros us
 });
 
 test('LED de hover só aparece quando existem linhas colapsadas', async () => {
-  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const source = await readAppSource();
   const css = await readGlobalCss();
   const profile = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/pages/perfil/[username].astro', import.meta.url), 'utf8'));
   assert.match(source, /function syncSpecificHoverControl\(\)/);
@@ -297,7 +298,7 @@ test('LED de hover só aparece quando existem linhas colapsadas', async () => {
 
 
 test('card inflado recolhe fora das hot areas e preserva links e ações', async () => {
-  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const source = await readAppSource();
   const css = await readGlobalCss();
   assert.match(source, /collapsibleHeader = false/);
   assert.match(source, /data-collapse-expanded-post=/);
@@ -318,7 +319,7 @@ test('link do usuário ocupa somente avatar e texto do nome', () => {
 });
 
 test('feed força leitura sem cache e sincroniza exclusões entre abas', async () => {
-  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const source = await readAppSource();
   assert.match(source, /cache: 'no-store'/);
   assert.match(source, /new BroadcastChannel\('murmurinho-feed-sync'\)/);
   assert.match(source, /announceFeedChanged\(\)/);

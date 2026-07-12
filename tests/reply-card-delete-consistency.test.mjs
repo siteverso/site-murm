@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { readAppSource } from './js-source-test-utils.mjs';
 
-const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+const app = await readAppSource();
 const css = await readFile(new URL('../src/styles/components/murmur-card.css', import.meta.url), 'utf8');
 
 test('card completo de resposta pede confirmação antes de apagar', () => {
