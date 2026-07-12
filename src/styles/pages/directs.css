@@ -1,7 +1,7 @@
 /* Bilhetes */
 .direct-nav { position: relative; }
 .direct-badge { position: absolute; top: 2px; right: 1px; min-width: 18px; height: 18px; padding: 0 5px; display: grid; place-items: center; border-radius: 999px; color: var(--inverse); background: var(--strong); font-size: .68rem; }
-.directs-page { width: min(var(--page-width), calc(100% - var(--page-gutter))); height: calc(100dvh - 92px); min-height: 0; margin: 16px auto 0; display: grid; grid-template-columns: minmax(260px, 330px) minmax(0, 1fr); gap: 16px; overflow: hidden; }
+.directs-page { width: min(var(--page-width), calc(100% - var(--page-gutter))); height: calc(100dvh - 108px); min-height: 0; margin: 16px auto; display: grid; grid-template-columns: minmax(260px, 330px) minmax(0, 1fr); gap: 16px; overflow: hidden; }
 .directs-sidebar, .directs-stage { min-height: 0; height: 100%; overflow: hidden; }
 .directs-sidebar { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
 .directs-sidebar-head { padding: 20px; display: flex; align-items: end; justify-content: space-between; }

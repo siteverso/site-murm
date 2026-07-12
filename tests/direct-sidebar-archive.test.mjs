@@ -29,3 +29,7 @@ test('conversa arquivada pode ser restaurada', () => {
   assert.match(api, /restoreConversation/);
   assert.match(repository, /export async function restoreConversation/);
 });
+
+test('painel de bilhetes mantém respiro inferior igual ao superior', () => {
+  assert.match(css, /\.directs-page \{[^}]*height: calc\(100dvh - 108px\);[^}]*margin: 16px auto;/s);
+});
