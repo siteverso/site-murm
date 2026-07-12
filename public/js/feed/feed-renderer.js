@@ -228,7 +228,12 @@ async function loadFeed(force = false) {
         feedBuckets.all = posts;
         renderSplitFeeds();
         renderLane(allListFeed, feedBuckets.all, 'compact');
-        renderLane(profileFeed, feedBuckets.all, profileFeed?.dataset.feedIncludeReplies === 'true' ? 'recursive' : 'none', profilePostId);
+        const profileRepliesMode = profilePostId
+            ? 'recursive'
+            : profileFeed?.dataset.feedIncludeReplies === 'true'
+                ? 'compact'
+                : 'none';
+        renderLane(profileFeed, feedBuckets.all, profileRepliesMode, profilePostId);
         restoreFeedAnchor(anchor);
         setupLazyVisuals();
         hasRenderedFeed = true;

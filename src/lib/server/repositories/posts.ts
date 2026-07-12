@@ -88,8 +88,9 @@ export async function listPosts(currentUserId: number | null, profileUsername: s
             replyCount: Number(row.REPLY_COUNT || 0),
         }));
 
-        // Perfis permanecem enxutos: a prévia de respostas é exclusiva da Home.
-        if (profileUsername || roots.length === 0) return roots;
+        // Home e listagem do perfil usam a mesma prévia compacta.
+        // A conversa específica continua sendo carregada pela rota própria, com recursão completa.
+        if (roots.length === 0) return roots;
 
         const previewResult = await connection.execute<Record<string, unknown>>(
             `SELECT *
@@ -139,10 +140,17 @@ export async function listPosts(currentUserId: number | null, profileUsername: s
                      AND lower(trim(parent.status)) = 'published'
                      AND lower(trim(parent.post_type)) = 'murmur'
                      AND parent.parent_post_id IS NULL
+                     AND (
+                         :profile_username IS NULL
+                         OR parent.user_id = (SELECT profile_user.id
+                                              FROM murm_user profile_user
+                                              WHERE lower(profile_user.username) = lower(:profile_username)
+                                              FETCH FIRST 1 ROW ONLY)
+                     )
              )
              WHERE preview_rank <= 2
              ORDER BY parent_post_id, created_at DESC, id DESC`,
-            {current_user_id: currentUserId},
+            {current_user_id: currentUserId, profile_username: profileUsername},
         );
 
         const previews = (previewResult.rows || []).map(row => {
