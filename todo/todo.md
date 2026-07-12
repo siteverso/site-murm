@@ -8,9 +8,8 @@ Realize testes unitarios para garantir funcionamento
 
 TODO, um de cada vez:
 
-- rever todos os css se estao corretos e otimizados
-- dois cliques no murmurio aparece pra responder
-- voltar a exibir as resposta dentro do proprio murmurio 
-- so exibir o icone remover murmurio no hover, igual o direct  ![img_6.png](img_6.png)
-- logo apos enviar um bilhete permitir desfazer ![img_5.png](img_5.png)
-- 
+- verifique se tem arquivo lixo e me avisa aqui no chat se devo apagar algum arquivo
+- Hoje o clique no usuario do topo abre a conta do usuario, vamos mudar isso  O clique no icone do usuario deve abrir o perfil dele que é o que todos veem
+- E na esquerda deve ter a opcao para entao editar a conta
+- permitir enviar imagem do perfil pela conta
+- deve ter um pagina perfil da pessoa ao clicar no icone dela ou nome

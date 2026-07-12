@@ -830,3 +830,7 @@ html[data-theme="dark"] .field-help[data-type="waiting"] { color: #91baf0; }
 @media (hover: none) {
   .murmur-head-actions .direct-card-button { opacity: 1; pointer-events: auto; transform: none; }
 }
+
+/* Bilhete otimista: visível só para o remetente até o envio definitivo. */
+.direct-note.is-pending { opacity: .72; }
+.direct-note.is-pending .direct-note-footer { justify-content: flex-start; }
