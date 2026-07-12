@@ -33,6 +33,7 @@ async function initializeApplication() {
         bindProfile();
         bindCountryPicker();
         bindFeedView();
+        bindCardDeck();
         bindFeed();
     } catch (error) {
         showRuntimeError(error, 'Erro ao inicializar a interface');

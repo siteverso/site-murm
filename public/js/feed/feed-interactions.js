@@ -5,7 +5,7 @@ function bindFeedView() {
 
     const panels = $$('[data-feed-view-panel]', board);
     const buttons = $$('[data-feed-view]', switcher);
-    const validViews = new Set(['split', 'relevance', 'users', 'grid', 'list']);
+    const validViews = new Set(['split', 'relevance', 'users', 'grid', 'deck', 'list']);
 
     const applyView = view => {
         const mode = validViews.has(view) ? view : 'split';

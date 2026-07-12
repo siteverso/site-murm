@@ -4,6 +4,7 @@ function renderFeedSkeletons() {
     const userColumns = $('[data-feed-user-columns]');
     const gridFeed = $('[data-feed-grid]');
     const allListFeed = $('[data-feed-all-list]');
+    const deckFeed = $('[data-feed-deck]');
     const profileFeed = $('[data-profile-feed]');
     const skeletonCard = () => `<article class="panel murmur-card skeleton-card" aria-hidden="true">
     <div class="skeleton-head">
@@ -38,6 +39,7 @@ function renderFeedSkeletons() {
     </section>`).join('');
     });
     if (gridFeed) gridFeed.innerHTML = cards(8);
+    if (deckFeed) deckFeed.innerHTML = `<div class="deck-card deck-card--skeleton">${skeletonCard()}</div>`;
     if (allListFeed) allListFeed.innerHTML = `<div class="feed-skeleton" aria-label="Carregando murmúrios">${cards(4)}</div>`;
     if (profileFeed) profileFeed.innerHTML = `<div class="feed-skeleton" aria-label="Carregando murmúrios">${cards(3)}</div>`;
 }
@@ -254,8 +256,9 @@ async function loadFeed(force = false) {
     const userColumns = $('[data-feed-user-columns]');
     const gridFeed = $('[data-feed-grid]');
     const allListFeed = $('[data-feed-all-list]');
+    const deckFeed = $('[data-feed-deck]');
     const profileFeed = $('[data-profile-feed]');
-    if ((!columns && !relevanceColumns && !userColumns && !gridFeed && !allListFeed && !profileFeed) || feedRequestRunning) return;
+    if ((!columns && !relevanceColumns && !userColumns && !gridFeed && !deckFeed && !allListFeed && !profileFeed) || feedRequestRunning) return;
 
     feedRequestRunning = true;
     if (!hasRenderedFeed) renderFeedSkeletons();
@@ -282,6 +285,7 @@ async function loadFeed(force = false) {
         feedBuckets.all = posts;
         renderSplitFeeds();
         renderLane(gridFeed, feedBuckets.all, 'compact');
+        renderDeck(feedBuckets.all);
         renderLane(allListFeed, feedBuckets.all, 'compact');
         const profileRepliesMode = profilePostId
             ? 'recursive'
@@ -308,7 +312,7 @@ function pinCardActions(postId) {
 }
 
 function startFeedPolling() {
-    if (!$('[data-feed-columns]') && !$('[data-feed-relevance-columns]') && !$('[data-feed-user-columns]') && !$('[data-feed-grid]') && !$('[data-feed-all-list]') && !$('[data-profile-feed]')) return;
+    if (!$('[data-feed-columns]') && !$('[data-feed-relevance-columns]') && !$('[data-feed-user-columns]') && !$('[data-feed-grid]') && !$('[data-feed-deck]') && !$('[data-feed-all-list]') && !$('[data-profile-feed]')) return;
 
     bindFeedSyncEvents();
     clearInterval(feedTimer);

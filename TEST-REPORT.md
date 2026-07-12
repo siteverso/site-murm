@@ -1,12 +1,19 @@
-# Relatório de validação
+# TEST REPORT — site-murm-baralho-tinder-glow
 
-## Alteração
-- Títulos homogêneos nas colunas de sexo: Masculino, Feminino e Sem sexo.
-- Nova visualização por usuários: mais antigos, mais novos e mais ativos.
-- Um único murmúrio representativo por usuário em cada coluna, evitando duplicação do mesmo usuário.
-- Métricas de usuário fornecidas pelo repositório e ordenação isolada no renderizador.
+## Escopo
+- reforço visual do modo Baralho 3D na Home
+- swipe estilo Tinder
+- direita = Ecoar
+- esquerda = Silenciar
+- glow visível ao atingir o limiar mínimo da ação
+- saída automática da carta ao soltar após o limiar
+- fila contínua com buffer de até 100 murmúrios e reposição contínua
 
-## Testes
-- `npm run build`: aprovado.
-- Testes focados das definições e títulos de colunas: aprovados.
-- A suíte completa contém falhas preexistentes de expectativas antigas em outros recursos; nenhuma delas foi introduzida por esta alteração.
+## Validações executadas
+- `node --test tests/home-card-deck.test.mjs` ✅ 3/3
+- `npm run build` ✅
+
+## Observações
+- a ação do swipe usa o endpoint real de voto (`/api/posts/:id/vote`)
+- o baralho mantém pilha visual contínua e reabastece a fila antes de esgotar
+- ícones laterais e glow mudam conforme a direção armada
