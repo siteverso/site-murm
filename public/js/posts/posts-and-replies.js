@@ -167,8 +167,19 @@ function selectVisibleReplies(replies, limit = 2) {
     return [ownReply, ...otherNewest].sort(compareRepliesByNewest);
 }
 
-function renderReplyPreview(reply) {
+function renderReplyPreview(reply, {expandable = false, childrenByParent = new Map(), parentPostId = null} = {}) {
     const isPrivateRedacted = Boolean(reply?.isPrivate && reply?.canViewPrivate === false);
+    const replyId = String(reply.id);
+    const isExpanded = expandable && profileCompactExpandedIds.has(replyId);
+    if (isExpanded) {
+        return `<li class="reply-preview-item reply-preview-item--expanded" data-reply-preview-id="${reply.id}">
+      <div class="thread-expanded-card profile-reply-expanded-card" data-profile-expanded-reply="${reply.id}">${renderPost(reply, childrenByParent, new Set(parentPostId == null ? [] : [String(parentPostId)]), {
+            repliesMode: 'none',
+            contextParentId: parentPostId == null ? null : String(parentPostId),
+            collapsibleHeader: true,
+        })}</div>
+    </li>`;
+    }
     const deleteControls = sameId(currentUser?.id, reply.userId)
         ? `<div class="reply-inline-delete-zone" data-reply-delete-zone>
         <div class="reply-inline-delete-confirm" data-reply-delete-confirm hidden>
@@ -179,12 +190,14 @@ function renderReplyPreview(reply) {
       </div>`
         : '';
     const replyProfileUrl = `/perfil/${encodeURIComponent(reply.author)}?murmurio=${encodeURIComponent(reply.id)}`;
-    return `<li class="reply-preview-item${sameId(currentUser?.id, reply.userId) ? ' is-own-reply' : ''}${isPrivateRedacted ? ' is-private-preview' : ''}" data-reply-preview-id="${reply.id}">
-    <a class="reply-preview-content" href="${replyProfileUrl}" aria-label="Abrir esta resposta no perfil de @${escapeHtml(reply.author)}">
-      <strong>@${escapeHtml(reply.author)}</strong>
+    const content = `<strong>@${escapeHtml(reply.author)}</strong>
       ${reply.isPrivate ? '<em class="reply-private-mini" title="Resposta privada"><i aria-hidden="true"></i></em>' : ''}
-      ${isPrivateRedacted ? '' : `<span>${escapeHtml(reply.text)}</span>`}
-    </a>
+      ${isPrivateRedacted ? '' : `<span>${escapeHtml(reply.text)}</span>`}`;
+    const previewControl = expandable
+        ? `<button class="reply-preview-content" type="button" data-expand-profile-reply="${reply.id}" aria-expanded="false" aria-label="Expandir resposta de @${escapeHtml(reply.author)}">${content}</button>`
+        : `<a class="reply-preview-content" href="${replyProfileUrl}" aria-label="Abrir esta resposta no perfil de @${escapeHtml(reply.author)}">${content}</a>`;
+    return `<li class="reply-preview-item${sameId(currentUser?.id, reply.userId) ? ' is-own-reply' : ''}${isPrivateRedacted ? ' is-private-preview' : ''}" data-reply-preview-id="${reply.id}">
+    ${previewControl}
     ${deleteControls}
   </li>`;
 }
@@ -196,6 +209,7 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
         maxDepth = 5,
         contextParentId = null,
         collapsibleHeader = false,
+        compactRepliesExpandable = false,
     } = options;
     const sexClass = post.sexCode === 'M' ? 'sex-m' : post.sexCode === 'F' ? 'sex-f' : 'sex-u';
     const isPrivateRedacted = Boolean(post?.isPrivate && post?.canViewPrivate === false);
@@ -213,7 +227,7 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
         const allRepliesLink = hiddenReplyCount > 0
             ? `<a class="reply-preview-more" href="/perfil/${encodeURIComponent(post.author)}?murmurio=${encodeURIComponent(post.id)}">Ver todas as ${post.replyCount} respostas →</a>`
             : '';
-        nestedReplies = `<div class="replies replies-compact" data-replies-for="${post.id}"><ul class="reply-preview-list">${visibleReplies.map(reply => renderReplyPreview(reply, post)).join('')}</ul>${allRepliesLink}</div>`;
+        nestedReplies = `<div class="replies replies-compact" data-replies-for="${post.id}"><ul class="reply-preview-list">${visibleReplies.map(reply => renderReplyPreview(reply, {expandable: compactRepliesExpandable, childrenByParent, parentPostId: post.id})).join('')}</ul>${allRepliesLink}</div>`;
     }
     if (repliesMode === 'recursive' && replies.length && depth < maxDepth) {
         nestedReplies = `<div class="replies replies-recursive" data-replies-for="${post.id}">${replies.map(reply => renderPost(reply, childrenByParent, nextAncestry, {
@@ -428,7 +442,7 @@ function renderLane(feed, posts, repliesMode = 'none', rootPostId = '') {
         const childrenByParent = groupPostsByParent(visiblePosts);
         const roots = visiblePosts.filter(post => sameId(post.id, rootPostId));
         feed.innerHTML = roots.length
-            ? roots.map(post => renderPost(post, childrenByParent, new Set(), {repliesMode, contextParentId: ''})).join('')
+            ? roots.map(post => renderPost(post, childrenByParent, new Set(), {repliesMode, contextParentId: '', compactRepliesExpandable: feed.dataset.profileCompactReplies === 'true'})).join('')
             : '<p class="empty-state">Murmúrio não encontrado.</p>';
         syncSpecificHoverControl();
         return;
@@ -436,7 +450,7 @@ function renderLane(feed, posts, repliesMode = 'none', rootPostId = '') {
     const childrenByParent = groupPostsByParent(posts);
     const roots = getRootPosts(posts);
     feed.innerHTML = roots.length
-        ? roots.map(post => renderPost(post, childrenByParent, new Set(), {repliesMode, contextParentId: ''})).join('')
+        ? roots.map(post => renderPost(post, childrenByParent, new Set(), {repliesMode, contextParentId: '', compactRepliesExpandable: feed.dataset.profileCompactReplies === 'true'})).join('')
         : '<p class="empty-state">Murmúrio não encontrado.</p>';
     syncSpecificHoverControl();
 }

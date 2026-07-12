@@ -45,7 +45,7 @@ const replyGroups = showRepliesPage ? await listReplyHistoryByUser(profile.id, c
               <a class="profile-show-all" href={`/perfil/${encodeURIComponent(profile.username)}`}>Ver todos os murmúrios</a>
             </div>}
           </div>
-          <div class="feed profile-feed" data-profile-feed data-profile-username={profile.username} data-profile-post-id={profilePostId || undefined} data-feed-include-replies="true"></div>
+          <div class="feed profile-feed" data-profile-feed data-profile-username={profile.username} data-profile-post-id={profilePostId || undefined} data-feed-include-replies="true" data-profile-compact-replies="true"></div>
         </>
       )}
     </section>

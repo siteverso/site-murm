@@ -7,6 +7,7 @@ const configuredTextLimit = Number.parseInt(String(window.__MURMUR_TEXT_LIMIT__ 
 const TEXT_LIMIT = Number.isInteger(configuredTextLimit) && configuredTextLimit > 0 ? configuredTextLimit : 256;
 const SPECIFIC_SIBLING_WINDOW = 5;
 const specificThreadStates = new Map();
+const profileCompactExpandedIds = new Set();
 const SPECIFIC_HOVER_DELAY_MS = 700;
 let specificHoverExpandEnabled = false;
 let specificHoverTimer = null;

@@ -356,3 +356,23 @@
 }
 .reply-preview-more:hover,
 .reply-preview-more:focus-visible { color: var(--text); }
+
+/* Respostas compactas expansíveis apenas no feed de perfil. */
+.reply-preview-content[type="button"] {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.reply-preview-item--expanded {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.profile-reply-expanded-card { width: 100%; }
+.profile-reply-expanded-card > .murmur-card { margin: 0; }

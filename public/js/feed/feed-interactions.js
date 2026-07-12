@@ -324,6 +324,19 @@ function bindFeed() {
                 const rootId = profileFeed?.dataset.profilePostId || '';
                 if (rootId) await expandOnlySpecificPost(rootId, String(target.dataset.inflatePost), target);
             }
+            if (target.matches('[data-expand-profile-reply]')) {
+                const profileFeed = target.closest('[data-profile-feed]');
+                const replyId = String(target.dataset.expandProfileReply || '');
+                if (profileFeed && replyId && !profileFeed.dataset.profilePostId) {
+                    const sourceHeight = Math.max(32, Math.round(target.closest('[data-reply-preview-id]')?.getBoundingClientRect().height || 36));
+                    profileCompactExpandedIds.add(replyId);
+                    renderLane(profileFeed, posts, 'compact');
+                    await new Promise(resolve => requestAnimationFrame(resolve));
+                    const expandedCard = profileFeed.querySelector(`[data-profile-expanded-reply="${CSS.escape(replyId)}"]`);
+                    expandedCard?.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+                    await animateInflatedCard(expandedCard, sourceHeight);
+                }
+            }
             const directButton = target.closest('[data-direct-user]');
             if (directButton) openDirectComposer(Number(directButton.dataset.directUser), directButton.dataset.directName);
         } catch (error) {
@@ -346,6 +359,18 @@ function bindFeed() {
     applySpecificHoverPreference(readSpecificHoverPreference());
 
     document.addEventListener('click', async event => {
+        const profileExpandedReply = event.target.closest?.('[data-profile-expanded-reply]');
+        if (profileExpandedReply) {
+            const hotArea = event.target.closest('.murmur-profile-link, .murmur-author a, .murmur-text-link, .murmur-head-actions, .murmur-actions, button, input, textarea, form, [data-reply-delete-zone]');
+            if (hotArea) return;
+            const profileFeed = profileExpandedReply.closest('[data-profile-feed]');
+            const replyId = String(profileExpandedReply.dataset.profileExpandedReply || '');
+            if (profileFeed && replyId) {
+                profileCompactExpandedIds.delete(replyId);
+                renderLane(profileFeed, posts, 'compact');
+            }
+            return;
+        }
         const collapsibleCard = event.target.closest?.('[data-collapse-expanded-post]');
         if (collapsibleCard) {
             const hotArea = event.target.closest('.murmur-profile-link, .murmur-author a, .murmur-text-link, .murmur-head-actions, .murmur-actions, button, input, textarea, form, [data-reply-delete-zone]');
