@@ -8,6 +8,6 @@ Realize testes unitarios para garantir funcionamento
 
 TODO, um de cada vez:
 
-- dois cliques no murmurio ja abre pra responder, mais 2 cliques com a resposta aberta entra no perfil
-- qd clicar aqui, ja por o foco no input![img_5.png](img_5.png)
+- [x] dois cliques no murmurio ja abre pra responder, mais 2 cliques com a resposta aberta entra no perfil
+- [x] qd clicar aqui, ja por o foco no input![img_5.png](img_5.png)
 - aqui mostrar qts caracteres preenchido / total ![img_4.png](img_4.png) 

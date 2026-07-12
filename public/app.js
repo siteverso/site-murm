@@ -1,6 +1,8 @@
 import { formatDateTime, getSexColumnDefinitions, hasUnreadMessages } from '/app-utils.mjs';
 
 const $ = (selector, root = document) => root?.querySelector?.(selector) ?? null;
+const configuredTextLimit = Number.parseInt(String(window.__MURMUR_TEXT_LIMIT__ ?? ''), 10);
+const TEXT_LIMIT = Number.isInteger(configuredTextLimit) && configuredTextLimit > 0 ? configuredTextLimit : 256;
 
 const ICONS = {
   direct: `
@@ -389,7 +391,7 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), in
       </div>
     </div>
     <form class="reply-box" data-reply-form>
-      <input maxlength="280" placeholder="Responder sem fazer barulho…" required>
+      <input maxlength="${TEXT_LIMIT}" placeholder="Responder sem fazer barulho…" required>
       <button class="reply-send-button" type="submit" title="Enviar resposta" aria-label="Enviar resposta">${ICONS.send}</button>
     </form>
     ${nestedReplies}
@@ -645,6 +647,20 @@ function bindColumnGroup() {
   });
 }
 
+function focusReplyInput(form) {
+  const input = form?.querySelector('input');
+  if (!input) return;
+
+  const focus = () => {
+    if (!form.classList.contains('open')) return;
+    input.focus({ preventScroll: true });
+  };
+
+  focus();
+  requestAnimationFrame(focus);
+  setTimeout(focus, 60);
+}
+
 function openReplyForm(card, { toggle = false } = {}) {
   const form = card?.querySelector('[data-reply-form]');
   if (!form) return;
@@ -652,9 +668,7 @@ function openReplyForm(card, { toggle = false } = {}) {
   if (toggle) form.classList.toggle('open');
   else form.classList.add('open');
 
-  if (form.classList.contains('open')) {
-    requestAnimationFrame(() => form.querySelector('input')?.focus({ preventScroll: true }));
-  }
+  if (form.classList.contains('open')) focusReplyInput(form);
 }
 
 function openPostAuthorProfile(card) {
@@ -750,16 +764,46 @@ function modal(content, className = '') {
   document.body.insertAdjacentHTML('beforeend', `<div class="modal-backdrop" data-modal role="dialog" aria-modal="true"><div class="panel modal-card ${className}"><button class="modal-close" type="button" data-modal-close aria-label="Fechar">×</button>${content}</div></div>`);
 }
 
+function progressMarkup() {
+  return `<div class="murmur-progress" data-murmur-progress aria-label="0 de ${TEXT_LIMIT} caracteres usados">
+    <span class="murmur-progress-track"><span class="murmur-progress-fill" data-progress-fill></span></span>
+    <span class="murmur-progress-value" data-progress-value>0/${TEXT_LIMIT}</span>
+  </div>`;
+}
+
+function updateTextProgress(field) {
+  const form = field.closest('form');
+  const progress = form?.querySelector('[data-murmur-progress]');
+  if (!progress) return;
+  const used = Math.min(field.value.length, TEXT_LIMIT);
+  const percent = Math.round((used / TEXT_LIMIT) * 100);
+  const fill = progress.querySelector('[data-progress-fill]');
+  const value = progress.querySelector('[data-progress-value]');
+  if (fill) fill.style.width = `${percent}%`;
+  if (value) value.textContent = `${used}/${TEXT_LIMIT}`;
+  progress.setAttribute('aria-label', `${used} de ${TEXT_LIMIT} caracteres usados`);
+  progress.classList.toggle('near-limit', percent >= 80 && percent < 100);
+  progress.classList.toggle('at-limit', percent >= 100);
+}
+
 function openComposer() {
-  modal(`<h2>Novo murmúrio</h2><form data-floating-composer><textarea maxlength="420" autofocus placeholder="O que está murmurando?" required></textarea><div class="modal-actions"><span>Até 420 caracteres</span><button class="button primary">Murmurar</button></div></form>`);
+  modal(`<h2>Novo murmúrio</h2><form data-floating-composer><textarea maxlength="${TEXT_LIMIT}" autofocus placeholder="O que está murmurando?" required></textarea><div class="modal-actions">${progressMarkup()}<button class="button primary">Murmurar</button></div></form>`);
+  const field = $('[data-floating-composer] textarea');
+  if (field) updateTextProgress(field);
   focusModalField('[data-floating-composer] textarea');
 }
 
 function openDirectComposer(userId, username) {
-  modal(`<h2>Enviar bilhete</h2><p class="modal-subtitle">Para @${escapeHtml(username)}</p><form data-direct-compose><input type="hidden" name="recipientId" value="${userId}"><textarea maxlength="256" autofocus placeholder="Escreva seu bilhete…" required></textarea><div class="modal-actions"><span>Entrega discreta</span><button class="button primary">Enviar bilhete</button></div></form>`, 'direct-compose-modal');
+  modal(`<h2>Enviar bilhete</h2><p class="modal-subtitle">Para @${escapeHtml(username)}</p><form data-direct-compose><input type="hidden" name="recipientId" value="${userId}"><textarea maxlength="${TEXT_LIMIT}" autofocus placeholder="Escreva seu bilhete…" required></textarea><div class="modal-actions"><span>Entrega discreta</span><button class="button primary">Enviar bilhete</button></div></form>`, 'direct-compose-modal');
 }
 
 function bindUi() {
+  document.addEventListener('input', event => {
+    const field = event.target.closest?.('[data-composer] textarea, [data-floating-composer] textarea');
+    if (field) updateTextProgress(field);
+  });
+  $$('[data-composer] textarea').forEach(updateTextProgress);
+
   document.addEventListener('click', event => {
     if (event.target.matches('[data-modal], [data-modal-close]')) closeModal();
     if (event.target.closest('[data-new-murmur]')) openComposer();
@@ -1200,7 +1244,7 @@ function bindDirectsPage() {
       <article class="direct-note ${own ? 'sent' : 'received'} ${pending ? 'is-pending' : ''} ${sexClass(senderSexCode)}" data-direct-message="${message.id}" data-direct-sender-id="${message.senderId}"${pendingAttribute}>
         <p data-direct-contents>${escapeHtml(message.contents)}</p>
         <form class="direct-edit-form" data-direct-edit-form hidden>
-          <textarea maxlength="256" required>${escapeHtml(message.contents)}</textarea>
+          <textarea maxlength="${TEXT_LIMIT}" required>${escapeHtml(message.contents)}</textarea>
           <button type="submit">${labels.save}</button>
           <button type="button" data-cancel-edit>${labels.cancel}</button>
         </form>

@@ -1,5 +1,6 @@
 ---
 import { getMessages, normalizeLocale } from '../i18n';
+import { TEXT_LIMIT } from '../lib/config/text';
 const locale = normalizeLocale(Astro.cookies.get('murmurinho-language')?.value);
 const t = getMessages(locale);
 ---
@@ -7,11 +8,11 @@ const t = getMessages(locale);
   <div class="avatar" data-user-avatar>MU</div>
   <form data-composer>
     <label id="composer-title" for="murmur-text">{t.feed.composerLabel}</label>
-    <textarea id="murmur-text" name="text" maxlength="256" placeholder={t.feed.composerPlaceholder} required></textarea>
+    <textarea id="murmur-text" name="text" maxlength={TEXT_LIMIT} placeholder={t.feed.composerPlaceholder} required></textarea>
     <div class="composer-footer">
-      <div class="murmur-progress" data-murmur-progress aria-label="0% do limite de 256 caracteres">
+      <div class="murmur-progress" data-murmur-progress aria-label={`0 de ${TEXT_LIMIT} caracteres usados`}>
         <span class="murmur-progress-track"><span class="murmur-progress-fill" data-progress-fill></span></span>
-        <span class="murmur-progress-value" data-progress-value>0%</span>
+        <span class="murmur-progress-value" data-progress-value>{`0/${TEXT_LIMIT}`}</span>
       </div>
       <button class="button primary" type="submit">{t.feed.publish}</button>
     </div>

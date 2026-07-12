@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { TEXT_LIMIT } from '../../../lib/config/text';
 import { body, errorResponse, json } from '../../../lib/server/http';
 import { requireUser } from '../../../lib/server/session';
 import { deleteDirect, listConversations, listMessages, sendDirect, updateDirect } from '../../../lib/server/repositories/directs';
@@ -23,7 +24,7 @@ export const POST: APIRoute = async context => {
         const input = await body<{ recipientId?: number; contents?: string }>(context.request);
         const recipientId = Number(input.recipientId);
         const contents = String(input.contents || '').trim();
-        if (!Number.isInteger(recipientId) || !contents || contents.length > 256) throw new Error('DIRECT_INVALIDO');
+        if (!Number.isInteger(recipientId) || !contents || contents.length > TEXT_LIMIT) throw new Error('DIRECT_INVALIDO');
         const id = await sendDirect(user.id, recipientId, contents);
         return json({ ok: true, id }, 201);
     } catch (error) {
@@ -38,7 +39,7 @@ export const PUT: APIRoute = async context => {
         const input = await body<{ messageId?: number; contents?: string }>(context.request);
         const messageId = Number(input.messageId);
         const contents = String(input.contents || '').trim();
-        if (!Number.isInteger(messageId) || messageId <= 0 || !contents || contents.length > 256) {
+        if (!Number.isInteger(messageId) || messageId <= 0 || !contents || contents.length > TEXT_LIMIT) {
             throw new Error('DIRECT_INVALIDO');
         }
         await updateDirect(messageId, user.id, contents);

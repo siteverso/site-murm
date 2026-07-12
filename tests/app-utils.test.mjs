@@ -121,3 +121,12 @@ test('conta oferece acesso ao perfil público na coluna esquerda', async () => {
   assert.match(sidebar, /account-profile-link/);
   assert.match(sidebar, /href="\/perfil"/);
 });
+
+test('botao de resposta direciona o foco ao input de forma robusta', async () => {
+  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  assert.match(source, /function focusReplyInput\(form\)/);
+  assert.match(source, /input\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(source, /requestAnimationFrame\(focus\)/);
+  assert.match(source, /setTimeout\(focus, 60\)/);
+  assert.match(source, /if \(form\.classList\.contains\('open'\)\) focusReplyInput\(form\)/);
+});
