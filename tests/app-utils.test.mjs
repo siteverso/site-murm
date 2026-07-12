@@ -158,3 +158,9 @@ test('perfil renderiza cards recursivos até o quinto nível', async () => {
   assert.match(source, /data-terminal-profile=/);
   assert.match(source, /renderLane\(profileFeed, feedBuckets\.all, profileFeed\?\.dataset\.feedIncludeReplies === 'true' \? 'recursive' : 'none'\)/);
 });
+
+
+test('perfil recursivo usa apenas o espaçamento do card pai nas laterais', () => {
+  const css = readFileSync(new URL('../src/styles/global.css', import.meta.url), 'utf8');
+  assert.match(css, /\.replies\.replies-recursive \{ margin: 14px 0 0; padding: 0; border-left: 0; \}/);
+});
