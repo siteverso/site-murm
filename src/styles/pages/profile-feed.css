@@ -39,6 +39,8 @@
 }
 .profile-show-all { color: var(--muted); font-size: .82rem; font-weight: 750; }
 .profile-show-all:hover { color: var(--text); }
+.profile-own-composer { margin-bottom: 16px; }
+.profile-own-composer .composer { margin: 0; }
 .profile-feed { display: grid; gap: 16px; }
 .profile-feed > .murmur-card { margin: 0; }
 
