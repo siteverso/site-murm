@@ -25,6 +25,11 @@ export async function listPosts(currentUserId: number | null, profileUsername: s
                  nvl(p.visibility_code, 'public') AS visibility_code,
                  nvl(p.language_code, nvl(u.language_code, 'pt-BR')) AS language_code,
                  u.username,
+                 u.created_at AS user_created_at,
+                 (SELECT count(*) FROM murm_post activity_post
+                  WHERE activity_post.user_id = u.id
+                    AND lower(trim(activity_post.status)) = 'published'
+                    AND lower(trim(activity_post.post_type)) = 'murmur') AS user_activity_count,
                  nvl(u.sex_code, '') AS sex_code,
                  ${userAvatarSql} AS avatar_url,
                  nvl((SELECT max(v.vote_value)
@@ -72,6 +77,8 @@ export async function listPosts(currentUserId: number | null, profileUsername: s
             parentPostId: null,
             parentAuthor: '',
             author: String(row.USERNAME || ''),
+            userCreatedAt: new Date(String(row.USER_CREATED_AT || row.CREATED_AT)).getTime(),
+            userActivityCount: Number(row.USER_ACTIVITY_COUNT || 0),
             sexCode: String(row.SEX_CODE || '').trim().toUpperCase(),
             avatarUrl: String(row.AVATAR_URL || ''),
             text: String(row.CONTENTS || ''),

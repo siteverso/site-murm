@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { readGlobalCss, readGlobalCssSync } from './css-test-utils.mjs';
-import { formatDateTime, getRelevanceColumnDefinitions, getSexColumnDefinitions, hasUnreadMessages } from '../public/app-utils.mjs';
+import { formatDateTime, getRelevanceColumnDefinitions, getSexColumnDefinitions, getUserColumnDefinitions, hasUnreadMessages } from '../public/app-utils.mjs';
 import { readAppSource } from './js-source-test-utils.mjs';
 
 test('agrupamento por sexo inclui a terceira coluna para cadastros sem sexo', () => {
@@ -24,10 +24,11 @@ test('data e hora da conversa são formatadas em conjunto', () => {
 });
 
 
-test('colunas do feed não renderizam títulos visuais', async () => {
+test('colunas por sexo, relevância e usuários usam títulos no mesmo padrão', async () => {
   const source = await readAppSource();
-  assert.doesNotMatch(source, /lane-inline-head/);
-  assert.doesNotMatch(source, /<strong>\$\{definition\.label\}<\/strong>/);
+  assert.match(source, /mode !== 'list'/);
+  assert.deepEqual(getSexColumnDefinitions().map(item => item.label), ['Masculino', 'Feminino', 'Sem sexo']);
+  assert.deepEqual(getUserColumnDefinitions().map(item => item.code), ['oldest', 'newest', 'active']);
 });
 
 test('envio de bilhete usa somente spinner e restaura o ícone original', async () => {

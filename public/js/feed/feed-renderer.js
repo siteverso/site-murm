@@ -1,6 +1,7 @@
 function renderFeedSkeletons() {
     const columns = $('[data-feed-columns]');
     const relevanceColumns = $('[data-feed-relevance-columns]');
+    const userColumns = $('[data-feed-user-columns]');
     const allListFeed = $('[data-feed-all-list]');
     const profileFeed = $('[data-profile-feed]');
     const skeletonCard = () => `<article class="panel murmur-card skeleton-card" aria-hidden="true">
@@ -25,12 +26,13 @@ function renderFeedSkeletons() {
     [
         [columns, 'sex'],
         [relevanceColumns, 'relevance'],
+        [userColumns, 'users'],
     ].forEach(([container, mode]) => {
         if (!container) return;
         const definitions = getColumnDefinitions(mode);
         container.dataset.columnCount = String(definitions.length);
         container.innerHTML = definitions.map(definition => `<section class="network-lane ${definition.className || ''}">
-      ${mode === 'relevance' ? `<div class="lane-heading relevance-lane-heading"><h2>${definition.label}</h2></div>` : ''}
+      ${mode !== 'list' ? `<div class="lane-heading relevance-lane-heading"><h2>${definition.label}</h2></div>` : ''}
       <div class="feed lane-feed feed-skeleton" aria-label="Carregando murmúrios">${cards(3)}</div>
     </section>`).join('');
     });
@@ -86,6 +88,28 @@ function getColumnItems(definition, mode = 'sex') {
     const roots = getRootPosts(posts);
     if (mode === 'sex') return roots.filter(post => (post.sexCode || '') === definition.code);
 
+    if (mode === 'users') {
+        const latestPostByUser = new Map();
+        roots.forEach(post => {
+            const userKey = String(post.userId || post.author || '');
+            const current = latestPostByUser.get(userKey);
+            if (!current || Number(post.createdAt || 0) > Number(current.createdAt || 0)) {
+                latestPostByUser.set(userKey, post);
+            }
+        });
+        const userMetric = post => {
+            if (definition.code === 'active') return Number(post.userActivityCount || 0);
+            return Number(post.userCreatedAt || 0);
+        };
+        return [...latestPostByUser.values()].sort((left, right) => {
+            const metricDifference = definition.code === 'oldest'
+                ? userMetric(left) - userMetric(right)
+                : userMetric(right) - userMetric(left);
+            if (metricDifference) return metricDifference;
+            return new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime();
+        });
+    }
+
     return [...roots].sort((left, right) => {
         const scoreDifference = relevanceValue(right, definition.code) - relevanceValue(left, definition.code);
         if (scoreDifference) return scoreDifference;
@@ -112,7 +136,7 @@ function renderColumnGroup(container, mode) {
     container.innerHTML = definitions.map(definition => {
         const key = `${mode}-${definition.code || 'none'}`;
         return `<section class="network-lane ${definition.className || ''}">
-      ${mode === 'relevance' ? `<div class="lane-heading relevance-lane-heading"><h2>${definition.label}</h2></div>` : ''}
+      ${mode !== 'list' ? `<div class="lane-heading relevance-lane-heading"><h2>${definition.label}</h2></div>` : ''}
       <div class="feed lane-feed" data-feed-column="${key}"></div>
     </section>`;
     }).join('');
@@ -127,6 +151,7 @@ function renderColumnGroup(container, mode) {
 function renderSplitFeeds() {
     renderColumnGroup($('[data-feed-columns]'), 'sex');
     renderColumnGroup($('[data-feed-relevance-columns]'), 'relevance');
+    renderColumnGroup($('[data-feed-user-columns]'), 'users');
     setupFeedColumnAutoload();
 }
 
@@ -164,6 +189,8 @@ function getFeedSignature(items) {
         post.shares,
         post.myVote,
         post.createdAt,
+        post.userCreatedAt,
+        post.userActivityCount,
         post.parentPostId,
         post.parentAuthor,
         post.replyCount,
@@ -222,9 +249,10 @@ let feedSignature = '';
 async function loadFeed(force = false) {
     const columns = $('[data-feed-columns]');
     const relevanceColumns = $('[data-feed-relevance-columns]');
+    const userColumns = $('[data-feed-user-columns]');
     const allListFeed = $('[data-feed-all-list]');
     const profileFeed = $('[data-profile-feed]');
-    if ((!columns && !relevanceColumns && !allListFeed && !profileFeed) || feedRequestRunning) return;
+    if ((!columns && !relevanceColumns && !userColumns && !allListFeed && !profileFeed) || feedRequestRunning) return;
 
     feedRequestRunning = true;
     if (!hasRenderedFeed) renderFeedSkeletons();
@@ -275,7 +303,7 @@ function pinCardActions(postId) {
 }
 
 function startFeedPolling() {
-    if (!$('[data-feed-columns]') && !$('[data-feed-relevance-columns]') && !$('[data-feed-all-list]') && !$('[data-profile-feed]')) return;
+    if (!$('[data-feed-columns]') && !$('[data-feed-relevance-columns]') && !$('[data-feed-user-columns]') && !$('[data-feed-all-list]') && !$('[data-profile-feed]')) return;
 
     bindFeedSyncEvents();
     clearInterval(feedTimer);

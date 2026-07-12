@@ -1,6 +1,6 @@
 // noinspection JSUnresolvedReference
 
-const {formatDateTime, getRelevanceColumnDefinitions, getSexColumnDefinitions, hasUnreadMessages} = window.MurmAppUtils;
+const {formatDateTime, getRelevanceColumnDefinitions, getSexColumnDefinitions, getUserColumnDefinitions, hasUnreadMessages} = window.MurmAppUtils;
 
 const $ = (selector, root = document) => root?.querySelector?.(selector) ?? null;
 const configuredTextLimit = Number.parseInt(String(window.__MURMUR_TEXT_LIMIT__ ?? ''), 10);
@@ -212,6 +212,7 @@ const splitFeedLimits = {};
 const COLUMN_GROUPS = {
     sex: getSexColumnDefinitions(),
     relevance: getRelevanceColumnDefinitions(),
+    users: getUserColumnDefinitions(),
 };
 let feedColumnObservers = [];
 let feedRevealObserver = null;

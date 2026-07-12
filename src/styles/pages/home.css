@@ -215,3 +215,13 @@
 .relevance-view .silences-lane .relevance-lane-heading h2 {
   color: color-mix(in srgb, #ff759d 74%, var(--text));
 }
+
+.feed-view-button--users svg { width: 20px; height: 20px; }
+.feed-view-button--users:hover svg,
+.feed-view-button--users.active svg {
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 64%, transparent));
+}
+.users-view .network-lane { padding-top: 0; }
+.users-view .oldest-users-lane .relevance-lane-heading h2 { color: color-mix(in srgb, #c99cff 76%, var(--text)); }
+.users-view .newest-users-lane .relevance-lane-heading h2 { color: color-mix(in srgb, #63d6c7 76%, var(--text)); }
+.users-view .active-users-lane .relevance-lane-heading h2 { color: color-mix(in srgb, #ffba68 80%, var(--text)); }
