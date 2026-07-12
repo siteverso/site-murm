@@ -657,6 +657,11 @@ function openReplyForm(card, { toggle = false } = {}) {
   }
 }
 
+function openPostAuthorProfile(card) {
+  const profileUrl = card?.querySelector('.murmur-profile-link')?.href;
+  if (profileUrl) window.location.assign(profileUrl);
+}
+
 function bindFeed() {
   document.addEventListener('click', async event => {
     const target = event.target.closest('button');
@@ -695,7 +700,16 @@ function bindFeed() {
 
   document.addEventListener('dblclick', event => {
     if (event.target.closest('button, a, input, textarea, form')) return;
-    openReplyForm(event.target.closest('[data-post-id]'));
+    const card = event.target.closest('[data-post-id]');
+    if (!card) return;
+
+    const replyForm = card.querySelector('[data-reply-form]');
+    if (replyForm?.classList.contains('open')) {
+      openPostAuthorProfile(card);
+      return;
+    }
+
+    openReplyForm(card);
   });
 
   document.addEventListener('submit', async event => {

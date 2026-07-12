@@ -8,9 +8,6 @@ Realize testes unitarios para garantir funcionamento
 
 TODO, um de cada vez:
 
-- no pefil do usuario listar os murmurios com respostas como esta hoje na home e na home nao exibir as repostas utilizar componantes astros e classe reaproveiteveis DRY
-- Hoje o clique no usuario do topo abre a conta do usuario, vamos mudar isso  O clique no icone do usuario deve abrir o perfil dele que é o que todos veem
-- E na esquerda deve ter a opcao para entao editar a conta
-- permitir enviar imagem do perfil pela conta
-- deve ter um pagina perfil da pessoa ao clicar no icone dela ou nome
-- padronizar coluna esqueda com mesmo componente ![img_2.png](img_2.png)![img_3.png](img_3.png) mantendo detalhes da conta como sexo regiao embaixo o email etc usar mesmo componente unica direnca é que na conta da pra alterar a imagem
+- dois cliques no murmurio ja abre pra responder, mais 2 cliques com a resposta aberta entra no perfil
+- qd clicar aqui, ja por o foco no input![img_5.png](img_5.png)
+- aqui mostrar qts caracteres preenchido / total ![img_4.png](img_4.png) 

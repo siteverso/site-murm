@@ -42,11 +42,13 @@ test('CSS global não mantém regras antigas duplicadas de exclusão de resposta
   assert.match(css, /button:focus-visible/);
 });
 
-test('duplo clique no card abre o mesmo formulário de resposta usado pelo botão', async () => {
+test('duplo clique abre a resposta e o próximo duplo clique entra no perfil', async () => {
   const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
   assert.match(source, /function openReplyForm\(card/);
-  assert.match(source, /addEventListener\('dblclick'/);
-  assert.match(source, /openReplyForm\(event\.target\.closest\('\[data-post-id\]'\)\)/);
+  assert.match(source, /function openPostAuthorProfile\(card\)/);
+  assert.match(source, /replyForm\?\.classList\.contains\('open'\)/);
+  assert.match(source, /openPostAuthorProfile\(card\)/);
+  assert.match(source, /openReplyForm\(card\)/);
   assert.match(source, /openReplyForm\(card, \{ toggle: true \}\)/);
 });
 
