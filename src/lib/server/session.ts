@@ -31,7 +31,8 @@ export type SessionUser = {
     hasGoogle: boolean;
     postCount: number;
     positiveCount: number;
-    negativeCount: number;
+    messageCount: number;
+    responseCount: number;
 };
 
 function cookieName(): string {
@@ -144,8 +145,10 @@ export async function currentUser(context: APIContext): Promise<SessionUser | nu
                        AND LOWER(TRIM(p.post_type)) = 'murmur') AS post_count,
                     (SELECT NVL(SUM(p.positive_count), 0) FROM murm_post p WHERE p.user_id = u.id AND p.parent_post_id IS NULL AND p.status = 'published'
                        AND LOWER(TRIM(p.post_type)) = 'murmur') AS positive_count,
-                    (SELECT NVL(SUM(p.negative_count), 0) FROM murm_post p WHERE p.user_id = u.id AND p.parent_post_id IS NULL AND p.status = 'published'
-                       AND LOWER(TRIM(p.post_type)) = 'murmur') AS negative_count
+                    (SELECT COUNT(*) FROM murm_post p WHERE p.user_id = u.id AND p.status = 'published'
+                       AND LOWER(TRIM(p.post_type)) = 'murmur') AS message_count,
+                    (SELECT COUNT(*) FROM murm_post p WHERE p.user_id = u.id AND p.parent_post_id IS NOT NULL AND p.status = 'published'
+                       AND LOWER(TRIM(p.post_type)) = 'murmur') AS response_count
              FROM murm_session s
              JOIN murm_user u
                ON u.id = s.user_id
@@ -206,7 +209,8 @@ export async function currentUser(context: APIContext): Promise<SessionUser | nu
             hasGoogle: Number(row.HAS_GOOGLE) === 1,
             postCount: Number(row.POST_COUNT || 0),
             positiveCount: Number(row.POSITIVE_COUNT || 0),
-            negativeCount: Number(row.NEGATIVE_COUNT || 0),
+            messageCount: Number(row.MESSAGE_COUNT || 0),
+            responseCount: Number(row.RESPONSE_COUNT || 0),
         };
     });
 }

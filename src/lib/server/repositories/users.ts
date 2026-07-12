@@ -166,7 +166,8 @@ export type PublicProfile = {
     avatarUrl: string;
     postCount: number;
     positiveCount: number;
-    negativeCount: number;
+    messageCount: number;
+    responseCount: number;
 };
 
 export async function findPublicProfileByUsername(username: string): Promise<PublicProfile | null> {
@@ -197,12 +198,17 @@ export async function findPublicProfileByUsername(username: string): Promise<Pub
                        AND p.parent_post_id IS NULL
                        AND p.status = 'published'
                        AND LOWER(TRIM(p.post_type)) = 'murmur') AS positive_count,
-                    (SELECT NVL(SUM(p.negative_count), 0)
+                    (SELECT COUNT(*)
                      FROM murm_post p
                      WHERE p.user_id = u.id
-                       AND p.parent_post_id IS NULL
                        AND p.status = 'published'
-                       AND LOWER(TRIM(p.post_type)) = 'murmur') AS negative_count
+                       AND LOWER(TRIM(p.post_type)) = 'murmur') AS message_count,
+                    (SELECT COUNT(*)
+                     FROM murm_post p
+                     WHERE p.user_id = u.id
+                       AND p.parent_post_id IS NOT NULL
+                       AND p.status = 'published'
+                       AND LOWER(TRIM(p.post_type)) = 'murmur') AS response_count
              FROM murm_user u
              WHERE u.active = 1
                AND LOWER(u.username) = LOWER(:username)`,
@@ -223,7 +229,8 @@ export async function findPublicProfileByUsername(username: string): Promise<Pub
             avatarUrl: String(row.AVATAR_URL || ''),
             postCount: Number(row.POST_COUNT || 0),
             positiveCount: Number(row.POSITIVE_COUNT || 0),
-            negativeCount: Number(row.NEGATIVE_COUNT || 0),
+            messageCount: Number(row.MESSAGE_COUNT || 0),
+            responseCount: Number(row.RESPONSE_COUNT || 0),
         };
     });
 }

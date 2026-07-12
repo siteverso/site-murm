@@ -56,8 +56,11 @@ function renderUser(user) {
     $$('[data-profile-positive]').forEach(el => {
         el.textContent = user.positiveCount;
     });
-    $$('[data-profile-negative]').forEach(el => {
-        el.textContent = user.negativeCount;
+    $$('[data-profile-messages]').forEach(el => {
+        el.textContent = user.messageCount;
+    });
+    $$('[data-profile-responses]').forEach(el => {
+        el.textContent = user.responseCount;
     });
 
     const profileForm = $('[data-profile-form]');

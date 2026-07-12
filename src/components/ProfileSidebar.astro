@@ -60,7 +60,8 @@ const countryCallingCode = profile?.countryCallingCode || '';
   <div class="profile-stats">
     <div><strong data-profile-posts={dynamic || undefined}>{profile?.postCount || 0}</strong><span>{labels.murmurs}</span></div>
     <div><strong data-profile-positive={dynamic || undefined}>{profile?.positiveCount || 0}</strong><span>{labels.positives}</span></div>
-    <div><strong data-profile-negative={dynamic || undefined}>{profile?.negativeCount || 0}</strong><span>{labels.negatives}</span></div>
+    <div><strong data-profile-messages={dynamic || undefined}>{profile?.messageCount || 0}</strong><span>{labels.messages}</span></div>
+    <div><strong data-profile-responses={dynamic || undefined}>{profile?.responseCount || 0}</strong><span>{labels.responses}</span></div>
   </div>
   <div class="profile-sidebar-actions">
     {showEditAccount && <a class="button secondary full public-profile-account-link" href="/conta">Editar conta</a>}

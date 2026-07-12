@@ -16,7 +16,7 @@
 .profile-card .handle { color: var(--muted); }
 .profile-sex { display: inline-block; margin-top: 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: .8rem; font-weight: 800; }
 .profile-card .bio { margin: 20px 0; line-height: 1.55; }
-.profile-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.profile-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .profile-stats div { padding: 11px 7px; text-align: center; border-radius: 13px; background: var(--surface-2); }
 .profile-stats strong { display: block; }
 .profile-stats span { color: var(--muted); font-size: .72rem; }
