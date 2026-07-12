@@ -82,6 +82,8 @@ export default {
     authGoogle: 'Google',
     authPassword: 'Password',
     accessMethods: 'Sign-in methods',
+    viewReplies: 'View replies',
+    viewMurmurs: 'View murmurs',
   },
   feed: {
     ruleTitle: 'Murmur rule',

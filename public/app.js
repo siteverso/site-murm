@@ -563,6 +563,17 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
   const terminalClass = terminalProfile ? ' murmur-terminal-level' : '';
   const contextParentClass = sameId(post.id, contextParentId) ? ' murmur-context-parent' : '';
 
+  if (post.isDeleted) {
+    return `<article id="murmurio-${post.id}" class="panel murmur-card lazy-reveal reply-history-parent-card--deleted${contextParentClass}" data-post-id="${post.id}">
+      <div class="murmur-head">
+        <span class="avatar murmur-profile-link reply-history-disabled-avatar" aria-hidden="true">××</span>
+        <div class="murmur-author"><strong>Murmúrio removido</strong><span>${post.createdAt ? new Date(post.createdAt).toLocaleString() : ''}</span></div>
+      </div>
+      <div class="reply-history-deleted-copy"><p class="murmur-text">Este murmúrio foi removido.</p></div>
+      ${nestedReplies}
+    </article>`;
+  }
+
   return `<article id="murmurio-${post.id}" class="panel murmur-card lazy-reveal ${sexClass}${post.parentPostId ? ' murmur-reply-card' : ''}${terminalClass}${contextParentClass}${collapsibleHeader ? ' murmur-card-collapsible' : ''}" data-post-id="${post.id}"${collapsibleHeader ? ` data-collapse-expanded-post="${post.id}"` : ''}${terminalAttribute}>
     <div class="murmur-head">
       <a class="avatar murmur-profile-link" href="/perfil/${encodeURIComponent(post.author)}" aria-label="Abrir perfil de @${escapeHtml(post.author)}">${post.avatarUrl ? `<img class="lazy-media" src="${escapeHtml(post.avatarUrl)}" alt="Foto de @${escapeHtml(post.author)}" loading="lazy" decoding="async">` : escapeHtml(post.author.slice(0, 2).toUpperCase())}</a>
@@ -1012,7 +1023,9 @@ const wait = milliseconds => new Promise(resolve => setTimeout(resolve, millisec
 
 function animateInflatedCard(element, fromHeight = 36) {
   if (!element) return Promise.resolve();
-  const targetHeight = Math.max(fromHeight, element.scrollHeight);
+  const content = element.firstElementChild;
+  const contentHeight = content?.getBoundingClientRect().height || content?.scrollHeight || element.scrollHeight;
+  const targetHeight = Math.max(fromHeight, Math.ceil(contentHeight));
   element.style.overflow = 'hidden';
   element.style.height = `${fromHeight}px`;
   element.style.opacity = '0.45';
@@ -1026,6 +1039,7 @@ function animateInflatedCard(element, fromHeight = 36) {
     fill: 'forwards',
   });
   return animation.finished.catch(() => {}).finally(() => {
+    animation.cancel();
     element.style.removeProperty('overflow');
     element.style.removeProperty('height');
     element.style.removeProperty('opacity');

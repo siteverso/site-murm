@@ -4,6 +4,8 @@ const {
   editableAvatar = false,
   showEditAccount = false,
   dynamic = false,
+  responsesUrl = '',
+  responsesLabel,
   labels,
 } = Astro.props;
 
@@ -58,6 +60,9 @@ const regionLabel = regionLabels[profile?.regionCode || ''] || '';
     <div><strong data-profile-positive={dynamic || undefined}>{profile?.positiveCount || 0}</strong><span>{labels.positives}</span></div>
     <div><strong data-profile-negative={dynamic || undefined}>{profile?.negativeCount || 0}</strong><span>{labels.negatives}</span></div>
   </div>
-  {showEditAccount && <a class="button secondary full profile-sidebar-action public-profile-account-link" href="/conta">Editar conta</a>}
-  {editableAvatar && <a class="button secondary full profile-sidebar-action account-profile-link" href="/perfil">Ver meu perfil</a>}
+  <div class="profile-sidebar-actions">
+    {showEditAccount && <a class="button secondary full public-profile-account-link" href="/conta">Editar conta</a>}
+    {editableAvatar && <a class="button secondary full account-profile-link" href="/perfil">Ver meu perfil</a>}
+    {responsesUrl && <a class="button secondary full profile-sidebar-replies-link" href={responsesUrl}>{responsesLabel || 'Ver respostas'}</a>}
+  </div>
 </aside>

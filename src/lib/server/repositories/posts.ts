@@ -14,6 +14,7 @@ export async function listPosts(_currentUserId: number | null, profileUsername: 
                     NVL(p.negative_count, 0) AS negative_count,
                     NVL(p.share_count, 0) AS share_count,
                     p.created_at,
+                    p.status,
                     u.username,
                     NVL(u.sex_code, '') AS sex_code,
                     '' AS region_code,
@@ -93,6 +94,7 @@ function mapPostRows(rows: PostRow[]): unknown[] {
         parentPostId: row.PARENT_POST_ID == null ? null : Number(row.PARENT_POST_ID),
         parentAuthor: String(row.PARENT_USERNAME || ''),
         author: String(row.USERNAME || ''),
+        isDeleted: String(row.STATUS || '').trim().toLowerCase() === 'deleted',
         sexCode: String(row.SEX_CODE || '').trim().toUpperCase(),
         regionCode: '',
         avatarUrl: '',
@@ -109,18 +111,12 @@ function mapPostRows(rows: PostRow[]): unknown[] {
 export async function listSpecificThread(postId: number): Promise<{ posts: unknown[]; siblingStubs: unknown[] }> {
     return withConnection(async connection => {
         const rootResult = await connection.execute<PostRow>(
-            `SELECT parent_post_id
+            `SELECT parent_post_id,
+                    status
                FROM murm_post
               WHERE id = :post_id
-                AND LOWER(TRIM(status)) = 'published'
-                AND id IN (
-                    SELECT tree.id
-                      FROM murm_post tree
-                     WHERE LOWER(TRIM(tree.status)) = 'published'
-                     START WITH tree.parent_post_id IS NULL
-                            AND LOWER(TRIM(tree.post_type)) = 'murmur'
-                     CONNECT BY NOCYCLE PRIOR tree.id = tree.parent_post_id
-                )`,
+                AND LOWER(TRIM(status)) IN ('published', 'deleted')
+                AND LOWER(TRIM(post_type)) = 'murmur'`,
             {post_id: postId},
         );
         const rootRow = rootResult.rows?.[0];
@@ -136,6 +132,7 @@ export async function listSpecificThread(postId: number): Promise<{ posts: unkno
                     NVL(p.negative_count, 0) AS negative_count,
                     NVL(p.share_count, 0) AS share_count,
                     p.created_at,
+                    p.status,
                     u.username,
                     NVL(u.sex_code, '') AS sex_code,
                     parent_user.username AS parent_username
@@ -143,11 +140,10 @@ export async function listSpecificThread(postId: number): Promise<{ posts: unkno
                JOIN murm_user u ON u.id = p.user_id
                LEFT JOIN murm_post parent_post ON parent_post.id = p.parent_post_id
                LEFT JOIN murm_user parent_user ON parent_user.id = parent_post.user_id
-              WHERE LOWER(TRIM(p.status)) = 'published'
-                AND LOWER(TRIM(p.post_type)) = 'murmur'
+              WHERE LOWER(TRIM(p.post_type)) = 'murmur'
                 AND (
-                    p.id = :post_id
-                    OR p.id = :parent_id
+                    (p.id = :parent_id AND LOWER(TRIM(p.status)) IN ('published', 'deleted'))
+                    OR (p.id = :post_id AND LOWER(TRIM(p.status)) IN ('published', 'deleted'))
                     OR p.id IN (
                         SELECT id
                           FROM murm_post
@@ -202,6 +198,7 @@ export async function getPostBranch(postId: number): Promise<unknown[]> {
                     NVL(p.negative_count, 0) AS negative_count,
                     NVL(p.share_count, 0) AS share_count,
                     p.created_at,
+                    p.status,
                     u.username,
                     NVL(u.sex_code, '') AS sex_code,
                     parent_user.username AS parent_username
@@ -351,7 +348,7 @@ export async function deletePost(postId: number, userId: number): Promise<void> 
                  deleted_at = systimestamp,
                  deleted_by_user_id = :user_id,
                  updated_at = systimestamp
-             WHERE (id = :post_id OR parent_post_id = :post_id)
+             WHERE id = :post_id
                  AND status = 'published'
                  AND LOWER(TRIM(post_type)) = 'murmur'`,
             {post_id: postId, user_id: userId},
@@ -398,5 +395,141 @@ export async function restoreReply(replyId: number, userId: number): Promise<voi
             {autoCommit: true},
         );
         if (!result.rowsAffected) throw new Error('RESPOSTA_NAO_ENCONTRADA');
+    });
+}
+
+
+type ReplyHistoryParent = {
+    id: number | null;
+    userId: number | null;
+    author: string;
+    sexCode: string;
+    avatarUrl: string;
+    text: string;
+    positive: number;
+    negative: number;
+    shares: number;
+    createdAt: number | null;
+    exists: boolean;
+    isDeleted: boolean;
+};
+
+type ReplyHistoryReply = {
+    id: number;
+    userId: number;
+    author: string;
+    sexCode: string;
+    avatarUrl: string;
+    text: string;
+    positive: number;
+    negative: number;
+    shares: number;
+    createdAt: number;
+};
+
+export type ReplyHistoryGroup = {
+    parentPostId: number;
+    parent: ReplyHistoryParent;
+    replies: ReplyHistoryReply[];
+};
+
+export async function listReplyHistoryByUser(userId: number): Promise<ReplyHistoryGroup[]> {
+    return withConnection(async connection => {
+        const result = await connection.execute<PostRow>(
+            `SELECT r.id AS reply_id,
+                    r.user_id AS reply_user_id,
+                    r.parent_post_id,
+                    r.contents AS reply_contents,
+                    NVL(r.positive_count, 0) AS reply_positive_count,
+                    NVL(r.negative_count, 0) AS reply_negative_count,
+                    NVL(r.share_count, 0) AS reply_share_count,
+                    r.created_at AS reply_created_at,
+                    ru.username AS reply_username,
+                    NVL(ru.sex_code, '') AS reply_sex_code,
+                    CASE
+                        WHEN ru.avatar_image IS NOT NULL THEN
+                            '/api/users/' || ru.id || '/avatar?v=' ||
+                            TO_CHAR(NVL(ru.avatar_updated_at, ru.updated_at), 'YYYYMMDDHH24MISSFF6')
+                        ELSE NVL(ru.avatar_url, '')
+                    END AS reply_avatar_url,
+                    p.id AS parent_id,
+                    p.user_id AS parent_user_id,
+                    p.contents AS parent_contents,
+                    NVL(p.positive_count, 0) AS parent_positive_count,
+                    NVL(p.negative_count, 0) AS parent_negative_count,
+                    NVL(p.share_count, 0) AS parent_share_count,
+                    p.created_at AS parent_created_at,
+                    NVL(p.status, 'deleted') AS parent_status,
+                    pu.username AS parent_username,
+                    NVL(pu.sex_code, '') AS parent_sex_code,
+                    CASE
+                        WHEN pu.avatar_image IS NOT NULL THEN
+                            '/api/users/' || pu.id || '/avatar?v=' ||
+                            TO_CHAR(NVL(pu.avatar_updated_at, pu.updated_at), 'YYYYMMDDHH24MISSFF6')
+                        ELSE NVL(pu.avatar_url, '')
+                    END AS parent_avatar_url
+               FROM murm_post r
+               JOIN murm_user ru
+                 ON ru.id = r.user_id
+               LEFT JOIN murm_post p
+                 ON p.id = r.parent_post_id
+               LEFT JOIN murm_user pu
+                 ON pu.id = p.user_id
+              WHERE r.user_id = :user_id
+                AND r.parent_post_id IS NOT NULL
+                AND LOWER(TRIM(r.status)) = 'published'
+                AND LOWER(TRIM(r.post_type)) = 'murmur'
+              ORDER BY NVL(p.created_at, r.created_at) DESC,
+                       NVL(p.id, r.parent_post_id) DESC,
+                       r.created_at ASC,
+                       r.id ASC`,
+            {user_id: userId},
+        );
+
+        const groups = new Map<number, ReplyHistoryGroup>();
+        for (const row of result.rows || []) {
+            const parentPostId = Number(row.PARENT_POST_ID || 0);
+            if (!parentPostId) continue;
+
+            let group = groups.get(parentPostId);
+            if (!group) {
+                const parentExists = row.PARENT_ID != null;
+                const parentStatus = String(row.PARENT_STATUS || '').trim().toLowerCase();
+                group = {
+                    parentPostId,
+                    parent: {
+                        id: parentExists ? Number(row.PARENT_ID) : null,
+                        userId: row.PARENT_USER_ID == null ? null : Number(row.PARENT_USER_ID),
+                        author: String(row.PARENT_USERNAME || ''),
+                        sexCode: String(row.PARENT_SEX_CODE || '').trim().toUpperCase(),
+                        avatarUrl: String(row.PARENT_AVATAR_URL || ''),
+                        text: String(row.PARENT_CONTENTS || ''),
+                        positive: Number(row.PARENT_POSITIVE_COUNT || 0),
+                        negative: Number(row.PARENT_NEGATIVE_COUNT || 0),
+                        shares: Number(row.PARENT_SHARE_COUNT || 0),
+                        createdAt: row.PARENT_CREATED_AT == null ? null : new Date(String(row.PARENT_CREATED_AT)).getTime(),
+                        exists: parentExists,
+                        isDeleted: !parentExists || parentStatus != 'published',
+                    },
+                    replies: [],
+                };
+                groups.set(parentPostId, group);
+            }
+
+            group.replies.push({
+                id: Number(row.REPLY_ID),
+                userId: Number(row.REPLY_USER_ID),
+                author: String(row.REPLY_USERNAME || ''),
+                sexCode: String(row.REPLY_SEX_CODE || '').trim().toUpperCase(),
+                avatarUrl: String(row.REPLY_AVATAR_URL || ''),
+                text: String(row.REPLY_CONTENTS || ''),
+                positive: Number(row.REPLY_POSITIVE_COUNT || 0),
+                negative: Number(row.REPLY_NEGATIVE_COUNT || 0),
+                shares: Number(row.REPLY_SHARE_COUNT || 0),
+                createdAt: new Date(String(row.REPLY_CREATED_AT)).getTime(),
+            });
+        }
+
+        return Array.from(groups.values());
     });
 }

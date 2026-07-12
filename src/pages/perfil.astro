@@ -2,30 +2,47 @@
 import AppLayout from '../layouts/AppLayout.astro';
 import Header from '../components/Header.astro';
 import ProfileSidebar from '../components/ProfileSidebar.astro';
+import ReplyHistorySection from '../components/ReplyHistorySection.astro';
 import { requireUser } from '../lib/server/session';
+import { listReplyHistoryByUser } from '../lib/server/repositories/posts';
 import { getMessages, normalizeLocale } from '../i18n';
 
 const locale = normalizeLocale(Astro.cookies.get('murmurinho-language')?.value);
 const t = getMessages(locale);
 const profile = await requireUser(Astro);
 const profilePostId = String(Astro.url.searchParams.get('murmurio') || '').trim();
+const profileTab = String(Astro.url.searchParams.get('aba') || '').trim().toLowerCase();
+const showRepliesPage = profileTab === 'respostas';
+const replyGroups = showRepliesPage ? await listReplyHistoryByUser(profile.id) : [];
 ---
 <AppLayout title={`@${profile.username} — ${t.site.title}`}>
   <Header />
   <main class="shell profile-grid public-profile-grid">
-    <ProfileSidebar profile={profile} showEditAccount labels={t.profile} />
+    <ProfileSidebar profile={profile} showEditAccount responsesUrl={`/perfil/${encodeURIComponent(profile.username)}?aba=respostas`} responsesLabel={t.profile.viewReplies} labels={t.profile} />
     <section class="public-profile-content">
-      <div class="feed-heading minimal profile-feed-heading">
-        <h2>{profilePostId ? `Murmúrio de @${profile.username}` : `Murmúrios de @${profile.username}`}</h2>
-        {profilePostId && <div class="profile-thread-tools">
-          <button class="profile-hover-expand" type="button" data-expand-on-hover aria-pressed="false" title="Expandir linha após alguns instantes com o mouse parado" hidden>
-            <span class="profile-hover-expand__dot" aria-hidden="true"></span>
-            <span data-expand-on-hover-label>Hover</span>
-          </button>
-          <a class="profile-show-all" href={`/perfil/${encodeURIComponent(profile.username)}`}>Ver todos os murmúrios</a>
-        </div>}
-      </div>
-      <div class="feed profile-feed" data-profile-feed data-profile-username={profile.username} data-profile-post-id={profilePostId || undefined} data-feed-include-replies="true"></div>
+      {showRepliesPage ? (
+        <ReplyHistorySection
+          profile={profile}
+          replyGroups={replyGroups}
+          locale={locale}
+          backUrl={`/perfil/${encodeURIComponent(profile.username)}`}
+          backLabel={t.profile.viewMurmurs}
+        />
+      ) : (
+        <>
+          <div class="feed-heading minimal profile-feed-heading">
+            <h2>{profilePostId ? `Murmúrio de @${profile.username}` : `Murmúrios de @${profile.username}`}</h2>
+            {profilePostId && <div class="profile-thread-tools">
+              <button class="profile-hover-expand" type="button" data-expand-on-hover aria-pressed="false" title="Expandir linha após alguns instantes com o mouse parado" hidden>
+                <span class="profile-hover-expand__dot" aria-hidden="true"></span>
+                <span data-expand-on-hover-label>Hover</span>
+              </button>
+              <a class="profile-show-all" href={`/perfil/${encodeURIComponent(profile.username)}`}>Ver todos os murmúrios</a>
+            </div>}
+          </div>
+          <div class="feed profile-feed" data-profile-feed data-profile-username={profile.username} data-profile-post-id={profilePostId || undefined} data-feed-include-replies="true"></div>
+        </>
+      )}
     </section>
   </main>
   <div class="toast" data-toast></div>
