@@ -1,14 +1,18 @@
-# TEST REPORT — site-murm-baralho-vento-3d
+# TEST REPORT — site-murm-baralho-vento-lento-sem-rolagem
 
-## Ajustes
-- arremesso desacelerado para aproximadamente 0,82–1,32 s
-- trajetória em múltiplos pontos, com leve oscilação como vento
-- profundidade 3D com rotateX, rotateY, rotateZ e translateZ
-- blur progressivo apenas na saída final
-- direção e inclinação continuam respeitando o gesto
+## Escopo
+- desacelerar a saída das cartas
+- manter efeito de vento e profundidade 3D
+- impedir rolagem horizontal ou vertical do browser quando a carta ultrapassar os limites do viewport
+- bloquear gesto de scroll enquanto o modo Baralho estiver ativo
 
 ## Validações
-- `node --check public/js/feed/card-deck.js` ✅
 - `node --check public/app.js` ✅
+- `node --check public/js/feed/card-deck.js` ✅
 - `node --test tests/home-card-deck.test.mjs` ✅ 4/4
 - `npm run build` ✅
+
+## Resultado
+- duração do arremesso entre 1,5 s e 2,2 s
+- `html` e `body` entram em modo sem rolagem durante o Baralho
+- ao trocar para outro modo de visualização, a rolagem normal é restaurada

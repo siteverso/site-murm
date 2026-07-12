@@ -22,6 +22,9 @@ test('deck removes clipper and opens a full-width stage for the throw animation'
   assert.match(interactions, /deck-stage-active/);
   assert.match(css, /\.network-board-page\.deck-stage-active \.deck-view/);
   assert.match(css, /overflow:\s*visible/);
+  assert.match(interactions, /deck-mode-active/);
+  assert.match(css, /html\.deck-mode-active/);
+  assert.match(css, /overflow:\s*clip/);
   assert.match(css, /width:\s*calc\(100vw - max\(20px, var\(--page-gutter\)\)\)/);
 });
 
@@ -33,7 +36,7 @@ test('deck uses 100 static cards without auto refresh and throws cards using dra
   assert.match(deck, /animateDeckThrow/);
   assert.match(deck, /targetRotateZ/);
   assert.match(deck, /rotateY/);
-  assert.match(deck, /duration = Math\.round\(Math\.max\(820/);
+  assert.match(deck, /duration = Math\.round\(Math\.max\(1500/);
   assert.match(page, /100 murmúrios carregados sem atualização automática/);
 });
 

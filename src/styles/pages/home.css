@@ -8,6 +8,14 @@
 .network-board-page {
   width: min(var(--page-width), calc(100% - var(--page-gutter)));
 }
+html.deck-mode-active,
+body.deck-mode-active {
+  overflow: clip;
+  overscroll-behavior: none;
+}
+body.deck-mode-active {
+  height: 100dvh;
+}
 .network-board-page.deck-stage-active {
   width: min(var(--page-width), calc(100% - var(--page-gutter)));
 }
@@ -336,7 +344,7 @@
 
 /* Modo baralho: componente isolado, sem alterar os cards dos demais modos. */
 .deck-lane { min-height: max(560px, calc(100dvh - 186px)); padding: clamp(12px, 2vw, 24px) 0 18px; overflow: visible; }
-.card-deck { position: relative; width: 100%; min-height: max(500px, calc(100dvh - 240px)); margin: 0 auto; perspective: 1500px; touch-action: pan-y; outline: none; user-select: none; overflow: visible; }
+.card-deck { position: relative; width: 100%; min-height: max(500px, calc(100dvh - 240px)); margin: 0 auto; perspective: 1500px; touch-action: none; outline: none; user-select: none; overflow: visible; }
 .deck-card { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: calc(20 - var(--deck-index)); transform-origin: 50% 92%; transform: translate3d(0, calc(var(--deck-index) * 11px), calc(var(--deck-index) * -40px)) scale(calc(1 - var(--deck-index) * .024)); opacity: calc(1 - var(--deck-index) * .13); transition: transform .28s cubic-bezier(.2,.8,.2,1), opacity .24s ease, filter .24s ease; pointer-events: none; --deck-drag-progress: 0; transform-style: preserve-3d; will-change: transform, opacity, filter; backface-visibility: hidden; }
 .deck-card[data-deck-index="0"] { pointer-events: auto; cursor: grab; }
 .deck-card[data-deck-index="0"]:active, .deck-card.is-dragging { cursor: grabbing; transition: none; }

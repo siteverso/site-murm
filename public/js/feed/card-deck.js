@@ -156,7 +156,7 @@ function animateDeckThrow(card, dragState, direction) {
     const targetRotateZ = startRotateZ + direction * (20 + speed * 9) + (vy * 5);
     const targetRotateY = direction * (22 + speed * 7);
     const targetRotateX = Math.max(-18, Math.min(18, startRotateX - vy * 9));
-    const duration = Math.round(Math.max(820, Math.min(1320, 1180 - speed * 150)));
+    const duration = Math.round(Math.max(1500, Math.min(2200, 2050 - speed * 210)));
     const postId = card.dataset.deckPostId || card.querySelector('[data-post-id]')?.dataset.postId || '';
 
     card.dataset.deckDirection = direction > 0 ? 'right' : 'left';
@@ -203,7 +203,7 @@ function animateDeckThrow(card, dragState, direction) {
         },
     ], {
         duration,
-        easing: 'cubic-bezier(.12, .62, .18, 1)',
+        easing: 'cubic-bezier(.18, .52, .2, 1)',
         fill: 'forwards',
     });
 
