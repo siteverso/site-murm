@@ -8,7 +8,7 @@ window.MurmAppUtils = Object.freeze({
   hasUnreadMessages,
 });
 
-const scripts = ["/js/core/runtime.js", "/js/user/user.js", "/js/posts/murmur-pulse.js", "/js/posts/posts-and-replies.js", "/js/feed/feed-renderer.js", "/js/feed/feed-interactions.js", "/js/ui/ui.js", "/js/profile/profile.js", "/js/auth/auth.js", "/js/directs/directs.js", "/js/core/bootstrap.js"];
+const scripts = ["/js/core/runtime.js", "/js/user/user.js", "/js/posts/murmur-pulse.js", "/js/posts/posts-and-replies.js", "/js/feed/feed-renderer.js", "/js/feed/random-murmur.js", "/js/feed/feed-interactions.js", "/js/ui/ui.js", "/js/profile/profile.js", "/js/auth/auth.js", "/js/directs/directs.js", "/js/core/bootstrap.js"];
 
 async function loadClassicScript(src) {
   await new Promise((resolve, reject) => {

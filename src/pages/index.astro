@@ -9,7 +9,12 @@ const t = getMessages(locale);
   <Header />
   <main class="shell minimal-feed-page network-board-page">
     <div class="feed-heading minimal network-board-heading">
-      <h1>{t.feed.recent}</h1>
+      <div class="random-murmur" data-random-murmur aria-live="polite">
+        <a class="random-murmur__link" data-random-murmur-link href="#" hidden>
+          <span class="random-murmur__text" data-random-murmur-text></span>
+        </a>
+        <span class="random-murmur__placeholder" data-random-murmur-placeholder aria-hidden="true"></span>
+      </div>
       <div class="feed-display-controls">
         <div class="segmented-control feed-view-switch" data-feed-view-switch aria-label="Modo de visualização dos murmúrios">
         <button class="segmented-control__button feed-view-button" type="button" data-feed-view="split" aria-label="Ver em colunas" title="Colunas">

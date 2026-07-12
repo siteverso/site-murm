@@ -275,6 +275,7 @@ async function loadFeed(force = false) {
         const anchor = captureFeedAnchor();
         posts = nextPosts;
         feedSignature = nextSignature;
+        if (typeof syncRandomMurmur === 'function') syncRandomMurmur();
         feedBuckets.all = posts;
         renderSplitFeeds();
         renderLane(allListFeed, feedBuckets.all, 'compact');
