@@ -1,4 +1,4 @@
-// noinspection TypeScriptUnresolvedReference,TypeScriptValidateTypes,SqlResolve
+// noinspection TypeScriptUnresolvedReference,SqlResolve,TypeScriptValidateTypes
 
 import oracledb from 'oracledb';
 import {withConnection} from '../oracle';
@@ -30,6 +30,13 @@ export async function listPosts(currentUserId: number | null, profileUsername: s
                       FROM murm_vote v
                       WHERE v.post_id = p.id
                           AND v.user_id = :current_user_id), 0) AS my_vote,
+                 CASE WHEN exists (SELECT 1
+                                   FROM murm_post own_reply
+                                   WHERE own_reply.parent_post_id = p.id
+                                       AND own_reply.user_id = :current_user_id
+                                       AND lower(trim(own_reply.status)) = 'published'
+                                       AND lower(trim(own_reply.post_type)) = 'murmur') THEN 1
+                      ELSE 0 END AS has_my_reply,
                  (SELECT count(*)
                   FROM murm_post reply
                   WHERE reply.parent_post_id = p.id
@@ -72,6 +79,7 @@ export async function listPosts(currentUserId: number | null, profileUsername: s
             negative: Number(row.NEGATIVE_COUNT || 0),
             shares: Number(row.SHARE_COUNT || 0),
             myVote: Number(row.MY_VOTE || 0),
+            hasMyReply: Number(row.HAS_MY_REPLY || 0) === 1,
             createdAt: new Date(String(row.CREATED_AT)).getTime(),
             replyCount: Number(row.REPLY_COUNT || 0),
         }));
@@ -101,13 +109,14 @@ function mapPostRows(rows: PostRow[]): unknown[] {
         positive: Number(row.POSITIVE_COUNT || 0),
         negative: Number(row.NEGATIVE_COUNT || 0),
         shares: Number(row.SHARE_COUNT || 0),
-        myVote: 0,
+        myVote: Number(row.MY_VOTE || 0),
+        hasMyReply: Number(row.HAS_MY_REPLY || 0) === 1,
         createdAt: new Date(String(row.CREATED_AT)).getTime(),
         replyCount: replyCounts.get(Number(row.ID)) || 0,
     }));
 }
 
-export async function listSpecificThread(postId: number): Promise<{ posts: unknown[]; siblingStubs: unknown[] }> {
+export async function listSpecificThread(postId: number, currentUserId: number | null = null): Promise<{ posts: unknown[]; siblingStubs: unknown[] }> {
     return withConnection(async connection => {
         const userSchema = await getUserSchema(connection);
         const userAvatarSql = avatarSql(userSchema, 'u');
@@ -137,7 +146,15 @@ export async function listSpecificThread(postId: number): Promise<{ posts: unkno
                  u.username,
                  nvl(u.sex_code, '') AS sex_code,
                  ${userAvatarSql} AS avatar_url,
-                 parent_user.username AS parent_username
+                 parent_user.username AS parent_username,
+                 nvl((SELECT max(v.vote_value) FROM murm_vote v WHERE v.post_id = p.id AND v.user_id = :current_user_id), 0) AS my_vote,
+                 CASE WHEN exists (SELECT 1
+                                   FROM murm_post own_reply
+                                   WHERE own_reply.parent_post_id = p.id
+                                       AND own_reply.user_id = :current_user_id
+                                       AND lower(trim(own_reply.status)) = 'published'
+                                       AND lower(trim(own_reply.post_type)) = 'murmur') THEN 1
+                      ELSE 0 END AS has_my_reply
              FROM murm_post p
              JOIN murm_user u ON u.id = p.user_id
              LEFT JOIN murm_post parent_post ON parent_post.id = p.parent_post_id
@@ -160,7 +177,7 @@ export async function listSpecificThread(postId: number): Promise<{ posts: unkno
                                      CONNECT BY PRIOR id = parent_post_id)
                  )
              ORDER BY p.created_at ASC`,
-            {post_id: postId},
+            {post_id: postId, current_user_id: currentUserId},
         );
 
         let siblingStubs: unknown[] = [];
@@ -209,6 +226,7 @@ export async function listSpecificThread(postId: number): Promise<{ posts: unkno
                 negative: 0,
                 shares: 0,
                 myVote: 0,
+                hasMyReply: false,
                 createdAt: Number(selectedPost?.createdAt || Date.now()),
                 replyCount: mappedPosts.filter(post => Number(post.parentPostId) === parentId).length,
             });
@@ -218,7 +236,7 @@ export async function listSpecificThread(postId: number): Promise<{ posts: unkno
     });
 }
 
-export async function getPostBranch(postId: number): Promise<unknown[]> {
+export async function getPostBranch(postId: number, currentUserId: number | null = null): Promise<unknown[]> {
     return withConnection(async connection => {
         const userSchema = await getUserSchema(connection);
         const userAvatarSql = avatarSql(userSchema, 'u');
@@ -235,7 +253,15 @@ export async function getPostBranch(postId: number): Promise<unknown[]> {
                  u.username,
                  nvl(u.sex_code, '') AS sex_code,
                  ${userAvatarSql} AS avatar_url,
-                 parent_user.username AS parent_username
+                 parent_user.username AS parent_username,
+                 nvl((SELECT max(v.vote_value) FROM murm_vote v WHERE v.post_id = p.id AND v.user_id = :current_user_id), 0) AS my_vote,
+                 CASE WHEN exists (SELECT 1
+                                   FROM murm_post own_reply
+                                   WHERE own_reply.parent_post_id = p.id
+                                       AND own_reply.user_id = :current_user_id
+                                       AND lower(trim(own_reply.status)) = 'published'
+                                       AND lower(trim(own_reply.post_type)) = 'murmur') THEN 1
+                      ELSE 0 END AS has_my_reply
              FROM murm_post p
              JOIN murm_user u ON u.id = p.user_id
              LEFT JOIN murm_post parent_post ON parent_post.id = p.parent_post_id
@@ -250,7 +276,7 @@ export async function getPostBranch(postId: number): Promise<unknown[]> {
                               WITH id = :post_id
                                   CONNECT BY PRIOR id = parent_post_id)
              ORDER BY p.created_at ASC`,
-            {post_id: postId},
+            {post_id: postId, current_user_id: currentUserId},
         );
         if (!result.rows?.length) throw new Error('POST_NAO_ENCONTRADO');
         return mapPostRows(result.rows);
@@ -486,7 +512,8 @@ function mapReplyHistoryRows(rows: PostRow[]): ReplyHistoryPost[] {
         positive: Number(row.POSITIVE_COUNT || 0),
         negative: Number(row.NEGATIVE_COUNT || 0),
         shares: Number(row.SHARE_COUNT || 0),
-        myVote: 0,
+        myVote: Number(row.MY_VOTE || 0),
+        hasMyReply: Number(row.HAS_MY_REPLY || 0) === 1,
         createdAt: new Date(String(row.CREATED_AT)).getTime(),
         replyCount: replyCounts.get(Number(row.ID)) || 0,
     }));
