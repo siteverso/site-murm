@@ -168,6 +168,7 @@ function selectVisibleReplies(replies, limit = 3) {
 }
 
 function renderReplyPreview(reply) {
+    const isPrivateRedacted = Boolean(reply?.isPrivate && reply?.canViewPrivate === false);
     const deleteControls = sameId(currentUser?.id, reply.userId)
         ? `<div class="reply-inline-delete-zone" data-reply-delete-zone>
         <div class="reply-inline-delete-confirm" data-reply-delete-confirm hidden>
@@ -178,11 +179,11 @@ function renderReplyPreview(reply) {
       </div>`
         : '';
     const replyProfileUrl = `/perfil/${encodeURIComponent(reply.author)}?murmurio=${encodeURIComponent(reply.id)}`;
-    return `<li class="reply-preview-item${sameId(currentUser?.id, reply.userId) ? ' is-own-reply' : ''}" data-reply-preview-id="${reply.id}">
+    return `<li class="reply-preview-item${sameId(currentUser?.id, reply.userId) ? ' is-own-reply' : ''}${isPrivateRedacted ? ' is-private-preview' : ''}" data-reply-preview-id="${reply.id}">
     <a class="reply-preview-content" href="${replyProfileUrl}" aria-label="Abrir esta resposta no perfil de @${escapeHtml(reply.author)}">
       <strong>@${escapeHtml(reply.author)}</strong>
       ${reply.isPrivate ? '<em class="reply-private-mini" title="Resposta privada"><i aria-hidden="true"></i></em>' : ''}
-      <span>${escapeHtml(reply.text)}</span>
+      ${isPrivateRedacted ? '' : `<span>${escapeHtml(reply.text)}</span>`}
     </a>
     ${deleteControls}
   </li>`;
@@ -197,6 +198,7 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
         collapsibleHeader = false,
     } = options;
     const sexClass = post.sexCode === 'M' ? 'sex-m' : post.sexCode === 'F' ? 'sex-f' : 'sex-u';
+    const isPrivateRedacted = Boolean(post?.isPrivate && post?.canViewPrivate === false);
     const postKey = String(post.id);
     const nextAncestry = new Set(ancestry);
     nextAncestry.add(postKey);
@@ -236,9 +238,24 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
     </article>`;
     }
 
-    const hasPersistentAction = post.myVote === 1 || post.myVote === -1 || Boolean(post.hasMyReply);
+    const hasPersistentAction = !isPrivateRedacted && (post.myVote === 1 || post.myVote === -1 || Boolean(post.hasMyReply));
+    const privateCardClass = post.isPrivate ? ' murmur-card-private' : '';
+    const privateRedactedClass = isPrivateRedacted ? ' murmur-card-private-redacted' : '';
 
-    return `<article id="murmurio-${post.id}" class="panel murmur-card lazy-reveal ${sexClass}${post.parentPostId ? ' murmur-reply-card' : ''}${terminalClass}${contextParentClass}${collapsibleHeader ? ' murmur-card-collapsible' : ''}${hasPersistentAction ? ' actions-pinned' : ''}" data-post-id="${post.id}"${collapsibleHeader ? ` data-collapse-expanded-post="${post.id}"` : ''}${terminalAttribute}>
+    if (isPrivateRedacted) {
+        return `<article id="murmurio-${post.id}" class="panel murmur-card lazy-reveal ${sexClass}${post.parentPostId ? ' murmur-reply-card' : ''}${terminalClass}${contextParentClass}${collapsibleHeader ? ' murmur-card-collapsible' : ''}${privateCardClass}${privateRedactedClass}" data-post-id="${post.id}"${collapsibleHeader ? ` data-collapse-expanded-post="${post.id}"` : ''}${terminalAttribute}>
+    <div class="murmur-head">
+      <a class="avatar murmur-profile-link" href="/perfil/${encodeURIComponent(post.author)}" aria-label="Abrir perfil de @${escapeHtml(post.author)}">${post.avatarUrl ? `<img class="lazy-media" src="${escapeHtml(post.avatarUrl)}" alt="Foto de @${escapeHtml(post.author)}" loading="lazy" decoding="async">` : escapeHtml(userInitials(post.author))}</a>
+      <div class="murmur-author"><a href="/perfil/${encodeURIComponent(post.author)}"><strong>@${escapeHtml(post.author)}</strong></a><span>${new Date(post.createdAt).toLocaleString()}</span></div>
+      <span class="reply-private-badge" title="Resposta privada"><i aria-hidden="true"></i>Privada</span>
+    </div>
+    <div class="murmur-private-placeholder" aria-label="Conteúdo privado oculto">
+      <span class="murmur-private-placeholder__pill"><i aria-hidden="true"></i>Conteúdo privado</span>
+    </div>
+  </article>`;
+    }
+
+    return `<article id="murmurio-${post.id}" class="panel murmur-card lazy-reveal ${sexClass}${post.parentPostId ? ' murmur-reply-card' : ''}${terminalClass}${contextParentClass}${collapsibleHeader ? ' murmur-card-collapsible' : ''}${hasPersistentAction ? ' actions-pinned' : ''}${privateCardClass}${privateRedactedClass}" data-post-id="${post.id}"${collapsibleHeader ? ` data-collapse-expanded-post="${post.id}"` : ''}${terminalAttribute}>
     <div class="murmur-head">
       <a class="avatar murmur-profile-link" href="/perfil/${encodeURIComponent(post.author)}" aria-label="Abrir perfil de @${escapeHtml(post.author)}">${post.avatarUrl ? `<img class="lazy-media" src="${escapeHtml(post.avatarUrl)}" alt="Foto de @${escapeHtml(post.author)}" loading="lazy" decoding="async">` : escapeHtml(userInitials(post.author))}</a>
       <div class="murmur-author"><a href="/perfil/${encodeURIComponent(post.author)}"><strong>@${escapeHtml(post.author)}</strong></a><span>${new Date(post.createdAt).toLocaleString()}</span></div>

@@ -98,25 +98,32 @@ function mapPostRows(rows: PostRow[]): unknown[] {
         const parentId = Number(row.PARENT_POST_ID);
         replyCounts.set(parentId, (replyCounts.get(parentId) || 0) + 1);
     });
-    return rows.map(row => ({
-        id: Number(row.ID),
-        userId: Number(row.USER_ID || 0),
-        parentPostId: row.PARENT_POST_ID == null ? null : Number(row.PARENT_POST_ID),
-        parentAuthor: String(row.PARENT_USERNAME || ''),
-        author: String(row.USERNAME || ''),
-        isDeleted: String(row.STATUS || '').trim().toLowerCase() === 'deleted',
-        sexCode: String(row.SEX_CODE || '').trim().toUpperCase(),
-        avatarUrl: String(row.AVATAR_URL || ''),
-        text: String(row.CONTENTS || ''),
-        positive: Number(row.POSITIVE_COUNT || 0),
-        negative: Number(row.NEGATIVE_COUNT || 0),
-        shares: Number(row.SHARE_COUNT || 0),
-        myVote: Number(row.MY_VOTE || 0),
-        hasMyReply: Number(row.HAS_MY_REPLY || 0) === 1,
-        createdAt: new Date(String(row.CREATED_AT)).getTime(),
-        isPrivate: String(row.VISIBILITY_CODE || 'public').trim().toLowerCase() === 'private',
-        replyCount: replyCounts.get(Number(row.ID)) || 0,
-    }));
+    return rows.map(row => {
+        const isPrivate = String(row.VISIBILITY_CODE || 'public').trim().toLowerCase() === 'private';
+        const canViewPrivate = !isPrivate || Number(row.CAN_VIEW_PRIVATE || 0) === 1;
+        const isPrivateRedacted = isPrivate && !canViewPrivate;
+        return {
+            id: Number(row.ID),
+            userId: Number(row.USER_ID || 0),
+            parentPostId: row.PARENT_POST_ID == null ? null : Number(row.PARENT_POST_ID),
+            parentAuthor: String(row.PARENT_USERNAME || ''),
+            author: String(row.USERNAME || ''),
+            isDeleted: String(row.STATUS || '').trim().toLowerCase() === 'deleted',
+            sexCode: String(row.SEX_CODE || '').trim().toUpperCase(),
+            avatarUrl: String(row.AVATAR_URL || ''),
+            text: isPrivateRedacted ? '' : String(row.CONTENTS || ''),
+            positive: isPrivateRedacted ? 0 : Number(row.POSITIVE_COUNT || 0),
+            negative: isPrivateRedacted ? 0 : Number(row.NEGATIVE_COUNT || 0),
+            shares: isPrivateRedacted ? 0 : Number(row.SHARE_COUNT || 0),
+            myVote: isPrivateRedacted ? 0 : Number(row.MY_VOTE || 0),
+            hasMyReply: isPrivateRedacted ? false : Number(row.HAS_MY_REPLY || 0) === 1,
+            createdAt: new Date(String(row.CREATED_AT)).getTime(),
+            isPrivate,
+            canViewPrivate,
+            isPrivateRedacted,
+            replyCount: isPrivateRedacted ? 0 : replyCounts.get(Number(row.ID)) || 0,
+        };
+    });
 }
 
 export async function listSpecificThread(postId: number, currentUserId: number | null = null): Promise<{ posts: unknown[]; siblingStubs: unknown[] }> {
@@ -158,7 +165,12 @@ export async function listSpecificThread(postId: number, currentUserId: number |
                                        AND own_reply.user_id = :current_user_id
                                        AND lower(trim(own_reply.status)) = 'published'
                                        AND lower(trim(own_reply.post_type)) = 'murmur') THEN 1
-                      ELSE 0 END AS has_my_reply
+                      ELSE 0 END AS has_my_reply,
+                 CASE WHEN nvl(p.visibility_code, 'public') <> 'private'
+                           OR p.parent_post_id IS NULL
+                           OR p.user_id = :current_user_id
+                           OR parent_post.user_id = :current_user_id THEN 1
+                      ELSE 0 END AS can_view_private
              FROM murm_post p
              JOIN murm_user u ON u.id = p.user_id
              LEFT JOIN murm_post parent_post ON parent_post.id = p.parent_post_id
@@ -180,10 +192,6 @@ export async function listSpecificThread(postId: number, currentUserId: number |
                                  WITH parent_post_id = :post_id
                                      CONNECT BY PRIOR id = parent_post_id)
                  )
-             AND (p.parent_post_id IS NULL
-                  OR nvl(p.visibility_code, 'public') = 'public'
-                  OR p.user_id = :current_user_id
-                  OR parent_post.user_id = :current_user_id)
              ORDER BY p.created_at ASC`,
             {post_id: postId, current_user_id: currentUserId},
         );
@@ -195,24 +203,36 @@ export async function listSpecificThread(postId: number, currentUserId: number |
                      p.parent_post_id,
                      p.created_at,
                      p.contents,
+                     nvl(p.visibility_code, 'public') AS visibility_code,
+                     CASE WHEN nvl(p.visibility_code, 'public') <> 'private'
+                               OR p.user_id = :current_user_id
+                               OR parent_post.user_id = :current_user_id THEN 1
+                          ELSE 0 END AS can_view_private,
                      nvl(u.sex_code, '') AS sex_code
                  FROM murm_post p
                  JOIN murm_user u ON u.id = p.user_id
+                 LEFT JOIN murm_post parent_post ON parent_post.id = p.parent_post_id
                  WHERE p.parent_post_id = :parent_id
                      AND p.id <> :post_id
                      AND lower(trim(p.status)) = 'published'
                      AND lower(trim(p.post_type)) = 'murmur'
                  ORDER BY p.created_at ASC, p.id ASC`,
-                {parent_id: parentId, post_id: postId},
+                {parent_id: parentId, post_id: postId, current_user_id: currentUserId},
             );
-            siblingStubs = (siblingResult.rows || []).map(row => ({
-                id: Number(row.ID),
-                parentPostId: Number(row.PARENT_POST_ID),
-                createdAt: new Date(String(row.CREATED_AT)).getTime(),
-                textPreview: String(row.CONTENTS || '').slice(0, 140),
-                sexCode: String(row.SEX_CODE || '').trim().toUpperCase(),
-                isStub: true,
-            }));
+            siblingStubs = (siblingResult.rows || []).map(row => {
+                const isPrivate = String(row.VISIBILITY_CODE || 'public').trim().toLowerCase() === 'private';
+                const canViewPrivate = !isPrivate || Number(row.CAN_VIEW_PRIVATE || 0) === 1;
+                return {
+                    id: Number(row.ID),
+                    parentPostId: Number(row.PARENT_POST_ID),
+                    createdAt: new Date(String(row.CREATED_AT)).getTime(),
+                    textPreview: canViewPrivate ? String(row.CONTENTS || '').slice(0, 140) : 'Resposta privada',
+                    sexCode: String(row.SEX_CODE || '').trim().toUpperCase(),
+                    isPrivate,
+                    canViewPrivate,
+                    isStub: true,
+                };
+            });
         }
         const mappedPosts = mapPostRows(fullResult.rows || []) as Array<Record<string, unknown>>;
 
@@ -237,7 +257,9 @@ export async function listSpecificThread(postId: number, currentUserId: number |
                 hasMyReply: false,
                 createdAt: Number(selectedPost?.createdAt || Date.now()),
                 isPrivate: false,
-            replyCount: mappedPosts.filter(post => Number(post.parentPostId) === parentId).length,
+                canViewPrivate: true,
+                isPrivateRedacted: false,
+                replyCount: mappedPosts.filter(post => Number(post.parentPostId) === parentId).length,
             });
         }
 
@@ -271,17 +293,18 @@ export async function getPostBranch(postId: number, currentUserId: number | null
                                        AND own_reply.user_id = :current_user_id
                                        AND lower(trim(own_reply.status)) = 'published'
                                        AND lower(trim(own_reply.post_type)) = 'murmur') THEN 1
-                      ELSE 0 END AS has_my_reply
+                      ELSE 0 END AS has_my_reply,
+                 CASE WHEN nvl(p.visibility_code, 'public') <> 'private'
+                           OR p.parent_post_id IS NULL
+                           OR p.user_id = :current_user_id
+                           OR parent_post.user_id = :current_user_id THEN 1
+                      ELSE 0 END AS can_view_private
              FROM murm_post p
              JOIN murm_user u ON u.id = p.user_id
              LEFT JOIN murm_post parent_post ON parent_post.id = p.parent_post_id
              LEFT JOIN murm_user parent_user ON parent_user.id = parent_post.user_id
              WHERE lower(trim(p.status)) = 'published'
                  AND lower(trim(p.post_type)) = 'murmur'
-                 AND (p.parent_post_id IS NULL
-                      OR nvl(p.visibility_code, 'public') = 'public'
-                      OR p.user_id = :current_user_id
-                      OR parent_post.user_id = :current_user_id)
                  AND p.id IN (SELECT id
                               FROM murm_post
                               WHERE lower(trim(status)) = 'published'
@@ -495,9 +518,12 @@ type ReplyHistoryPost = {
     negative: number;
     shares: number;
     myVote: number;
+    hasMyReply: boolean;
     createdAt: number;
     replyCount: number;
     isPrivate: boolean;
+    canViewPrivate: boolean;
+    isPrivateRedacted: boolean;
 };
 
 export type ReplyHistoryGroup = {
@@ -521,25 +547,32 @@ function mapReplyHistoryRows(rows: PostRow[]): ReplyHistoryPost[] {
         replyCounts.set(parentId, (replyCounts.get(parentId) || 0) + 1);
     });
 
-    return dedupedRows.map(row => ({
-        id: Number(row.ID),
-        userId: Number(row.USER_ID || 0),
-        parentPostId: row.PARENT_POST_ID == null ? null : Number(row.PARENT_POST_ID),
-        parentAuthor: String(row.PARENT_USERNAME || ''),
-        author: String(row.USERNAME || ''),
-        isDeleted: String(row.STATUS || '').trim().toLowerCase() === 'deleted',
-        sexCode: String(row.SEX_CODE || '').trim().toUpperCase(),
-        avatarUrl: String(row.AVATAR_URL || ''),
-        text: String(row.CONTENTS || ''),
-        positive: Number(row.POSITIVE_COUNT || 0),
-        negative: Number(row.NEGATIVE_COUNT || 0),
-        shares: Number(row.SHARE_COUNT || 0),
-        myVote: Number(row.MY_VOTE || 0),
-        hasMyReply: Number(row.HAS_MY_REPLY || 0) === 1,
-        createdAt: new Date(String(row.CREATED_AT)).getTime(),
-        isPrivate: String(row.VISIBILITY_CODE || 'public').trim().toLowerCase() === 'private',
-        replyCount: replyCounts.get(Number(row.ID)) || 0,
-    }));
+    return dedupedRows.map(row => {
+        const isPrivate = String(row.VISIBILITY_CODE || 'public').trim().toLowerCase() === 'private';
+        const canViewPrivate = !isPrivate || Number(row.CAN_VIEW_PRIVATE || 0) === 1;
+        const isPrivateRedacted = isPrivate && !canViewPrivate;
+        return {
+            id: Number(row.ID),
+            userId: Number(row.USER_ID || 0),
+            parentPostId: row.PARENT_POST_ID == null ? null : Number(row.PARENT_POST_ID),
+            parentAuthor: String(row.PARENT_USERNAME || ''),
+            author: String(row.USERNAME || ''),
+            isDeleted: String(row.STATUS || '').trim().toLowerCase() === 'deleted',
+            sexCode: String(row.SEX_CODE || '').trim().toUpperCase(),
+            avatarUrl: String(row.AVATAR_URL || ''),
+            text: isPrivateRedacted ? '' : String(row.CONTENTS || ''),
+            positive: isPrivateRedacted ? 0 : Number(row.POSITIVE_COUNT || 0),
+            negative: isPrivateRedacted ? 0 : Number(row.NEGATIVE_COUNT || 0),
+            shares: isPrivateRedacted ? 0 : Number(row.SHARE_COUNT || 0),
+            myVote: isPrivateRedacted ? 0 : Number(row.MY_VOTE || 0),
+            hasMyReply: isPrivateRedacted ? false : Number(row.HAS_MY_REPLY || 0) === 1,
+            createdAt: new Date(String(row.CREATED_AT)).getTime(),
+            isPrivate,
+            canViewPrivate,
+            isPrivateRedacted,
+            replyCount: isPrivateRedacted ? 0 : replyCounts.get(Number(row.ID)) || 0,
+        };
+    });
 }
 
 async function fetchReplyHistoryBranch(connection: oracledb.Connection, replyId: number, viewerUserId: number): Promise<ReplyHistoryPost[]> {
@@ -559,7 +592,12 @@ async function fetchReplyHistoryBranch(connection: oracledb.Connection, replyId:
              u.username,
              nvl(u.sex_code, '') AS sex_code,
              ${userAvatarSql} AS avatar_url,
-             parent_user.username AS parent_username
+             parent_user.username AS parent_username,
+             CASE WHEN nvl(p.visibility_code, 'public') <> 'private'
+                       OR p.parent_post_id IS NULL
+                       OR p.user_id = :viewer_user_id
+                       OR parent_post.user_id = :viewer_user_id THEN 1
+                  ELSE 0 END AS can_view_private
          FROM murm_post p
          JOIN murm_user u
               ON u.id = p.user_id
@@ -568,10 +606,6 @@ async function fetchReplyHistoryBranch(connection: oracledb.Connection, replyId:
          LEFT JOIN murm_user parent_user
                    ON parent_user.id = parent_post.user_id
          WHERE lower(trim(p.post_type)) = 'murmur'
-             AND (p.parent_post_id IS NULL
-                  OR nvl(p.visibility_code, 'public') = 'public'
-                  OR p.user_id = :viewer_user_id
-                  OR parent_post.user_id = :viewer_user_id)
              AND (
              (p.id = :reply_id AND lower(trim(p.status)) IN ('published', 'deleted'))
                  OR p.id IN (SELECT id
@@ -613,8 +647,11 @@ async function fetchReplyHistoryBranch(connection: oracledb.Connection, replyId:
             negative: 0,
             shares: 0,
             myVote: 0,
+            hasMyReply: false,
             createdAt: Number(selectedPost.createdAt || Date.now()),
             isPrivate: false,
+            canViewPrivate: true,
+            isPrivateRedacted: false,
             replyCount: mappedPosts.filter(post => Number(post.parentPostId) === Number(selectedPost.parentPostId)).length,
         });
     }
