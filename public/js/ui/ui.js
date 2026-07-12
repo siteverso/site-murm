@@ -4,6 +4,8 @@ const THEMES = Object.freeze([
     {code: 'ocean', name: 'Oceano'},
     {code: 'forest', name: 'Floresta'},
     {code: 'sunset', name: 'Pôr do sol'},
+    {code: 'rose', name: 'Rosa'},
+    {code: 'purple', name: 'Purple'},
 ]);
 
 function normalizeClientTheme(value) {

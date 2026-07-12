@@ -136,3 +136,37 @@ html[data-theme="sunset"] {
   --danger: #c92f37;
   --shadow: 0 22px 60px rgb(110 51 27 / 14%);
 }
+
+html[data-theme="rose"] {
+  color: #3b1726;
+  background: #fff0f5;
+  --bg: #fff0f5;
+  --surface: #fff9fb;
+  --surface-2: #f8dce7;
+  --text: #3b1726;
+  --muted: #8a5d70;
+  --line: #e9bfd0;
+  --strong: #5e1735;
+  --inverse: #fff9fb;
+  --positive: #d63f78;
+  --negative: #a47b8b;
+  --danger: #c92f55;
+  --shadow: 0 22px 62px rgb(151 47 91 / 14%);
+}
+
+html[data-theme="purple"] {
+  color: #f7f1ff;
+  background: #160d29;
+  --bg: #160d29;
+  --surface: #21123a;
+  --surface-2: #2f1b50;
+  --text: #f7f1ff;
+  --muted: #c5b2dc;
+  --line: #4b3270;
+  --strong: #ffffff;
+  --inverse: #160d29;
+  --positive: #c9a7ff;
+  --negative: #ad99c4;
+  --danger: #ff7b9e;
+  --shadow: 0 26px 76px rgb(5 0 18 / 46%);
+}
