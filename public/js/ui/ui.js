@@ -1,13 +1,17 @@
 const THEMES = Object.freeze([
-    {code: 'graphite', name: 'Grafite'},
-    {code: 'graphite-bright', name: 'Grafite Bright'},
-    {code: 'pearl', name: 'Pérola'},
-    {code: 'ocean', name: 'Oceano'},
-    {code: 'forest', name: 'Floresta'},
-    {code: 'sunset', name: 'Pôr do sol'},
-    {code: 'rose', name: 'Rosa'},
-    {code: 'purple', name: 'Purple'},
+    {code: 'graphite', messageKey: 'graphite'},
+    {code: 'graphite-bright', messageKey: 'graphiteBright'},
+    {code: 'pearl', messageKey: 'pearl'},
+    {code: 'ocean', messageKey: 'ocean'},
+    {code: 'forest', messageKey: 'forest'},
+    {code: 'sunset', messageKey: 'sunset'},
+    {code: 'rose', messageKey: 'rose'},
+    {code: 'purple', messageKey: 'purple'},
 ]);
+
+function getThemeName(theme) {
+    return window.__MURMUR_I18N__?.themes?.[theme.messageKey] || theme.code;
+}
 
 function normalizeClientTheme(value) {
     const code = String(value || '').toLowerCase();
@@ -27,7 +31,7 @@ function applyTheme(themeCode, persistCookie = true) {
 
 function openThemePicker() {
     const active = normalizeClientTheme(document.documentElement.dataset.theme);
-    const choices = THEMES.map(theme => `<button class="theme-choice" type="button" data-theme-code="${theme.code}" aria-pressed="${theme.code === active}"><span class="theme-choice-preview" aria-hidden="true"></span><span class="theme-choice-name">${theme.name}</span></button>`).join('');
+    const choices = THEMES.map(theme => `<button class="theme-choice" type="button" data-theme-code="${theme.code}" aria-pressed="${theme.code === active}"><span class="theme-choice-preview" aria-hidden="true"></span><span class="theme-choice-name">${getThemeName(theme)}</span></button>`).join('');
     modal(`<h2>Escolha seu tema</h2><p class="theme-picker-intro">A aparência é salva na sua conta e volta com você em qualquer acesso.</p><div class="theme-picker-grid">${choices}</div><p class="theme-picker-status" data-theme-status></p>`, 'theme-picker-modal');
 }
 

@@ -20,6 +20,16 @@ export default {
     portuguese: 'Português',
     english: 'English',
   },
+  themes: {
+    graphite: 'Graphite',
+    graphiteBright: 'Light Graphite',
+    pearl: 'Pearl',
+    ocean: 'Ocean',
+    forest: 'Forest',
+    sunset: 'Sunset',
+    rose: 'Rose',
+    purple: 'Purple',
+  },
   login: {
     title: 'Sign in',
     headline: 'Less noise. More conversation.',

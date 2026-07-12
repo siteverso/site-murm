@@ -20,6 +20,16 @@ export default {
     portuguese: 'Português',
     english: 'English',
   },
+  themes: {
+    graphite: 'Grafite',
+    graphiteBright: 'Grafite Claro',
+    pearl: 'Pérola',
+    ocean: 'Oceano',
+    forest: 'Floresta',
+    sunset: 'Pôr do sol',
+    rose: 'Rosa',
+    purple: 'Roxo',
+  },
   login: {
     title: 'Entrar',
     headline: 'Menos barulho. Mais conversa.',
