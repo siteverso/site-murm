@@ -21,8 +21,11 @@ test('username opens profile and text opens the normal murmur route', () => {
   assert.match(moduleSource, /post\.isPrivate/);
 });
 
-test('random murmur advances every second and reshuffles in a loop', () => {
-  assert.match(moduleSource, /RANDOM_MURMUR_INTERVAL_MS = 1000/);
+test('random murmur defaults to four seconds, accepts the env-backed page value and reshuffles in a loop', () => {
+  assert.match(page, /PUBLIC_HOME_RANDOM_MURMUR_INTERVAL_MS/);
+  assert.match(page, /data-random-murmur-interval-ms=\{randomMurmurIntervalMs\}/);
+  assert.match(moduleSource, /DEFAULT_RANDOM_MURMUR_INTERVAL_MS = 4000/);
+  assert.match(moduleSource, /dataset\?\.randomMurmurIntervalMs/);
   assert.match(moduleSource, /randomMurmurIndex >= randomMurmurQueue\.length/);
   assert.match(moduleSource, /randomMurmurQueue = shuffleRandomMurmurs\(items\)/);
   assert.match(app, /\/js\/feed\/random-murmur\.js/);

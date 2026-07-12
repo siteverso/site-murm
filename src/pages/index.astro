@@ -4,12 +4,16 @@ import Header from '../components/Header.astro';
 import { getMessages, normalizeLocale } from '../i18n';
 const locale = normalizeLocale(Astro.cookies.get('murmurinho-language')?.value);
 const t = getMessages(locale);
+const configuredRandomMurmurInterval = Number.parseInt(import.meta.env.PUBLIC_HOME_RANDOM_MURMUR_INTERVAL_MS || '', 10);
+const randomMurmurIntervalMs = Number.isFinite(configuredRandomMurmurInterval) && configuredRandomMurmurInterval >= 250
+  ? configuredRandomMurmurInterval
+  : 4000;
 ---
 <AppLayout title={`${t.site.title} — ${t.common.home}`}>
   <Header />
   <main class="shell minimal-feed-page network-board-page">
     <div class="feed-heading minimal network-board-heading">
-      <div class="random-murmur" data-random-murmur aria-live="polite">
+      <div class="random-murmur" data-random-murmur data-random-murmur-interval-ms={randomMurmurIntervalMs} aria-live="polite">
         <div class="random-murmur__content" data-random-murmur-content hidden>
           <a class="random-murmur__user" data-random-murmur-user href="#"></a>
           <a class="random-murmur__link" data-random-murmur-link href="#">

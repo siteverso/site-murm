@@ -1,4 +1,11 @@
-const RANDOM_MURMUR_INTERVAL_MS = 1000;
+const DEFAULT_RANDOM_MURMUR_INTERVAL_MS = 4000;
+
+function getRandomMurmurIntervalMs(root) {
+    const configured = Number.parseInt(root?.dataset?.randomMurmurIntervalMs || '', 10);
+    return Number.isFinite(configured) && configured >= 250
+        ? configured
+        : DEFAULT_RANDOM_MURMUR_INTERVAL_MS;
+}
 let randomMurmurTimer = null;
 let randomMurmurQueue = [];
 let randomMurmurIndex = 0;
@@ -88,7 +95,8 @@ function syncRandomMurmur() {
     if (!$('[data-random-murmur]')) return;
     showRandomMurmur({animate: false});
     clearInterval(randomMurmurTimer);
+    const root = $('[data-random-murmur]');
     randomMurmurTimer = window.setInterval(() => {
         if (document.visibilityState === 'visible') showRandomMurmur();
-    }, RANDOM_MURMUR_INTERVAL_MS);
+    }, getRandomMurmurIntervalMs(root));
 }
