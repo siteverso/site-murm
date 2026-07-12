@@ -57,13 +57,20 @@ test('não existe cópia obsoleta do aplicativo em public\/public', async () => 
   await assert.rejects(access(new URL('../public/public/app.js', import.meta.url)));
 });
 
-test('respostas são agrupadas e renderizadas dentro do murmúrio pai', async () => {
+test('respostas são agrupadas e renderizadas em lista compacta dentro do murmúrio pai', async () => {
   const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  const css = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/styles/global.css', import.meta.url), 'utf8'));
   assert.match(source, /function groupPostsByParent\(items\)/);
   assert.match(source, /function getRootPosts\(items\)/);
-  assert.match(source, /data-replies-for=/);
-  assert.match(source, /renderPost\(reply, childrenByParent, nextAncestry, true\)/);
-  assert.match(source, /roots\.map\(post => renderPost\(post, childrenByParent, new Set\(\), includeReplies\)\)/);
+  assert.match(source, /function renderReplyPreview\(reply\)/);
+  assert.match(source, /repliesMode === 'compact'/);
+  assert.match(source, /<ul class="reply-preview-list">/);
+  assert.match(source, /data-toggle-delete-reply=/);
+  assert.match(source, /data-confirm-delete-reply=/);
+  assert.match(source, /closeReplyDeleteConfirm\(/);
+  assert.match(css, /\.reply-preview-item \{/);
+  assert.match(css, /\.reply-inline-delete-confirm \{/);
+  assert.match(source, /roots\.map\(post => renderPost\(post, childrenByParent, new Set\(\), \{ repliesMode \}\)\)/);
 });
 
 test('ícones de direct e exclusão do murmúrio aparecem juntos apenas no hover ou foco', () => {
@@ -129,4 +136,25 @@ test('botao de resposta direciona o foco ao input de forma robusta', async () =>
   assert.match(source, /requestAnimationFrame\(focus\)/);
   assert.match(source, /setTimeout\(focus, 60\)/);
   assert.match(source, /if \(form\.classList\.contains\('open'\)\) focusReplyInput\(form\)/);
+});
+
+
+test('cards exibem três respostas recentes e preservam a resposta do usuário logado', async () => {
+  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  assert.match(source, /function selectVisibleReplies\(replies, limit = 3\)/);
+  assert.match(source, /newest\.find\(reply => sameId\(reply\.userId, currentUser\.id\)\)/);
+  assert.match(source, /slice\(0, Math\.max\(0, limit - 1\)\)/);
+  assert.match(source, /const visibleReplies = selectVisibleReplies\(replies\)/);
+  assert.match(source, /repliesMode: 'compact'/);
+  assert.match(source, /renderLane\(allListFeed, feedBuckets\.all, 'compact'\)/);
+});
+
+test('perfil renderiza cards recursivos até o quinto nível', async () => {
+  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  assert.match(source, /repliesMode === 'recursive'/);
+  assert.match(source, /depth < maxDepth/);
+  assert.match(source, /depth: depth \+ 1/);
+  assert.match(source, /maxDepth = 5/);
+  assert.match(source, /data-terminal-profile=/);
+  assert.match(source, /renderLane\(profileFeed, feedBuckets\.all, profileFeed\?\.dataset\.feedIncludeReplies === 'true' \? 'recursive' : 'none'\)/);
 });

@@ -34,8 +34,14 @@ test('compositores exibem barra de uso atualizada em tempo real', () => {
   assert.match(app, /updateTextProgress\(field\)/);
 });
 
-test('contador fica vermelho ao atingir exatamente o limite', () => {
-  assert.match(app, /progress\.classList\.toggle\('at-limit', percent >= 100\)/);
-  assert.match(css, /\.murmur-progress\.at-limit \.murmur-progress-value \{ color: var\(--danger\); font-weight: 800; \}/);
+test('contador usa interpolação RGB contínua até o limite', () => {
+  assert.match(app, /function interpolateProgressColor\(ratio\)/);
+  assert.match(app, /progress\.style\.setProperty\('--murmur-progress-r'/);
+  assert.match(app, /progress\.style\.setProperty\('--murmur-progress-g'/);
+  assert.match(app, /progress\.style\.setProperty\('--murmur-progress-b'/);
+  assert.match(app, /progress\.classList\.toggle\('at-limit', ratio >= 1\)/);
+  assert.match(css, /--murmur-progress-color: rgb\(var\(--murmur-progress-r\) var\(--murmur-progress-g\) var\(--murmur-progress-b\)\)/);
+  assert.match(css, /linear-gradient\(90deg, rgb\(255 255 255 \/ \.92\) 0%, var\(--murmur-progress-color\) 100%\)/);
+  assert.match(css, /\.murmur-progress\.at-limit \.murmur-progress-value \{ font-weight: 800; \}/);
 });
 

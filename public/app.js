@@ -359,7 +359,52 @@ function getRootPosts(items) {
   return items.filter(post => post.parentPostId == null || !publishedIds.has(String(post.parentPostId)));
 }
 
-function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), includeReplies = false) {
+function compareRepliesByNewest(left, right) {
+  const timeDifference = new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+  if (timeDifference !== 0) return timeDifference;
+  return Number(right.id || 0) - Number(left.id || 0);
+}
+
+function selectVisibleReplies(replies, limit = 3) {
+  const newest = [...replies].sort(compareRepliesByNewest);
+  if (newest.length <= limit) return newest;
+
+  const ownReply = currentUser
+    ? newest.find(reply => sameId(reply.userId, currentUser.id))
+    : null;
+  if (!ownReply) return newest.slice(0, limit);
+
+  const otherNewest = newest
+    .filter(reply => !sameId(reply.id, ownReply.id))
+    .slice(0, Math.max(0, limit - 1));
+  return [ownReply, ...otherNewest].sort(compareRepliesByNewest);
+}
+
+function renderReplyPreview(reply) {
+  const deleteControls = sameId(currentUser?.id, reply.userId)
+    ? `<div class="reply-inline-delete-zone" data-reply-delete-zone>
+        <div class="reply-inline-delete-confirm" data-reply-delete-confirm hidden>
+          <button type="button" data-confirm-delete-reply="${reply.id}">Apagar</button>
+          <button type="button" data-cancel-delete-reply>Cancelar</button>
+        </div>
+        <button class="reply-inline-delete-button" type="button" data-toggle-delete-reply="${reply.id}" aria-label="Apagar resposta" title="Apagar resposta">×</button>
+      </div>`
+    : '';
+  return `<li class="reply-preview-item${sameId(currentUser?.id, reply.userId) ? ' is-own-reply' : ''}" data-reply-preview-id="${reply.id}">
+    <a class="reply-preview-content" href="/perfil/${encodeURIComponent(reply.author)}" aria-label="Abrir perfil de @${escapeHtml(reply.author)}">
+      <strong>@${escapeHtml(reply.author)}</strong>
+      <span>${escapeHtml(reply.text)}</span>
+    </a>
+    ${deleteControls}
+  </li>`;
+}
+
+function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), options = {}) {
+  const {
+    repliesMode = 'none',
+    depth = 1,
+    maxDepth = 5,
+  } = options;
   const score = post.positive - post.negative;
   const sexClass = post.sexCode === 'M' ? 'sex-m' : post.sexCode === 'F' ? 'sex-f' : 'sex-u';
   const replyContext = post.parentPostId
@@ -368,12 +413,28 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), in
   const postKey = String(post.id);
   const nextAncestry = new Set(ancestry);
   nextAncestry.add(postKey);
-  const replies = (childrenByParent.get(postKey) || []).filter(reply => !nextAncestry.has(String(reply.id)));
-  const nestedReplies = includeReplies && replies.length
-    ? `<div class="replies" data-replies-for="${post.id}">${replies.map(reply => renderPost(reply, childrenByParent, nextAncestry, true)).join('')}</div>`
-    : '';
+  const replies = (childrenByParent.get(postKey) || [])
+    .filter(reply => !nextAncestry.has(String(reply.id)))
+    .sort(compareRepliesByNewest);
 
-  return `<article id="murmurio-${post.id}" class="panel murmur-card ${sexClass}${post.parentPostId ? ' murmur-reply-card' : ''}" data-post-id="${post.id}">
+  let nestedReplies = '';
+  if (repliesMode === 'compact' && replies.length) {
+    const visibleReplies = selectVisibleReplies(replies);
+    nestedReplies = `<div class="replies replies-compact" data-replies-for="${post.id}"><ul class="reply-preview-list">${visibleReplies.map(reply => renderReplyPreview(reply)).join('')}</ul></div>`;
+  }
+  if (repliesMode === 'recursive' && replies.length && depth < maxDepth) {
+    nestedReplies = `<div class="replies replies-recursive" data-replies-for="${post.id}">${replies.map(reply => renderPost(reply, childrenByParent, nextAncestry, {
+      repliesMode: 'recursive',
+      depth: depth + 1,
+      maxDepth,
+    })).join('')}</div>`;
+  }
+
+  const terminalProfile = repliesMode === 'recursive' && depth >= maxDepth;
+  const terminalAttribute = terminalProfile ? ` data-terminal-profile="/perfil/${encodeURIComponent(post.author)}"` : '';
+  const terminalClass = terminalProfile ? ' murmur-terminal-level' : '';
+
+  return `<article id="murmurio-${post.id}" class="panel murmur-card ${sexClass}${post.parentPostId ? ' murmur-reply-card' : ''}${terminalClass}" data-post-id="${post.id}"${terminalAttribute}>
     <div class="murmur-head">
       <a class="avatar murmur-profile-link" href="/perfil/${encodeURIComponent(post.author)}" aria-label="Abrir perfil de @${escapeHtml(post.author)}">${post.avatarUrl ? `<img src="${escapeHtml(post.avatarUrl)}" alt="Foto de @${escapeHtml(post.author)}" loading="lazy">` : escapeHtml(post.author.slice(0, 2).toUpperCase())}</a>
       <div class="murmur-author"><a href="/perfil/${encodeURIComponent(post.author)}"><strong>@${escapeHtml(post.author)}</strong></a><span>${new Date(post.createdAt).toLocaleString()}</span></div>
@@ -398,12 +459,12 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), in
   </article>`;
 }
 
-function renderLane(feed, posts, includeReplies = false) {
+function renderLane(feed, posts, repliesMode = 'none') {
   if (!feed) return;
   const childrenByParent = groupPostsByParent(posts);
   const roots = getRootPosts(posts);
   feed.innerHTML = roots.length
-    ? roots.map(post => renderPost(post, childrenByParent, new Set(), includeReplies)).join('')
+    ? roots.map(post => renderPost(post, childrenByParent, new Set(), { repliesMode })).join('')
     : '<p class="empty-state">Nenhum murmúrio nesta visualização.</p>';
 }
 
@@ -435,7 +496,7 @@ function renderSplitLane(feed, items, kind) {
   const childrenByParent = groupPostsByParent(posts);
   const hasMore = items.length > visible.length;
   feed.innerHTML = visible.length
-    ? `${visible.map(post => renderPost(post, childrenByParent)).join('')}${hasMore ? `<div class="feed-more-wrap"><button class="feed-more-button" type="button" data-feed-more="${kind}">Mostrar mais 20</button><div class="feed-more-sentinel" data-feed-more-sentinel="${kind}" aria-hidden="true"></div></div>` : ''}`
+    ? `${visible.map(post => renderPost(post, childrenByParent, new Set(), { repliesMode: 'compact' })).join('')}${hasMore ? `<div class="feed-more-wrap"><button class="feed-more-button" type="button" data-feed-more="${kind}">Mostrar mais 20</button><div class="feed-more-sentinel" data-feed-more-sentinel="${kind}" aria-hidden="true"></div></div>` : ''}`
     : '<p class="empty-state">Nenhum murmúrio nesta coluna.</p>';
 }
 
@@ -542,8 +603,8 @@ async function loadFeed(force = false) {
     feedSignature = nextSignature;
     feedBuckets.all = posts;
     renderSplitFeeds();
-    renderLane(allListFeed, feedBuckets.all, false);
-    renderLane(profileFeed, feedBuckets.all, profileFeed?.dataset.feedIncludeReplies === 'true');
+    renderLane(allListFeed, feedBuckets.all, 'compact');
+    renderLane(profileFeed, feedBuckets.all, profileFeed?.dataset.feedIncludeReplies === 'true' ? 'recursive' : 'none');
     restoreFeedAnchor(anchor);
   } finally {
     feedRequestRunning = false;
@@ -676,10 +737,21 @@ function openPostAuthorProfile(card) {
   if (profileUrl) window.location.assign(profileUrl);
 }
 
+function closeReplyDeleteConfirm(exceptButton = null) {
+  $$('[data-reply-delete-confirm]').forEach(confirm => {
+    const toggleButton = confirm.parentElement?.querySelector('[data-toggle-delete-reply]');
+    if (exceptButton && toggleButton === exceptButton) return;
+    confirm.hidden = true;
+  });
+}
+
 function bindFeed() {
   document.addEventListener('click', async event => {
     const target = event.target.closest('button');
-    if (!target) return;
+    if (!target) {
+      if (!event.target.closest('[data-reply-delete-zone]')) closeReplyDeleteConfirm();
+      return;
+    }
     const card = target.closest('[data-post-id]');
     try {
       if (target.matches('[data-reply]')) openReplyForm(card, { toggle: true });
@@ -694,6 +766,23 @@ function bindFeed() {
         pinCardActions(postId);
       }
       if (target.matches('[data-share]')) { await api(`/api/posts/${card.dataset.postId}/share`, { method: 'POST' }); await navigator.clipboard?.writeText(`${location.origin}/#murmurio-${card.dataset.postId}`); toast('Link copiado.'); await loadFeed(); }
+      if (target.matches('[data-toggle-delete-reply]')) {
+        const confirm = target.parentElement?.querySelector('[data-reply-delete-confirm]');
+        if (confirm) {
+          const willShow = confirm.hidden;
+          closeReplyDeleteConfirm(willShow ? target : null);
+          confirm.hidden = !willShow;
+        }
+      }
+      if (target.matches('[data-cancel-delete-reply]')) {
+        target.closest('[data-reply-delete-confirm]').hidden = true;
+      }
+      if (target.matches('[data-confirm-delete-reply]')) {
+        target.disabled = true;
+        await api(`/api/replies/${target.dataset.confirmDeleteReply}`, { method: 'DELETE' });
+        await loadFeed(true);
+        toast('Murmúrio apagado.');
+      }
       if (target.matches('[data-delete-reply]')) { await api(`/api/replies/${target.dataset.deleteReply}`, { method: 'DELETE' }); await loadFeed(true); toast('Murmúrio apagado.'); }
       if (target.matches('[data-delete-post]')) {
         const postId = target.dataset.deletePost;
@@ -710,6 +799,12 @@ function bindFeed() {
       const directButton = target.closest('[data-direct-user]');
       if (directButton) openDirectComposer(Number(directButton.dataset.directUser), directButton.dataset.directName);
     } catch (error) { toast(error.message); }
+  });
+
+  document.addEventListener('click', event => {
+    if (event.target.closest('button, a, input, textarea, form, [data-reply-delete-zone]')) return;
+    const terminalCard = event.target.closest('[data-terminal-profile]');
+    if (terminalCard?.dataset.terminalProfile) window.location.assign(terminalCard.dataset.terminalProfile);
   });
 
   document.addEventListener('dblclick', event => {
@@ -771,19 +866,36 @@ function progressMarkup() {
   </div>`;
 }
 
+function interpolateProgressColor(ratio) {
+  const clampedRatio = Math.max(0, Math.min(1, Number.isFinite(ratio) ? ratio : 0));
+  const start = { r: 255, g: 255, b: 255 };
+  const end = { r: 255, g: 76, b: 76 };
+  const mixChannel = (from, to) => Math.round(from + (to - from) * clampedRatio);
+  return {
+    r: mixChannel(start.r, end.r),
+    g: mixChannel(start.g, end.g),
+    b: mixChannel(start.b, end.b),
+  };
+}
+
 function updateTextProgress(field) {
   const form = field.closest('form');
   const progress = form?.querySelector('[data-murmur-progress]');
   if (!progress) return;
   const used = Math.min(field.value.length, TEXT_LIMIT);
-  const percent = Math.round((used / TEXT_LIMIT) * 100);
+  const ratio = Math.max(0, Math.min(1, used / TEXT_LIMIT));
+  const percent = ratio * 100;
   const fill = progress.querySelector('[data-progress-fill]');
   const value = progress.querySelector('[data-progress-value]');
+  const color = interpolateProgressColor(ratio);
   if (fill) fill.style.width = `${percent}%`;
   if (value) value.textContent = `${used}/${TEXT_LIMIT}`;
+  progress.style.setProperty('--murmur-progress-r', String(color.r));
+  progress.style.setProperty('--murmur-progress-g', String(color.g));
+  progress.style.setProperty('--murmur-progress-b', String(color.b));
+  progress.style.setProperty('--murmur-progress-glow-opacity', `${0.14 + ratio * 0.34}`);
   progress.setAttribute('aria-label', `${used} de ${TEXT_LIMIT} caracteres usados`);
-  progress.classList.toggle('near-limit', percent >= 80 && percent < 100);
-  progress.classList.toggle('at-limit', percent >= 100);
+  progress.classList.toggle('at-limit', ratio >= 1);
 }
 
 function openComposer() {
