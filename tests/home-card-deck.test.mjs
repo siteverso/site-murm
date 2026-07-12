@@ -48,3 +48,14 @@ test('deck keeps visible action glow and commits vote after threshold release', 
   assert.match(css, /0 0 56px/);
   assert.match(css, /deck-overlay/);
 });
+
+test('deck promotes the next cards fluidly and opens the message on upward drag', () => {
+  assert.match(deck, /animateDeckPromotion/);
+  assert.match(deck, /deckRestTransform/);
+  assert.match(deck, /DECK_OPEN_THRESHOLD/);
+  assert.match(deck, /animateDeckOpen/);
+  assert.match(deck, /window\.location\.assign\(href\)/);
+  assert.match(css, /data-deck-direction="up"/);
+  assert.match(css, /is-returning/);
+  assert.match(page, /para cima para abrir o murmúrio/);
+});

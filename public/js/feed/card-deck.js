@@ -2,6 +2,7 @@ const DECK_VISIBLE_CARDS = 5;
 const DECK_MAX_CARDS = 100;
 const DECK_SWIPE_THRESHOLD = 118;
 const DECK_DRAG_ACTIVATION = 8;
+const DECK_OPEN_THRESHOLD = 105;
 const DECK_THROW_DISTANCE = 1.2;
 let deckOrder = [];
 let deckCursor = 0;
@@ -44,10 +45,12 @@ function getDeckPosts(items = []) {
 }
 
 function createDeckOverlay(direction) {
-    const label = direction === 'right' ? 'Ecoar' : 'Silenciar';
+    const label = direction === 'right' ? 'Ecoar' : direction === 'left' ? 'Silenciar' : 'Abrir';
     const icon = direction === 'right'
         ? `<svg viewBox="0 0 28 28" fill="none" aria-hidden="true"><circle cx="6.8" cy="14" r="2.2" fill="currentColor"/><path d="M11 10.4C13.3 12 13.3 16 11 17.6" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/><path d="M16 7.6C21 11 21 17 16 20.4" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/></svg>`
-        : `<svg viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M16.2 5.8C11.5 5.8 8.7 8.75 8.7 12.45c0 2.3 1.15 3.6 2.55 4.7 1.15.95 1.55 1.7 1.55 2.75 0 1.25 1.05 2.2 2.35 2.2 1.75 0 2.7-1.3 2.7-3" stroke="currentColor" stroke-width="2.05" stroke-linecap="round"/><path d="M12.7 12.85c0-1.9 1.15-3.1 2.95-3.1 1.7 0 2.85 1.1 2.85 2.65 0 1.15-.65 1.95-1.6 2.55" stroke="currentColor" stroke-width="2.05" stroke-linecap="round"/><path d="M5.6 6L22.4 22" stroke="currentColor" stroke-width="2.05" stroke-linecap="round"/></svg>`;
+        : direction === 'left'
+            ? `<svg viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M16.2 5.8C11.5 5.8 8.7 8.75 8.7 12.45c0 2.3 1.15 3.6 2.55 4.7 1.15.95 1.55 1.7 1.55 2.75 0 1.25 1.05 2.2 2.35 2.2 1.75 0 2.7-1.3 2.7-3" stroke="currentColor" stroke-width="2.05" stroke-linecap="round"/><path d="M12.7 12.85c0-1.9 1.15-3.1 2.95-3.1 1.7 0 2.85 1.1 2.85 2.65 0 1.15-.65 1.95-1.6 2.55" stroke="currentColor" stroke-width="2.05" stroke-linecap="round"/><path d="M5.6 6L22.4 22" stroke="currentColor" stroke-width="2.05" stroke-linecap="round"/></svg>`
+            : `<svg viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M14 21V7M8.5 12.5 14 7l5.5 5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     return `<div class="deck-overlay deck-overlay--${direction}" aria-hidden="true"><div class="deck-overlay__badge">${icon}<span>${label}</span></div></div>`;
 }
 
@@ -66,6 +69,7 @@ function renderDeck(items = []) {
             <div class="deck-card" data-deck-card="" data-deck-index="${index}" data-deck-post-id="${post.id}" style="--deck-index:${index}; --deck-count:${visible.length}">
               ${createDeckOverlay('left')}
               ${createDeckOverlay('right')}
+              ${createDeckOverlay('up')}
               ${renderPost(post, childrenByParent, new Set(), {repliesMode: 'compact'})}
             </div>`).join('')
         : '<p class="empty-state">Os 100 murmúrios carregados acabaram.</p>';
@@ -80,19 +84,46 @@ function consumeDeckCard() {
 }
 
 function getDeckDisplayedY(y = 0) {
-    return y * 0.16;
+    return y * 0.42;
+}
+
+function deckRestTransform(index) {
+    return `translate3d(0, ${index * 11}px, ${index * -40}px) scale(${1 - index * .024})`;
+}
+
+function animateDeckPromotion(deck) {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const duration = reducedMotion ? 140 : 560;
+    const easing = 'cubic-bezier(.16, 1, .3, 1)';
+    const animations = [];
+
+    deck.querySelectorAll('[data-deck-card]').forEach(card => {
+        const index = Number(card.dataset.deckIndex || 0);
+        if (index <= 0) return;
+        const nextIndex = index - 1;
+        const animation = card.animate([
+            {transform: deckRestTransform(index), opacity: 1 - index * .13, filter: `saturate(${1 - index * .08})`},
+            {transform: deckRestTransform(nextIndex), opacity: 1 - nextIndex * .13, filter: `saturate(${1 - nextIndex * .08})`},
+        ], {duration, easing, fill: 'forwards'});
+        animations.push(animation.finished.catch(() => {}));
+    });
+
+    return Promise.all(animations);
 }
 
 function updateDeckDragState(card, x = 0, y = 0) {
     if (!card) return;
-    const progress = Math.min(1, Math.abs(x) / DECK_SWIPE_THRESHOLD);
-    const direction = x > 0 ? 'right' : x < 0 ? 'left' : '';
-    const armed = Math.abs(x) >= DECK_SWIPE_THRESHOLD;
+    const opening = y <= -DECK_OPEN_THRESHOLD && Math.abs(y) > Math.abs(x) * 1.08;
+    const progress = opening
+        ? Math.min(1, Math.abs(y) / DECK_OPEN_THRESHOLD)
+        : Math.min(1, Math.abs(x) / DECK_SWIPE_THRESHOLD);
+    const direction = opening ? 'up' : x > 0 ? 'right' : x < 0 ? 'left' : '';
+    const armed = opening || Math.abs(x) >= DECK_SWIPE_THRESHOLD;
     const displayedY = getDeckDisplayedY(y);
     card.dataset.deckDirection = direction;
     card.dataset.deckArmed = armed ? 'true' : 'false';
     card.style.setProperty('--deck-drag-progress', String(progress));
-    card.style.transform = `translate3d(${x}px, ${displayedY}px, ${-Math.min(34, Math.abs(x) * .08)}px) rotateX(${Math.max(-5, Math.min(5, -y / 45))}deg) rotateY(${Math.max(-9, Math.min(9, x / 34))}deg) rotateZ(${x / 24}deg)`;
+    card.style.transform = `translate3d(${x}px, ${displayedY}px, ${opening ? 22 : -Math.min(34, Math.abs(x) * .08)}px) rotateX(${Math.max(-8, Math.min(8, -y / 34))}deg) rotateY(${Math.max(-9, Math.min(9, x / 34))}deg) rotateZ(${x / 24}deg)`;
 }
 
 function clearDeckDragState(card) {
@@ -141,6 +172,28 @@ function applyDeckAction(direction, postId) {
     });
 }
 
+function animateDeckOpen(card, dragState) {
+    const deck = card.closest('[data-feed-deck]');
+    const {x = 0, y = 0} = dragState || {};
+    const startY = getDeckDisplayedY(y);
+    const targetY = -Math.max(window.innerHeight * .82, card.getBoundingClientRect().height * .9);
+    const href = card.querySelector('.murmur-text-link')?.href || '';
+    card.dataset.deckDirection = 'up';
+    card.dataset.deckArmed = 'true';
+    card.classList.add('is-flying');
+
+    const promotion = deck ? animateDeckPromotion(deck) : Promise.resolve();
+    const animation = card.animate([
+        {transform: `translate3d(${x}px, ${startY}px, 18px) rotateX(4deg) rotateY(${x / 45}deg) rotateZ(${x / 32}deg)`, opacity: 1, filter: 'blur(0px)'},
+        {transform: `translate3d(${x * .45}px, ${targetY * .42}px, 65px) rotateX(8deg) rotateY(${x / 60}deg) rotateZ(${x / 44}deg)`, opacity: 1, filter: 'blur(0px)', offset: .46},
+        {transform: `translate3d(0, ${targetY}px, -25px) rotateX(13deg) rotateY(0deg) rotateZ(0deg)`, opacity: 0, filter: 'blur(1px)'},
+    ], {duration: 980, easing: 'cubic-bezier(.16, 1, .3, 1)', fill: 'forwards'});
+
+    return Promise.all([animation.finished.catch(() => {}), promotion]).then(() => {
+        if (href) window.location.assign(href);
+    });
+}
+
 function animateDeckThrow(card, dragState, direction) {
     const {x = 0, y = 0, history = []} = dragState || {};
     const {vx, vy} = measureDeckVelocity(history);
@@ -169,6 +222,8 @@ function animateDeckThrow(card, dragState, direction) {
     const p1y = startY + windLift * .08 - 14;
     const p2y = startY + windLift * .34 + 10;
     const p3y = startY + windLift * .70 - 8;
+    const deck = card.closest('[data-feed-deck]');
+    const promotion = deck ? animateDeckPromotion(deck) : Promise.resolve();
 
     const animation = card.animate([
         {
@@ -207,7 +262,7 @@ function animateDeckThrow(card, dragState, direction) {
         fill: 'forwards',
     });
 
-    return animation.finished.catch(() => {}).then(() => {
+    return Promise.all([animation.finished.catch(() => {}), promotion]).then(() => {
         consumeDeckCard();
         void applyDeckAction(direction, postId);
     });
@@ -252,18 +307,27 @@ function bindCardDeck() {
     const finishDrag = event => {
         if (!deckDragging || deckDragging.pointerId !== event.pointerId) return;
         const dragState = deckDragging;
-        const {card, x} = dragState;
+        const {card, x, y} = dragState;
         deckDragging = null;
         card.classList.remove('is-dragging');
         card.releasePointerCapture?.(event.pointerId);
 
+        const openMessage = y <= -DECK_OPEN_THRESHOLD && Math.abs(y) > Math.abs(x) * 1.08;
+        if (openMessage) {
+            deckSuppressClickUntil = Date.now() + 1100;
+            void animateDeckOpen(card, dragState);
+            return;
+        }
+
         if (Math.abs(x) >= DECK_SWIPE_THRESHOLD) {
-            deckSuppressClickUntil = Date.now() + 520;
+            deckSuppressClickUntil = Date.now() + 2300;
             void animateDeckThrow(card, dragState, x < 0 ? -1 : 1);
             return;
         }
 
-        clearDeckDragState(card);
+        card.classList.add('is-returning');
+        requestAnimationFrame(() => clearDeckDragState(card));
+        setTimeout(() => card.classList.remove('is-returning'), 420);
     };
 
     deck.addEventListener('pointerup', finishDrag);
