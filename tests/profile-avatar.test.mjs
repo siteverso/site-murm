@@ -82,3 +82,11 @@ test('conta renderiza o avatar atual no servidor e mantém atualização dinâmi
   assert.match(account, /<ProfileSidebar dynamic editableAvatar profile=\{profile\}/);
   assert.match(sidebar, /editableAvatar[\s\S]*profile\?\.avatarUrl[\s\S]*<img src=\{profile\.avatarUrl\}/);
 });
+
+
+test('avatar dinâmico da conta fica visível após carregar', async () => {
+  const source = await read('public/js/user/user.js');
+  assert.match(source, /image\.addEventListener\('load', revealImage/);
+  assert.match(source, /image\.classList\.add\('is-loaded'\)/);
+  assert.match(source, /image\.complete && image\.naturalWidth > 0/);
+});

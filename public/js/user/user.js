@@ -12,7 +12,10 @@ function renderAvatar(el, user) {
         image.decoding = 'async';
         image.className = 'lazy-media';
         image.loading = 'eager';
+        const revealImage = () => image.classList.add('is-loaded');
+        image.addEventListener('load', revealImage, { once: true });
         el.append(image);
+        if (image.complete && image.naturalWidth > 0) revealImage();
         return;
     }
     el.textContent = userInitials(user.username);
