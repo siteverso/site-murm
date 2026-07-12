@@ -1,12 +1,11 @@
 import type { APIRoute } from 'astro';
 import { body, errorResponse, json } from '../../../lib/server/http';
-import { currentUser, requireUser } from '../../../lib/server/session';
+import { requireUser } from '../../../lib/server/session';
 import { createPost, listPosts } from '../../../lib/server/repositories/posts';
 
 export const GET: APIRoute = async context => {
     try {
-        const user = await currentUser(context);
-        return json({ ok: true, posts: await listPosts(user?.id || null) });
+        return json({ ok: true, posts: await listPosts(null) });
     } catch (error) {
         return errorResponse(error);
     }
