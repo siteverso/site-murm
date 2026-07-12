@@ -186,19 +186,37 @@ export async function findPublicProfileByUsername(username: string): Promise<Pub
                      WHERE p.user_id = u.id
                        AND p.parent_post_id IS NULL
                        AND p.status = 'published'
-                       AND NVL(LOWER(TRIM(p.post_type)), 'text') <> 'photo') AS post_count,
+                       AND (
+                           NVL(LOWER(TRIM(p.post_type)), 'murmur') IN ('murmur', 'text')
+                           OR (
+                               LOWER(TRIM(p.post_type)) = 'photo'
+                               AND TRIM(p.contents) IS NOT NULL
+                           )
+                       )) AS post_count,
                     (SELECT NVL(SUM(p.positive_count), 0)
                      FROM murm_post p
                      WHERE p.user_id = u.id
                        AND p.parent_post_id IS NULL
                        AND p.status = 'published'
-                       AND NVL(LOWER(TRIM(p.post_type)), 'text') <> 'photo') AS positive_count,
+                       AND (
+                           NVL(LOWER(TRIM(p.post_type)), 'murmur') IN ('murmur', 'text')
+                           OR (
+                               LOWER(TRIM(p.post_type)) = 'photo'
+                               AND TRIM(p.contents) IS NOT NULL
+                           )
+                       )) AS positive_count,
                     (SELECT NVL(SUM(p.negative_count), 0)
                      FROM murm_post p
                      WHERE p.user_id = u.id
                        AND p.parent_post_id IS NULL
                        AND p.status = 'published'
-                       AND NVL(LOWER(TRIM(p.post_type)), 'text') <> 'photo') AS negative_count
+                       AND (
+                           NVL(LOWER(TRIM(p.post_type)), 'murmur') IN ('murmur', 'text')
+                           OR (
+                               LOWER(TRIM(p.post_type)) = 'photo'
+                               AND TRIM(p.contents) IS NOT NULL
+                           )
+                       )) AS negative_count
              FROM murm_user u
              WHERE u.active = 1
                AND LOWER(u.username) = LOWER(:username)`,

@@ -136,11 +136,29 @@ export async function currentUser(context: APIContext): Promise<SessionUser | nu
                     CASE WHEN u.password_hash IS NULL THEN 0 ELSE 1 END AS has_password,
                     CASE WHEN u.google_sub IS NULL THEN 0 ELSE 1 END AS has_google,
                     (SELECT COUNT(*) FROM murm_post p WHERE p.user_id = u.id AND p.parent_post_id IS NULL AND p.status = 'published'
-                       AND NVL(LOWER(TRIM(p.post_type)), 'text') <> 'photo') AS post_count,
+                       AND (
+                           NVL(LOWER(TRIM(p.post_type)), 'murmur') IN ('murmur', 'text')
+                           OR (
+                               LOWER(TRIM(p.post_type)) = 'photo'
+                               AND TRIM(p.contents) IS NOT NULL
+                           )
+                       )) AS post_count,
                     (SELECT NVL(SUM(p.positive_count), 0) FROM murm_post p WHERE p.user_id = u.id AND p.parent_post_id IS NULL AND p.status = 'published'
-                       AND NVL(LOWER(TRIM(p.post_type)), 'text') <> 'photo') AS positive_count,
+                       AND (
+                           NVL(LOWER(TRIM(p.post_type)), 'murmur') IN ('murmur', 'text')
+                           OR (
+                               LOWER(TRIM(p.post_type)) = 'photo'
+                               AND TRIM(p.contents) IS NOT NULL
+                           )
+                       )) AS positive_count,
                     (SELECT NVL(SUM(p.negative_count), 0) FROM murm_post p WHERE p.user_id = u.id AND p.parent_post_id IS NULL AND p.status = 'published'
-                       AND NVL(LOWER(TRIM(p.post_type)), 'text') <> 'photo') AS negative_count
+                       AND (
+                           NVL(LOWER(TRIM(p.post_type)), 'murmur') IN ('murmur', 'text')
+                           OR (
+                               LOWER(TRIM(p.post_type)) = 'photo'
+                               AND TRIM(p.contents) IS NOT NULL
+                           )
+                       )) AS negative_count
              FROM murm_session s
              JOIN murm_user u
                ON u.id = s.user_id
