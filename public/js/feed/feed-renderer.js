@@ -136,6 +136,23 @@ function renderSplitFeeds() {
     setupFeedColumnAutoload();
 }
 
+function renderNonDeckFeedsFromState() {
+    feedBuckets.all = posts;
+    renderSplitFeeds();
+    renderLane($('[data-feed-grid]'), feedBuckets.all, 'compact');
+    renderLane($('[data-feed-all-list]'), feedBuckets.all, 'compact');
+
+    const profileFeed = $('[data-profile-feed]');
+    const profilePostId = profileFeed?.dataset.profilePostId || '';
+    const profileRepliesMode = profilePostId
+        ? 'recursive'
+        : profileFeed?.dataset.feedIncludeReplies === 'true'
+            ? 'compact'
+            : 'none';
+    renderLane(profileFeed, feedBuckets.all, profileRepliesMode, profilePostId);
+    setupLazyVisuals();
+}
+
 function expandSplitFeed(kind) {
     const [mode] = String(kind || '').split('-');
     const definition = getColumnDefinitions(mode).find(item => `${mode}-${item.code || 'none'}` === kind);
@@ -261,18 +278,9 @@ async function loadFeed(force = false) {
         feedSignature = nextSignature;
         if (typeof syncRandomMurmur === 'function') syncRandomMurmur();
         feedBuckets.all = posts;
-        renderSplitFeeds();
-        renderLane(gridFeed, feedBuckets.all, 'compact');
+        renderNonDeckFeedsFromState();
         renderDeck(feedBuckets.all);
-        renderLane(allListFeed, feedBuckets.all, 'compact');
-        const profileRepliesMode = profilePostId
-            ? 'recursive'
-            : profileFeed?.dataset.feedIncludeReplies === 'true'
-                ? 'compact'
-                : 'none';
-        renderLane(profileFeed, feedBuckets.all, profileRepliesMode, profilePostId);
         restoreFeedAnchor(anchor);
-        setupLazyVisuals();
         hasRenderedFeed = true;
     } finally {
         feedRequestRunning = false;

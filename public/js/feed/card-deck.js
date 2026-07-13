@@ -313,6 +313,10 @@ function applyDeckAction(direction, postId) {
             targetPost.positive = previous.positive;
             targetPost.negative = previous.negative;
         }
+        const board = document.querySelector('[data-feed-board]');
+        if (board?.dataset.feedViewMode !== 'deck' && typeof renderNonDeckFeedsFromState === 'function') {
+            renderNonDeckFeedsFromState();
+        }
         toast(error?.message || 'Não foi possível concluir a ação.');
     });
 }

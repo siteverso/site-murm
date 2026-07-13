@@ -72,3 +72,13 @@ test('deck excludes private murmurs and deduplicates cards by post id', () => {
   assert.match(deck, /if \(!uniquePosts\.has\(id\)\) uniquePosts\.set\(id, post\)/);
   assert.match(deck, /return \[\.\.\.uniquePosts\.values\(\)\]/);
 });
+
+test('leaving deck rerenders columns from the optimistic post state', () => {
+  const controller = fs.readFileSync('public/js/feed/feed-view-controller.js', 'utf8');
+  assert.match(renderer, /function renderNonDeckFeedsFromState\(\)/);
+  assert.match(renderer, /feedBuckets\.all = posts/);
+  assert.match(renderer, /renderSplitFeeds\(\)/);
+  assert.match(controller, /previousMode === 'deck' && mode !== 'deck'/);
+  assert.match(controller, /renderNonDeckFeedsFromState\(\)/);
+  assert.match(deck, /board\?\.dataset\.feedViewMode !== 'deck'/);
+});

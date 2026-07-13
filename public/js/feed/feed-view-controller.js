@@ -36,6 +36,7 @@ function bindFeedView() {
 
     const applyView = view => {
         const mode = validViews.has(view) ? view : 'split';
+        const previousMode = board.dataset.feedViewMode || '';
         board.dataset.feedViewMode = mode;
         const deckActive = mode === 'deck';
         board.closest('.network-board-page')?.classList.toggle('deck-stage-active', deckActive);
@@ -49,6 +50,9 @@ function bindFeedView() {
         panels.forEach(panel => {
             panel.hidden = panel.dataset.feedViewPanel !== mode;
         });
+        if (previousMode === 'deck' && mode !== 'deck' && typeof renderNonDeckFeedsFromState === 'function') {
+            renderNonDeckFeedsFromState();
+        }
         if (mode === 'split' || mode === 'relevance' || mode === 'users') requestAnimationFrame(setupFeedColumnAutoload);
         storeFeedView(board, mode);
     };
