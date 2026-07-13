@@ -1,5 +1,5 @@
 .profile-grid { padding: 36px 0 70px; display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 24px; align-items: start; }
-.profile-card { padding: 24px; position: sticky; top: 20px; max-height: calc(100dvh - 40px); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.profile-card { padding: 24px; position: sticky; top: 20px; max-height: calc(100dvh - 40px); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: auto; }
 .profile-card .avatar { width: 78px; height: 78px; margin-bottom: 16px; font-size: 1.5rem; }
 .avatar { overflow: hidden; }
 .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
