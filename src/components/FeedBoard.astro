@@ -53,7 +53,7 @@ const randomMurmurIntervalMs = Number.isFinite(configuredRandomMurmurInterval) &
             <rect x="11.5" y="11.5" width="6" height="6" rx="1.35" stroke="currentColor" stroke-width="1.5"/>
           </svg>
         </button>
-        <button class="segmented-control__button feed-view-button feed-view-button--deck" type="button" data-feed-view="deck" aria-label="Ver como baralho" title="Baralho 3D">
+        <button class="segmented-control__button feed-view-button feed-view-button--deck" type="button" data-feed-view="deck" aria-label="Ver murmúrios para decidir" title="Murmúrios para decidir">
           <svg viewBox="0 0 20 20" aria-hidden="true" fill="none">
             <rect x="5" y="3" width="11" height="14" rx="2" transform="rotate(7 5 3)" stroke="currentColor" stroke-width="1.35"/>
             <rect x="3" y="3" width="11" height="14" rx="2" transform="rotate(-4 3 3)" fill="var(--surface)" stroke="currentColor" stroke-width="1.5"/>
@@ -86,9 +86,9 @@ const randomMurmurIntervalMs = Number.isFinite(configuredRandomMurmurInterval) &
       </div>
 
       <div class="feed-view-panel deck-view" data-feed-view-panel="deck" hidden>
-        <section class="network-lane all-lane deck-lane" aria-label="Baralho de murmúrios">
+        <section class="network-lane all-lane deck-lane" aria-label="Murmúrios para decidir">
           <div class="card-deck" data-feed-deck tabindex="0"></div>
-          <p class="deck-help">Baralho com 100 murmúrios carregados sem atualização automática. Arraste para a direita para Ecoar, para a esquerda para Silenciar e para cima para abrir o murmúrio. Ao atingir o glow, solte.</p>
+          <p class="deck-help">São mostrados até 100 murmúrios que você ainda não ecoou nem silenciou. Arraste para a direita para Ecoar, para a esquerda para Silenciar e para cima para abrir. Ao atingir o glow, solte.</p>
         </section>
       </div>
 

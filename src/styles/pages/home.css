@@ -342,9 +342,9 @@ body.deck-mode-active {
   .responsive-grid-feed { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
-/* Modo baralho: componente isolado, sem alterar os cards dos demais modos. */
-.deck-lane { min-height: max(560px, calc(100dvh - 186px)); padding: clamp(12px, 2vw, 24px) 0 18px; overflow: visible; }
-.card-deck { position: relative; width: 100%; min-height: max(500px, calc(100dvh - 240px)); margin: 0 auto; perspective: 1500px; touch-action: none; outline: none; user-select: none; overflow: visible; }
+/* Modo de decisão: componente isolado, sem alterar os cards dos demais modos. */
+.deck-lane { min-height: max(460px, calc(100dvh - 240px)); padding: 6px 0 8px; overflow: visible; }
+.card-deck { position: relative; width: 100%; min-height: max(420px, calc(100dvh - 286px)); margin: 0 auto; perspective: 1500px; touch-action: none; outline: none; user-select: none; overflow: visible; }
 .deck-card { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: calc(20 - var(--deck-index)); transform-origin: 50% 92%; transform: translate3d(0, calc(var(--deck-index) * 11px), calc(var(--deck-index) * -40px)) scale(calc(1 - var(--deck-index) * .024)); opacity: calc(1 - var(--deck-index) * .13); transition: transform .28s cubic-bezier(.2,.8,.2,1), opacity .24s ease, filter .24s ease; pointer-events: none; --deck-drag-progress: 0; transform-style: preserve-3d; will-change: transform, opacity, filter; backface-visibility: hidden; }
 .deck-card[data-deck-index="0"] { pointer-events: auto; cursor: grab; }
 .deck-card[data-deck-index="0"]:active, .deck-card.is-dragging { cursor: grabbing; transition: none; }
@@ -371,7 +371,13 @@ body.deck-mode-active {
 .deck-card[data-deck-index="0"][data-deck-armed="true"][data-deck-direction="right"] .deck-overlay--right .deck-overlay__badge,
 .deck-card[data-deck-index="0"][data-deck-armed="true"][data-deck-direction="left"] .deck-overlay--left .deck-overlay__badge,
 .deck-card[data-deck-index="0"][data-deck-armed="true"][data-deck-direction="up"] .deck-overlay--up .deck-overlay__badge { box-shadow: 0 0 0 2px currentColor inset, 0 0 34px color-mix(in srgb, currentColor 28%, transparent), 0 16px 40px rgb(0 0 0 / 15%); }
-.deck-help { margin: 18px auto 0; max-width: 42rem; color: var(--muted); text-align: center; font-size: .82rem; }
+.card-deck.is-empty { min-height: 0; padding: 14px 0 10px; }
+.deck-lane:has(.card-deck.is-empty) { min-height: 0; }
+.deck-empty-state { position: relative; display: grid; place-content: center; justify-items: center; gap: 9px; width: min(560px, calc(100% - 32px)); min-height: 0; margin: 0 auto; padding: 20px 24px; text-align: center; border: 1px solid color-mix(in srgb, var(--line) 74%, transparent); border-radius: 28px; background: color-mix(in srgb, var(--surface) 88%, transparent); box-shadow: 0 24px 70px rgb(0 0 0 / 14%); backdrop-filter: blur(14px); }
+.deck-empty-state__title { font-size: clamp(1.15rem, 2.4vw, 1.55rem); }
+.deck-empty-state p { max-width: 34rem; margin: 0; color: var(--muted); line-height: 1.55; }
+.deck-empty-state__restart { margin-top: 4px; }
+.deck-help { margin: 10px auto 0; max-width: 42rem; color: var(--muted); text-align: center; font-size: .82rem; }
 .feed-view-button--deck svg { width: 20px; height: 20px; }
 .deck-card--skeleton { pointer-events: none; }
 @media (max-width: 700px) {
@@ -380,8 +386,8 @@ body.deck-mode-active {
     margin-left: calc(50% - 50vw + 6px);
     margin-right: calc(50% - 50vw + 6px);
   }
-  .deck-lane { min-height: max(500px, calc(100dvh - 152px)); }
-  .card-deck { min-height: max(450px, calc(100dvh - 212px)); }
+  .deck-lane { min-height: max(420px, calc(100dvh - 210px)); }
+  .card-deck { min-height: max(390px, calc(100dvh - 258px)); }
   .deck-card { transform: translate3d(0, calc(var(--deck-index) * 9px), calc(var(--deck-index) * -28px)) scale(calc(1 - var(--deck-index) * .02)); }
   .deck-card .murmur-card { width: calc(100vw - 18px); min-height: min(74dvh, 620px); }
   .deck-overlay { width: calc(100vw - 18px); min-height: min(74dvh, 620px); padding: 14px; }

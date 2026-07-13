@@ -18,7 +18,7 @@ test('deck uses 100 static cards without auto refresh and throws cards using dra
   assert.match(deck, /targetRotateZ/);
   assert.match(deck, /rotateY/);
   assert.match(deck, /duration = Math\.round\(Math\.max\(1450/);
-  assert.match(page, /100 murmúrios carregados sem atualização automática/);
+  assert.match(page, /ainda não ecoou nem silenciou/);
 });
 
 test('deck keeps visible action glow and commits vote after threshold release', () => {
@@ -40,7 +40,7 @@ test('deck promotes the next cards fluidly and opens the message on upward drag'
   assert.match(deck, /window\.location\.assign\(href\)/);
   assert.match(css, /data-deck-direction="up"/);
   assert.match(css, /is-returning/);
-  assert.match(page, /para cima para abrir o murmúrio/);
+  assert.match(page, /para cima para abrir/);
 });
 
 
@@ -49,4 +49,17 @@ test('deck returns unconfirmed cards smoothly to the pile', () => {
   assert.match(deck, /cubic-bezier\(\.16, 1, \.3, 1\)/);
   assert.match(deck, /deckRestTransform\(0\)/);
   assert.match(deck, /deckSuppressClickUntil = Date\.now\(\) \+ 120/);
+});
+
+
+test('deck only includes undecided cards and offers a centered restart state', () => {
+  assert.match(deck, /deckIncludeDecided \|\| Number\(post\.myVote \|\| 0\) === 0/);
+  assert.match(deck, /data-deck-restart/);
+  assert.match(deck, /resetDeckSession/);
+  assert.match(deck, /includeDecided: true/);
+  assert.match(deck, /loadFeed\(true\)/);
+  assert.match(deck, /Não há novos murmúrios para decidir/);
+  assert.match(css, /\.deck-empty-state \{/);
+  assert.match(css, /place-content: center/);
+  assert.match(css, /\.card-deck\.is-empty \{ min-height: 0/);
 });

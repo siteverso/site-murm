@@ -10,6 +10,7 @@ let deckCursor = 0;
 let deckSignature = '';
 let deckDragging = null;
 let deckSuppressClickUntil = 0;
+let deckIncludeDecided = false;
 
 function shuffleDeckIds(ids) {
     const shuffled = [...ids];
@@ -21,7 +22,17 @@ function shuffleDeckIds(ids) {
 }
 
 function getDeckSourcePosts(items = []) {
-    return getRootPosts(items).slice(0, DECK_MAX_CARDS);
+    return getRootPosts(items)
+        .filter(post => deckIncludeDecided || Number(post.myVote || 0) === 0)
+        .slice(0, DECK_MAX_CARDS);
+}
+
+function resetDeckSession(items = feedBuckets.all, {includeDecided = false} = {}) {
+    deckIncludeDecided = includeDecided;
+    deckOrder = [];
+    deckCursor = 0;
+    deckSignature = '';
+    renderDeck(items);
 }
 
 function syncDeckOrder(items = []) {
@@ -64,6 +75,7 @@ function renderDeck(items = []) {
     const remaining = Math.max(0, deckOrder.length - deckCursor);
     deck.dataset.deckRemaining = String(remaining);
     deck.dataset.deckTotal = String(deckOrder.length);
+    deck.classList.toggle('is-empty', visible.length === 0);
 
     deck.innerHTML = visible.length
         ? visible.map((post, index) => `
@@ -73,7 +85,11 @@ function renderDeck(items = []) {
               ${createDeckOverlay('up')}
               ${renderPost(post, childrenByParent, new Set(), {repliesMode: 'compact'})}
             </div>`).join('')
-        : '<p class="empty-state">Os 100 murmúrios carregados acabaram.</p>';
+        : `<div class="deck-empty-state" role="status">
+            <strong class="deck-empty-state__title">Não há novos murmúrios para decidir.</strong>
+            <p>Aqui aparecem somente murmúrios que você ainda não ecoou nem silenciou.</p>
+            <button class="button secondary deck-empty-state__restart" type="button" data-deck-restart>Reiniciar murmúrios</button>
+          </div>`;
 
     setupLazyVisuals(deck);
 }
@@ -291,6 +307,19 @@ function bindCardDeck() {
     const deck = $('[data-feed-deck]');
     if (!deck || deck.dataset.deckBound === 'true') return;
     deck.dataset.deckBound = 'true';
+
+    deck.addEventListener('click', event => {
+        const restartButton = event.target.closest('[data-deck-restart]');
+        if (!restartButton) return;
+        restartButton.disabled = true;
+        resetDeckSession(feedBuckets.all, {includeDecided: true});
+        Promise.resolve(loadFeed(true)).then(() => {
+            resetDeckSession(feedBuckets.all, {includeDecided: true});
+        }).catch(error => {
+            toast(error?.message || 'Não foi possível reiniciar os murmúrios.');
+            resetDeckSession(feedBuckets.all, {includeDecided: true});
+        });
+    });
 
     deck.addEventListener('pointerdown', event => {
         const card = event.target.closest('[data-deck-card=""][data-deck-index="0"]');
