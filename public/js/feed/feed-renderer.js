@@ -78,7 +78,7 @@ function disconnectFeedColumnObservers() {
 }
 
 function getColumnDefinitions(mode = 'sex') {
-    return COLUMN_GROUPS[mode] || COLUMN_GROUPS.sex;
+    return feedGrouping.getColumnDefinitions(mode);
 }
 
 function relevanceValue(post, code) {
@@ -89,35 +89,12 @@ function relevanceValue(post, code) {
 }
 
 function getColumnItems(definition, mode = 'sex') {
-    const roots = getRootPosts(posts);
-    if (mode === 'sex') return roots.filter(post => (post.sexCode || '') === definition.code);
-
-    if (mode === 'users') {
-        const latestPostByUser = new Map();
-        roots.forEach(post => {
-            const userKey = String(post.userId || post.author || '');
-            const current = latestPostByUser.get(userKey);
-            if (!current || Number(post.createdAt || 0) > Number(current.createdAt || 0)) {
-                latestPostByUser.set(userKey, post);
-            }
-        });
-        const userMetric = post => {
-            if (definition.code === 'active') return Number(post.userActivityCount || 0);
-            return Number(post.userCreatedAt || 0);
-        };
-        return [...latestPostByUser.values()].sort((left, right) => {
-            const metricDifference = definition.code === 'oldest'
-                ? userMetric(left) - userMetric(right)
-                : userMetric(right) - userMetric(left);
-            if (metricDifference) return metricDifference;
-            return new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime();
-        });
-    }
-
-    return [...roots].sort((left, right) => {
-        const scoreDifference = relevanceValue(right, definition.code) - relevanceValue(left, definition.code);
-        if (scoreDifference) return scoreDifference;
-        return new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime();
+    return feedGrouping.getColumnItems({
+        items: posts,
+        definition,
+        mode,
+        getRoots: getRootPosts,
+        relevanceResolver: relevanceValue,
     });
 }
 
@@ -264,11 +241,12 @@ async function loadFeed(force = false) {
     try {
         const profileUsername = profileFeed?.dataset.profileUsername || '';
         const profilePostId = profileFeed?.dataset.profilePostId || '';
-        const endpoint = profilePostId
-            ? `/api/posts?specificId=${encodeURIComponent(profilePostId)}`
-            : profileUsername
-                ? `/api/posts?username=${encodeURIComponent(profileUsername)}`
-                : '/api/posts';
+        const feedContext = readFeedContext();
+        const endpoint = buildFeedEndpoint({
+            context: feedContext,
+            profileUsername,
+            specificId: profilePostId,
+        });
         const data = await api(endpoint);
         const nextPosts = profilePostId
             ? await hydrateExpandedSpecificPosts(profilePostId, data.posts || [])
