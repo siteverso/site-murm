@@ -235,20 +235,28 @@ function bindFeed() {
                 return;
             }
             const isPrivate = Boolean(form.querySelector('input[name="private"]')?.checked);
+            const parentId = String(card.dataset.postId || '');
+            const replyButton = card.querySelector('[data-reply]');
+            const replyCount = replyButton?.querySelector('span');
+            const optimisticReply = createOptimisticReply(parentId, text, isPrivate);
+            if (replyCount) replyCount.textContent = String(Number(replyCount.textContent || 0) + 1);
+            replyButton?.classList.add('active', 'is-led-active');
+            replyButton?.setAttribute('aria-pressed', 'true');
+            form.reset();
+            form.classList.remove('open');
+
             try {
-                const parentId = String(card.dataset.postId || '');
                 const result = await api(`/api/posts/${parentId}/reply`, {method: 'POST', body: JSON.stringify({text, private: isPrivate})});
+                commitOptimisticReply(optimisticReply, result.id);
                 announceFeedChanged();
-                form.reset();
-                form.classList.remove('open');
-                const replyButton = card.querySelector('[data-reply]');
-                const replyCount = replyButton?.querySelector('span');
-                if (replyCount) replyCount.textContent = String(Number(replyCount.textContent || 0) + 1);
-                replyButton?.classList.add('active', 'is-led-active');
-                replyButton?.setAttribute('aria-pressed', 'true');
-                await revealPublishedReply(result.id, parentId, text);
                 toast('Resposta publicada.');
             } catch (error) {
+                rollbackOptimisticReply(optimisticReply);
+                if (replyCount) replyCount.textContent = String(Math.max(0, Number(replyCount.textContent || 0) - 1));
+                if (Number(replyCount?.textContent || 0) === 0) {
+                    replyButton?.classList.remove('active', 'is-led-active');
+                    replyButton?.setAttribute('aria-pressed', 'false');
+                }
                 toast(error.message);
             }
         }

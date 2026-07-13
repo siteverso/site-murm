@@ -37,13 +37,24 @@ function createOptimisticReply(parentId, text, isPrivate = false) {
 
 function ensureReplyContainer(parentCard, parentId) {
     let replies = parentCard.querySelector(`:scope > [data-replies-for="${CSS.escape(String(parentId))}"]`);
-    if (replies) return replies;
+    if (!replies) {
+        replies = document.createElement('div');
+        replies.className = 'replies replies-compact';
+        replies.dataset.repliesFor = String(parentId);
+        replies.innerHTML = '<ul class="reply-preview-list"></ul>';
+        parentCard.append(replies);
+    }
 
-    replies = document.createElement('div');
-    replies.className = 'replies replies-recursive';
-    replies.dataset.repliesFor = String(parentId);
-    parentCard.append(replies);
-    return replies;
+    let list = replies.querySelector(':scope > .reply-preview-list');
+    if (!list) {
+        replies.classList.remove('replies-recursive');
+        replies.classList.add('replies-compact');
+        replies.replaceChildren();
+        list = document.createElement('ul');
+        list.className = 'reply-preview-list';
+        replies.append(list);
+    }
+    return list;
 }
 
 function insertOptimisticReplyCard(reply, parentId) {
@@ -52,40 +63,38 @@ function insertOptimisticReplyCard(reply, parentId) {
 
     const replies = ensureReplyContainer(parentCard, parentId);
     const template = document.createElement('template');
-    template.innerHTML = renderPost(reply, new Map(), new Set([String(parentId)]), {
-        repliesMode: 'recursive',
-        depth: 1,
-        maxDepth: 100,
-        contextParentId: String(parentId),
-    }).trim();
+    template.innerHTML = renderReplyPreview(reply).trim();
 
     const card = template.content.firstElementChild;
     if (!card) return null;
     card.classList.add('reply-optimistic', 'reply-just-published');
     card.dataset.optimisticReply = 'true';
+    card.dataset.postId = String(reply.id);
     replies.prepend(card);
-    setupLazyVisuals(card);
     setTimeout(() => card.classList.remove('reply-just-published'), 2600);
     return card;
 }
 
 function commitOptimisticReply(reply, realId) {
     const temporaryId = String(reply.id);
-    const card = document.querySelector(`[data-post-id="${CSS.escape(temporaryId)}"]`);
+    const card = document.querySelector(`[data-reply-preview-id="${CSS.escape(temporaryId)}"]`);
     reply.id = Number(realId);
     delete reply.optimistic;
 
     if (card) {
-        card.id = `murmurio-${realId}`;
+        card.dataset.replyPreviewId = String(realId);
         card.dataset.postId = String(realId);
         delete card.dataset.optimisticReply;
         card.classList.remove('reply-optimistic');
 
         card.querySelectorAll(`[href="/murmurio/${encodeURIComponent(temporaryId)}"]`).forEach(link => {
-            link.href = link.href.replace(`/murmurio/${encodeURIComponent(temporaryId)}`, `/murmurio/${encodeURIComponent(realId)}`);
+            link.href = `/murmurio/${encodeURIComponent(realId)}`;
         });
-        card.querySelectorAll('[data-delete-reply]').forEach(button => {
-            button.dataset.deleteReply = String(realId);
+        card.querySelectorAll('[data-toggle-delete-reply]').forEach(button => {
+            button.dataset.toggleDeleteReply = String(realId);
+        });
+        card.querySelectorAll('[data-confirm-delete-reply]').forEach(button => {
+            button.dataset.confirmDeleteReply = String(realId);
         });
     }
 
@@ -95,7 +104,10 @@ function commitOptimisticReply(reply, realId) {
 
 function rollbackOptimisticReply(reply) {
     const replyId = String(reply.id);
-    document.querySelector(`[data-post-id="${CSS.escape(replyId)}"]`)?.remove();
+    const card = document.querySelector(`[data-reply-preview-id="${CSS.escape(replyId)}"]`);
+    const replies = card?.closest('[data-replies-for]');
+    card?.remove();
+    if (replies && !replies.querySelector('.reply-preview-item')) replies.remove();
     posts = posts.filter(post => !sameId(post.id, replyId));
 
     const parent = posts.find(post => sameId(post.id, reply.parentPostId));
@@ -104,31 +116,4 @@ function rollbackOptimisticReply(reply) {
         parent.hasMyReply = posts.some(post => sameId(post.parentPostId, parent.id) && sameId(post.userId, currentUser?.id));
     }
     feedSignature = getFeedSignature(posts);
-}
-
-async function revealPublishedReply(replyId, parentId, text = '') {
-    const safeReplyId = String(replyId || '').trim();
-    if (!safeReplyId) return null;
-
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-        try {
-            await loadFeed(true);
-        } catch {
-            // A resposta já foi salva. Uma falha de atualização não deve exibir erro de publicação.
-        }
-
-        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-        const board = document.querySelector('[data-feed-board]');
-        const replyCard = board?.querySelector(`[data-post-id="${CSS.escape(safeReplyId)}"]`) || null;
-        if (replyCard) {
-            replyCard.classList.add('reply-just-published');
-            replyCard.scrollIntoView({block: 'nearest', behavior: 'smooth'});
-            setTimeout(() => replyCard.classList.remove('reply-just-published'), 2600);
-            return replyCard;
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 90 * (attempt + 1)));
-    }
-
-    return null;
 }
