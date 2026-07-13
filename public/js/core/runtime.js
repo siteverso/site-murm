@@ -220,11 +220,138 @@ let feedColumnObservers = [];
 let feedRevealObserver = null;
 let feedTimer = null;
 let hasRenderedFeed = false;
+const FEED_SYNC_STORAGE_KEY = 'murmurinho:feed-sync';
 const feedSyncChannel = typeof BroadcastChannel === 'function' ? new BroadcastChannel('murmurinho-feed-sync') : null;
 let feedSyncListenersBound = false;
 
-function announceFeedChanged() {
-    feedSyncChannel?.postMessage({type: 'feed-changed', at: Date.now()});
+function publishFeedSyncEvent(message) {
+    const payload = {...message, at: Date.now(), nonce: `${Date.now()}-${Math.random()}`};
+    feedSyncChannel?.postMessage(payload);
+    window.dispatchEvent(new CustomEvent('murmurinho:feed-sync', {detail: payload}));
+    try {
+        localStorage.setItem(FEED_SYNC_STORAGE_KEY, JSON.stringify(payload));
+        localStorage.removeItem(FEED_SYNC_STORAGE_KEY);
+    } catch {
+        // BroadcastChannel continua sendo suficiente quando o storage está indisponível.
+    }
+    return payload;
+}
+
+function announceFeedChanged(detail = {}) {
+    return publishFeedSyncEvent({type: 'feed-changed', ...detail});
+}
+
+function announcePostChanged(postId, change, patch = {}) {
+    return publishFeedSyncEvent({
+        type: 'post-changed',
+        postId: String(postId || ''),
+        change,
+        patch,
+    });
+}
+
+function announcePostDeleted(postId) {
+    return publishFeedSyncEvent({type: 'post-deleted', postId: String(postId || '')});
+}
+
+function announcePostUpdated(postId, patch = {}) {
+    return announcePostChanged(postId, 'updated', patch);
+}
+
+function removeDeletedPostFromLocalState(postId) {
+    const deletedId = String(postId || '');
+    if (!deletedId) return;
+
+    const removedIds = new Set([deletedId]);
+    let changed = true;
+    while (changed) {
+        changed = false;
+        posts.forEach(post => {
+            if (post?.parentPostId == null) return;
+            if (removedIds.has(String(post.parentPostId)) && !removedIds.has(String(post.id))) {
+                removedIds.add(String(post.id));
+                changed = true;
+            }
+        });
+    }
+
+    posts = posts.filter(post => !removedIds.has(String(post.id)));
+    feedBuckets.all = posts;
+    removedIds.forEach(id => {
+        document.querySelectorAll(`[data-post-id="${CSS.escape(id)}"]`).forEach(card => card.remove());
+    });
+
+    if (typeof renderNonDeckFeedsFromState === 'function') renderNonDeckFeedsFromState();
+    if (typeof renderDeck === 'function') renderDeck(feedBuckets.all);
+}
+
+
+function applyUpdatedPostToLocalState(postId, patch = {}) {
+    const updatedId = String(postId || '');
+    if (!updatedId) return;
+
+    posts = posts.map(post => sameId(post?.id, updatedId) ? {...post, ...patch} : post);
+    feedBuckets.all = posts;
+
+    document.querySelectorAll(`[data-post-id="${CSS.escape(updatedId)}"]`).forEach(card => {
+        if (Object.prototype.hasOwnProperty.call(patch, 'text')) {
+            const textNode = card.querySelector(':scope > .murmur-text-link .murmur-text');
+            if (textNode) textNode.textContent = String(patch.text || '');
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, 'isPrivate')) {
+            card.classList.toggle('is-private', Boolean(patch.isPrivate));
+        }
+    });
+
+    if (typeof renderNonDeckFeedsFromState === 'function') renderNonDeckFeedsFromState();
+    if (typeof renderDeck === 'function') renderDeck(feedBuckets.all);
+}
+
+async function synchronizeDeletedPost(postId) {
+    const deletedId = String(postId || '');
+    if (!deletedId) return;
+
+    const currentThreadId = location.pathname.match(/^\/murmurio\/(\d+)\/?$/)?.[1] || '';
+    if (currentThreadId === deletedId) {
+        location.assign('/');
+        return;
+    }
+
+    removeDeletedPostFromLocalState(deletedId);
+
+    try {
+        if (typeof refreshReplyHistoryPage === 'function' && await refreshReplyHistoryPage(deletedId)) return;
+    } catch {
+        // A recarga normal abaixo é o fallback seguro do componente.
+    }
+    await loadFeed(true);
+}
+
+async function synchronizeUpdatedPost(postId, patch = {}) {
+    const updatedId = String(postId || '');
+    if (!updatedId) return;
+    applyUpdatedPostToLocalState(updatedId, patch);
+    try {
+        if (typeof refreshReplyHistoryPage === 'function' && await refreshReplyHistoryPage(updatedId)) return;
+    } catch {
+        // A consulta completa abaixo mantém todas as visualizações consistentes.
+    }
+    await loadFeed(true);
+}
+
+function handleFeedSyncMessage(message) {
+    if (!message || typeof message !== 'object') return;
+    if (message.type === 'post-deleted' || (message.type === 'post-changed' && message.change === 'deleted')) {
+        void synchronizeDeletedPost(message.postId).catch(() => {});
+        return;
+    }
+    if (message.type === 'post-changed' && message.change === 'updated') {
+        void synchronizeUpdatedPost(message.postId, message.patch || {}).catch(() => {});
+        return;
+    }
+    if (message.type === 'feed-changed') {
+        void loadFeed(true).catch(() => {});
+    }
 }
 
 function bindFeedSyncEvents() {
@@ -232,8 +359,20 @@ function bindFeedSyncEvents() {
     feedSyncListenersBound = true;
 
     feedSyncChannel?.addEventListener('message', event => {
-        if (event.data?.type === 'feed-changed') loadFeed(true).catch(() => {
-        });
+        handleFeedSyncMessage(event.data);
+    });
+
+    window.addEventListener('murmurinho:feed-sync', event => {
+        handleFeedSyncMessage(event.detail);
+    });
+
+    window.addEventListener('storage', event => {
+        if (event.key !== FEED_SYNC_STORAGE_KEY || !event.newValue) return;
+        try {
+            handleFeedSyncMessage(JSON.parse(event.newValue));
+        } catch {
+            // Ignora payload externo inválido sem afetar a página.
+        }
     });
 
     const refresh = () => {

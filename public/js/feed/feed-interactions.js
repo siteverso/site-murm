@@ -49,7 +49,7 @@ function bindFeed() {
             if (target.matches('[data-confirm-delete-reply]')) {
                 target.disabled = true;
                 await api(`/api/replies/${target.dataset.confirmDeleteReply}`, {method: 'DELETE'});
-                announceFeedChanged();
+                announcePostDeleted(target.dataset.confirmDeleteReply);
                 if (!(await refreshReplyHistoryPage(target.dataset.confirmDeleteReply))) await loadFeed(true);
                 toast('Murmúrio apagado.');
             }
@@ -65,7 +65,7 @@ function bindFeed() {
                 deletedCard?.classList.add('is-deleting');
                 try {
                     await api(`/api/replies/${replyId}`, {method: 'DELETE'});
-                    announceFeedChanged();
+                    announcePostDeleted(replyId);
                     closeModal();
                     if (!(await refreshReplyHistoryPage(replyId))) await loadFeed(true);
                     toast('Resposta apagada.');
@@ -86,7 +86,7 @@ function bindFeed() {
                 const postId = String(target.dataset.confirmDeletePost || '');
                 try {
                     await api(`/api/posts/${postId}`, {method: 'DELETE'});
-                    announceFeedChanged();
+                    announcePostDeleted(postId);
                     closeModal();
 
                     const currentThreadId = location.pathname.match(/^\/murmurio\/(\d+)\/?$/)?.[1] || '';
@@ -225,9 +225,11 @@ function bindFeed() {
             const submitButton = form.querySelector('button[type="submit"]');
             submitButton.disabled = true;
             try {
-                await api(`/api/posts/${card.dataset.postId}`, {method: 'PUT', body: JSON.stringify({text})});
-                announceFeedChanged();
-                if (!(await refreshReplyHistoryPage(card.dataset.postId))) await loadFeed(true);
+                const postId = String(card.dataset.postId || '');
+                await api(`/api/posts/${postId}`, {method: 'PUT', body: JSON.stringify({text})});
+                applyUpdatedPostToLocalState(postId, {text});
+                announcePostUpdated(postId, {text});
+                if (!(await refreshReplyHistoryPage(postId))) await loadFeed(true);
                 toast('Murmúrio atualizado.');
             } catch (error) {
                 submitButton.disabled = false;
