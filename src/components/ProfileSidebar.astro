@@ -7,6 +7,7 @@ const {
   responsesUrl = '',
   responsesLabel,
   labels,
+  showDirectAction = false,
 } = Astro.props;
 
 const username = profile?.username || 'usuario';
@@ -18,6 +19,23 @@ const countryCallingCode = profile?.countryCallingCode || '';
 const profileUrl = `/perfil/${encodeURIComponent(username)}`;
 ---
 <aside class="panel profile-card public-profile-card">
+  {showDirectAction && (
+    <button
+      class="direct-card-button profile-direct-button"
+      type="button"
+      data-direct-user={profile?.id}
+      data-direct-name={username}
+      title="Enviar bilhete"
+      aria-label={`Enviar bilhete para @${username}`}
+    >
+      <span class="action-icon" aria-hidden="true">
+        <svg viewBox="0 0 20 20" fill="none">
+          <path d="M4 4.5H16V13.2H9.2L5.3 16V13.2H4V4.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+          <path d="M7 8.8H13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </svg>
+      </span>
+    </button>
+  )}
   {editableAvatar ? (
     <div class="account-avatar-editor">
       <button class="avatar account-avatar-trigger" type="button" aria-label="Alterar foto do perfil" title="Alterar foto" data-profile-avatar data-avatar-trigger>

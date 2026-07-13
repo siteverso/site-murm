@@ -1,6 +1,13 @@
 .profile-sections { display: grid; gap: 24px; }
 .public-profile-grid { grid-template-columns: 320px minmax(0, 1fr); }
-.public-profile-card { position: static; }
+.public-profile-card { position: relative; }
+.profile-direct-button {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  z-index: 2;
+}
+.public-profile-card > .public-profile-avatar { margin-right: 48px; }
 .public-profile-avatar { overflow: hidden; }
 .public-profile-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .public-profile-tags { display: flex; flex-wrap: wrap; gap: 8px; }

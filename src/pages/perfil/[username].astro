@@ -24,7 +24,7 @@ const replyGroups = showRepliesPage ? await listReplyHistoryByUser(profile.id, c
 <AppLayout title={`@${profile.username} — ${t.site.title}`}>
   <Header />
   <main class="shell profile-grid public-profile-grid">
-    <ProfileSidebar profile={profile} showEditAccount={isOwnProfile} responsesUrl={`/perfil/${encodeURIComponent(profile.username)}?aba=respostas`} responsesLabel={t.profile.viewReplies} labels={t.profile} />
+    <ProfileSidebar profile={profile} showEditAccount={isOwnProfile} showDirectAction={!isOwnProfile} responsesUrl={`/perfil/${encodeURIComponent(profile.username)}?aba=respostas`} responsesLabel={t.profile.viewReplies} labels={t.profile} />
     <section class="public-profile-content">
       {showRepliesPage ? (
         <ReplyHistorySection
