@@ -22,7 +22,15 @@ function shuffleDeckIds(ids) {
 }
 
 function getDeckSourcePosts(items = []) {
-    return getRootPosts(items)
+    const uniquePosts = new Map();
+
+    getRootPosts(items).forEach(post => {
+        if (!post?.id || post.isDeleted || post.isPrivate || post.canViewPrivate === false) return;
+        const id = String(post.id);
+        if (!uniquePosts.has(id)) uniquePosts.set(id, post);
+    });
+
+    return [...uniquePosts.values()]
         .filter(post => deckIncludeDecided || Number(post.myVote || 0) === 0)
         .slice(0, DECK_MAX_CARDS);
 }

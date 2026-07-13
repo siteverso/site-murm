@@ -63,3 +63,12 @@ test('deck only includes undecided cards and offers a centered restart state', (
   assert.match(css, /place-content: center/);
   assert.match(css, /\.card-deck\.is-empty \{ min-height: 0/);
 });
+
+
+test('deck excludes private murmurs and deduplicates cards by post id', () => {
+  assert.match(deck, /post\.isPrivate/);
+  assert.match(deck, /post\.canViewPrivate === false/);
+  assert.match(deck, /const uniquePosts = new Map\(\)/);
+  assert.match(deck, /if \(!uniquePosts\.has\(id\)\) uniquePosts\.set\(id, post\)/);
+  assert.match(deck, /return \[\.\.\.uniquePosts\.values\(\)\]/);
+});
