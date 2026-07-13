@@ -15,12 +15,14 @@ const hasImmediateParent = Number.isInteger(Number(immediateParentId)) && Number
       href={`/murmurio/${immediateParentId}`}
       aria-label="Abrir murmúrio pai"
       data-parent-message-backdrop-link
+      draggable="false"
     >
       <div class="feed parent-message-feed parent-message-feed--backdrop" data-parent-message-backdrop></div>
     </a>
   )}
   <div class="feed parent-message-feed parent-message-feed--current" data-parent-message-current></div>
 </aside>
+<script is:inline src="/js/feed/deck-return-motion.js"></script>
 <script is:inline>
   (() => {
     const panel = document.querySelector('[data-parent-message-panel]');
@@ -57,6 +59,123 @@ const hasImmediateParent = Number.isInteger(Number(immediateParentId)) && Number
         mount.innerHTML = '<p class="empty-state">Não foi possível carregar o murmúrio.</p>';
       }
     };
+
+    const backdropLink = panel.querySelector('[data-parent-message-backdrop-link]');
+    const OPEN_DISTANCE = 118;
+    let drag = null;
+    let suppressClickUntil = 0;
+
+    const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+    const restTransform = 'translate3d(0, 0, 0) scale(.985) rotateX(0deg) rotateY(0deg) rotateZ(0deg)';
+
+    const clearDragVisuals = () => {
+      if (!backdropLink) return;
+      backdropLink.classList.remove('is-dragging', 'is-armed', 'is-returning');
+      backdropLink.style.removeProperty('--parent-drag-progress');
+      backdropLink.style.removeProperty('transition');
+    };
+
+    const returnBackdrop = ({ x = 0, y = 0 } = {}) => {
+      if (!backdropLink) return;
+      const fromTransform = backdropLink.style.transform || restTransform;
+      clearDragVisuals();
+      backdropLink.classList.add('is-returning');
+
+      if (window.DeckReturnMotion?.animateReturn) {
+        window.DeckReturnMotion.animateReturn(backdropLink, {
+          x,
+          y,
+          fromTransform,
+          toTransform: restTransform,
+          clearTransform: true,
+          duration: 500,
+          minDuration: 360,
+          maxDuration: 720,
+          depth: 22,
+          lift: 14,
+          overshoot: .05,
+          onComplete: clearDragVisuals,
+        });
+        return;
+      }
+
+      const animation = backdropLink.animate([
+        { transform: fromTransform },
+        { transform: `translate3d(${-x * .05}px, ${-y * .05}px, 16px) scale(.99)`, offset: .82 },
+        { transform: restTransform },
+      ], { duration: 480, easing: 'cubic-bezier(.18,.82,.22,1)', fill: 'forwards' });
+      animation.finished.finally(() => {
+        animation.cancel();
+        backdropLink.style.removeProperty('transform');
+        clearDragVisuals();
+      });
+    };
+
+    const openParent = () => {
+      if (!backdropLink) return;
+      const href = backdropLink.href;
+      backdropLink.classList.add('is-opening');
+      const current = backdropLink.style.transform || restTransform;
+      const animation = backdropLink.animate([
+        { transform: current, opacity: 1 },
+        { transform: 'translate3d(0,-34px,42px) scale(1.015)', opacity: 1, offset: .45 },
+        { transform: 'translate3d(0,-92px,12px) scale(1.025)', opacity: 0 },
+      ], { duration: 330, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' });
+      animation.finished.finally(() => window.location.assign(href));
+    };
+
+    if (backdropLink) {
+      backdropLink.addEventListener('dragstart', event => event.preventDefault());
+      backdropLink.addEventListener('click', event => {
+        if (Date.now() < suppressClickUntil) event.preventDefault();
+      });
+
+      backdropLink.addEventListener('pointerdown', event => {
+        if (event.button !== 0 || event.target.closest('button, input, textarea, select')) return;
+        window.DeckReturnMotion?.cancelReturn?.(backdropLink);
+        drag = {
+          pointerId: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+          x: 0,
+          y: 0,
+          moved: false,
+        };
+        backdropLink.setPointerCapture(event.pointerId);
+        backdropLink.classList.add('is-dragging');
+        event.preventDefault();
+      });
+
+      backdropLink.addEventListener('pointermove', event => {
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        const x = event.clientX - drag.startX;
+        const y = event.clientY - drag.startY;
+        const distance = Math.hypot(x, y);
+        const progress = clamp(distance / OPEN_DISTANCE, 0, 1);
+        const armed = distance >= OPEN_DISTANCE;
+        drag.x = x;
+        drag.y = y;
+        drag.moved ||= distance > 5;
+        backdropLink.classList.toggle('is-armed', armed);
+        backdropLink.style.setProperty('--parent-drag-progress', String(progress));
+        backdropLink.style.transform = `translate3d(${x}px, ${y}px, ${16 + progress * 34}px) scale(${.985 + progress * .022}) rotateX(${clamp(-y / 34, -7, 7)}deg) rotateY(${clamp(x / 38, -8, 8)}deg) rotateZ(${clamp(x / 70, -4, 4)}deg)`;
+        if (drag.moved) event.preventDefault();
+      });
+
+      const finishDrag = event => {
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        const state = drag;
+        drag = null;
+        try { backdropLink.releasePointerCapture(event.pointerId); } catch {}
+        const armed = Math.hypot(state.x, state.y) >= OPEN_DISTANCE;
+        if (state.moved) suppressClickUntil = Date.now() + 450;
+        if (armed) openParent();
+        else returnBackdrop(state);
+      };
+
+      backdropLink.addEventListener('pointerup', finishDrag);
+      backdropLink.addEventListener('pointercancel', finishDrag);
+    }
 
     loadPost(currentMount, currentId);
     loadPost(backdropMount, immediateParentId, { backdrop: true });
