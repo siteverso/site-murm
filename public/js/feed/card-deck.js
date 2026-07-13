@@ -155,6 +155,61 @@ function removeFlyingDeckCard(clone) {
     clone?.remove();
 }
 
+
+function getDeckVoteButton(card, voteValue) {
+    return card?.querySelector(`.murmur-card [data-vote="${voteValue}"]`) || null;
+}
+
+function captureDeckVotePreview(card) {
+    if (!card || card.dataset.deckVotePreviewCaptured === 'true') return;
+    card.dataset.deckVotePreviewCaptured = 'true';
+    card.querySelectorAll('.murmur-card [data-vote]').forEach(button => {
+        button.dataset.deckOriginalPressed = button.getAttribute('aria-pressed') || 'false';
+        const count = button.querySelector(':scope > .action-count');
+        if (count) count.dataset.deckOriginalCount = count.textContent || '0';
+    });
+}
+
+function setDeckVotePreview(card, voteValue = 0) {
+    if (!card) return;
+    captureDeckVotePreview(card);
+    const selected = Number(voteValue || 0);
+
+    card.querySelectorAll('.murmur-card [data-vote]').forEach(button => {
+        const buttonVote = Number(button.dataset.vote || 0);
+        const wasPressed = button.dataset.deckOriginalPressed === 'true';
+        const shouldPress = selected === 0 ? wasPressed : buttonVote === selected;
+        button.classList.toggle('active', shouldPress);
+        button.classList.toggle('is-led-active', shouldPress);
+        button.setAttribute('aria-pressed', shouldPress ? 'true' : 'false');
+
+        const count = button.querySelector(':scope > .action-count');
+        if (!count) return;
+        const originalCount = Number(count.dataset.deckOriginalCount || count.textContent || 0);
+        let previewCount = originalCount;
+        if (selected !== 0) {
+            if (wasPressed && buttonVote !== selected) previewCount = Math.max(0, originalCount - 1);
+            if (!wasPressed && buttonVote === selected) previewCount = originalCount + 1;
+        }
+        count.textContent = String(previewCount);
+    });
+
+    if (selected === 0) delete card.dataset.deckVotePreview;
+    else card.dataset.deckVotePreview = String(selected);
+}
+
+function clearDeckVotePreview(card) {
+    if (!card || card.dataset.deckVotePreviewCaptured !== 'true') return;
+    setDeckVotePreview(card, 0);
+    card.querySelectorAll('.murmur-card [data-vote]').forEach(button => {
+        delete button.dataset.deckOriginalPressed;
+        const count = button.querySelector(':scope > .action-count');
+        if (count) delete count.dataset.deckOriginalCount;
+    });
+    delete card.dataset.deckVotePreviewCaptured;
+    delete card.dataset.deckVotePreview;
+}
+
 function updateDeckDragState(card, x = 0, y = 0) {
     if (!card) return;
     const opening = y <= -DECK_OPEN_THRESHOLD && Math.abs(y) > Math.abs(x) * 1.08;
@@ -166,6 +221,9 @@ function updateDeckDragState(card, x = 0, y = 0) {
     const displayedY = getDeckDisplayedY(y);
     card.dataset.deckDirection = direction;
     card.dataset.deckArmed = armed ? 'true' : 'false';
+    if (armed && direction === 'right') setDeckVotePreview(card, 1);
+    else if (armed && direction === 'left') setDeckVotePreview(card, -1);
+    else setDeckVotePreview(card, 0);
     card.style.setProperty('--deck-drag-progress', String(progress));
     card.style.transform = `translate3d(${x}px, ${displayedY}px, ${opening ? 22 : -Math.min(34, Math.abs(x) * .08)}px) rotateX(${Math.max(-8, Math.min(8, -y / 34))}deg) rotateY(${Math.max(-9, Math.min(9, x / 34))}deg) rotateZ(${x / 24}deg)`;
 }
@@ -175,6 +233,7 @@ function clearDeckDragState(card) {
     delete card.dataset.deckDirection;
     delete card.dataset.deckArmed;
     card.style.removeProperty('--deck-drag-progress');
+    clearDeckVotePreview(card);
     card.style.transform = '';
 }
 
@@ -190,6 +249,7 @@ function animateDeckReturn(card, dragState = {}) {
     delete card.dataset.deckDirection;
     delete card.dataset.deckArmed;
     card.style.removeProperty('--deck-drag-progress');
+    clearDeckVotePreview(card);
 
     return window.DeckReturnMotion.animateReturn(card, {
         x,
@@ -219,21 +279,32 @@ function applyDeckAction(direction, postId) {
     if (!postId) return Promise.resolve();
     const voteValue = direction > 0 ? 1 : -1;
     const actionLabel = direction > 0 ? 'Ecoado.' : 'Silenciado.';
+    const targetPost = posts.find(post => String(post.id) === String(postId));
+    const previous = targetPost ? {
+        myVote: Number(targetPost.myVote || 0),
+        positive: Number(targetPost.positive || 0),
+        negative: Number(targetPost.negative || 0),
+    } : null;
+
+    if (targetPost && previous.myVote !== voteValue) {
+        if (previous.myVote === 1) targetPost.positive = Math.max(0, previous.positive - 1);
+        if (previous.myVote === -1) targetPost.negative = Math.max(0, previous.negative - 1);
+        if (voteValue === 1) targetPost.positive = Number(targetPost.positive || 0) + 1;
+        if (voteValue === -1) targetPost.negative = Number(targetPost.negative || 0) + 1;
+        targetPost.myVote = voteValue;
+    }
+
     return api(`/api/posts/${encodeURIComponent(postId)}/vote`, {
         method: 'POST',
         body: JSON.stringify({value: voteValue}),
     }).then(() => {
         toast(actionLabel);
-        const targetPost = posts.find(post => String(post.id) === String(postId));
-        if (!targetPost) return;
-        const previousVote = Number(targetPost.myVote || 0);
-        if (previousVote === voteValue) return;
-        if (previousVote === 1) targetPost.positive = Math.max(0, Number(targetPost.positive || 0) - 1);
-        if (previousVote === -1) targetPost.negative = Math.max(0, Number(targetPost.negative || 0) - 1);
-        if (voteValue === 1) targetPost.positive = Number(targetPost.positive || 0) + 1;
-        if (voteValue === -1) targetPost.negative = Number(targetPost.negative || 0) + 1;
-        targetPost.myVote = voteValue;
     }).catch(error => {
+        if (targetPost && previous) {
+            targetPost.myVote = previous.myVote;
+            targetPost.positive = previous.positive;
+            targetPost.negative = previous.negative;
+        }
         toast(error?.message || 'Não foi possível concluir a ação.');
     });
 }
