@@ -23,3 +23,12 @@
 @import './pages/profile-feed.css';
 @import './components/text-progress.css';
 @import './components/lazy-loading.css';
+
+
+/* Durante a publicação de uma resposta, o aplicativo controla a âncora visual.
+   Desativa a âncora automática do navegador para evitar uma segunda correção tardia. */
+html.reply-viewport-locked,
+html.reply-viewport-locked body,
+html.reply-viewport-locked [data-profile-feed] {
+    overflow-anchor: none;
+}
