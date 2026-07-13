@@ -208,14 +208,12 @@ let currentUser = null;
 let posts = [];
 let specificSiblingStubs = [];
 const MIN_SITE_REFRESH_INTERVAL_MS = 2000;
-const FEED_BATCH_SIZE = 20;
+const FEED_BATCH_SIZE = window.MurmFeedContracts.batchSize;
 const feedBuckets = {all: []};
 const splitFeedLimits = {};
-const COLUMN_GROUPS = {
-    sex: getSexColumnDefinitions(),
-    relevance: getRelevanceColumnDefinitions(),
-    users: getUserColumnDefinitions(),
-};
+const COLUMN_GROUPS = window.MurmFeedContracts.columnGroups;
+const createFeedContext = window.MurmFeedContext.createFeedContext;
+const defaultFeedContext = createFeedContext();
 let feedColumnObservers = [];
 let feedRevealObserver = null;
 let feedTimer = null;
