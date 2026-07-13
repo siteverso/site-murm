@@ -282,12 +282,12 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
     <div class="score-line">
       ${MurmurPulse.render(post)}
       <div class="murmur-actions">
-        <button class="action-button action-button--echo ${post.myVote === 1 ? 'active is-led-active' : ''}" data-vote="1" title="Ecoar" aria-label="Ecoar este murmúrio" aria-pressed="${post.myVote === 1 ? 'true' : 'false'}">${ICONS.echo}<span>${post.positive}</span></button>
-        <button class="action-button action-button--ignore ${post.myVote === -1 ? 'active is-led-active' : ''}" data-vote="-1" title="Ignorar" aria-label="Ignorar este murmúrio" aria-pressed="${post.myVote === -1 ? 'true' : 'false'}">${ICONS.ignore}<span>${post.negative}</span></button>
+        <button class="action-button action-button--echo ${post.myVote === 1 ? 'active is-led-active' : ''}" data-vote="1" title="Ecoar" aria-label="Ecoar este murmúrio" aria-pressed="${post.myVote === 1 ? 'true' : 'false'}">${ICONS.echo}<span class="action-count">${post.positive}</span></button>
+        <button class="action-button action-button--ignore ${post.myVote === -1 ? 'active is-led-active' : ''}" data-vote="-1" title="Ignorar" aria-label="Ignorar este murmúrio" aria-pressed="${post.myVote === -1 ? 'true' : 'false'}">${ICONS.ignore}<span class="action-count">${post.negative}</span></button>
         ${depth >= REPLY_MAX_DEPTH
-            ? `<button class="action-button action-button--reply-limit" type="button" data-create-topic-from="${post.id}" title="Limite de ${REPLY_MAX_DEPTH} níveis atingido" aria-label="Criar novo tópico a partir desta conversa">${ICONS.reply}<span>${post.replyCount || 0}</span></button>`
-            : `<button class="action-button action-button--reply ${post.hasMyReply ? 'active is-led-active' : ''}" data-reply title="Responder" aria-label="Responder a este murmúrio" aria-pressed="${post.hasMyReply ? 'true' : 'false'}">${ICONS.reply}<span>${post.replyCount || 0}</span></button>`}
-        <button class="action-button" data-share title="Compartilhar link" aria-label="Compartilhar link deste murmúrio">${ICONS.share}<span>${post.shares}</span></button>
+            ? `<button class="action-button action-button--reply-limit" type="button" data-create-topic-from="${post.id}" title="Limite de ${REPLY_MAX_DEPTH} níveis atingido" aria-label="Criar novo tópico a partir desta conversa">${ICONS.reply}<span class="action-count">${post.replyCount || 0}</span></button>`
+            : `<button class="action-button action-button--reply ${post.hasMyReply ? 'active is-led-active' : ''}" data-reply title="Responder" aria-label="Responder a este murmúrio" aria-pressed="${post.hasMyReply ? 'true' : 'false'}">${ICONS.reply}<span class="action-count">${post.replyCount || 0}</span></button>`}
+        <button class="action-button" data-share title="Compartilhar link" aria-label="Compartilhar link deste murmúrio">${ICONS.share}<span class="action-count">${post.shares}</span></button>
       </div>
     </div>
     ${depth >= REPLY_MAX_DEPTH

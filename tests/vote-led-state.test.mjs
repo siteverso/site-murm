@@ -43,3 +43,9 @@ test('clique aplica o LED imediatamente antes da atualização do feed', () => {
   assert.match(source, /button\.classList\.toggle\('is-led-active', active\)/);
   assert.match(source, /applyOptimisticVoteState\(card, target\);\s*await api/);
 });
+
+
+test('rendered vote controls separate icon and numeric count', () => {
+  const postsSource = readProjectFile('public/js/posts/posts-and-replies.js');
+  assert.match(postsSource, /class=\"action-count\"/);
+});
