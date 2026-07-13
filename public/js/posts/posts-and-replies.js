@@ -122,7 +122,7 @@ function renderSpecificThread(parentPost, rootPost, allPosts, siblingStubs = [])
         return `<div class="thread-expanded-card${animationClass}" data-expanded-post="${postId}">${renderPost(loadedPost, byParent, new Set([String(parentPost.id)]), {
             repliesMode: 'recursive',
             depth: 2,
-            maxDepth: 5,
+            maxDepth: 100,
             contextParentId: String(parentPost.id),
             collapsibleHeader: true,
         })}</div>`;
@@ -139,7 +139,7 @@ function renderSpecificThread(parentPost, rootPost, allPosts, siblingStubs = [])
     const selectedCard = renderPost(rootPost, byParent, new Set([String(parentPost.id)]), {
         repliesMode: 'recursive',
         depth: 2,
-        maxDepth: 5,
+        maxDepth: 100,
         contextParentId: String(parentPost.id),
     });
     const parentShell = renderPost(parentPost, new Map([[String(parentPost.id), []]]), new Set(), {repliesMode: 'none', contextParentId: String(parentPost.id)});
@@ -174,7 +174,8 @@ function renderReplyPreview(reply, {expandable = false, childrenByParent = new M
     if (isExpanded) {
         return `<li class="reply-preview-item reply-preview-item--expanded" data-reply-preview-id="${reply.id}">
       <div class="thread-expanded-card profile-reply-expanded-card" data-profile-expanded-reply="${reply.id}">${renderPost(reply, childrenByParent, new Set(parentPostId == null ? [] : [String(parentPostId)]), {
-            repliesMode: 'none',
+            repliesMode: 'recursive',
+            maxDepth: 100,
             contextParentId: parentPostId == null ? null : String(parentPostId),
             collapsibleHeader: true,
         })}</div>
@@ -206,7 +207,7 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
     const {
         repliesMode = 'none',
         depth = 1,
-        maxDepth = 5,
+        maxDepth = 100,
         contextParentId = null,
         collapsibleHeader = false,
         compactRepliesExpandable = false,
@@ -312,7 +313,7 @@ function renderReplyHistoryGroup(group) {
     return `<div class="reply-history-group" data-reply-history-root="${escapeHtml(rootId)}">${renderPost(root, childrenByParent, new Set(), {
         repliesMode: 'recursive',
         depth: 1,
-        maxDepth: 5,
+        maxDepth: 100,
         contextParentId: String(root.id),
     })}</div>`;
 }
