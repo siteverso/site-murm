@@ -1,30 +1,64 @@
 ---
-const { postId } = Astro.props;
+const { postId, immediateParentId = null } = Astro.props;
+const hasImmediateParent = Number.isInteger(Number(immediateParentId)) && Number(immediateParentId) > 0;
 ---
-<aside class="parent-message-panel" aria-label="Murmúrio pai">
-  <div class="feed parent-message-feed" data-parent-message-feed data-parent-message-id={postId}></div>
+<aside
+  class:list={["parent-message-panel", { "parent-message-panel--stacked": hasImmediateParent }]}
+  aria-label="Murmúrio atual"
+  data-parent-message-panel
+  data-current-message-id={postId}
+  data-immediate-parent-id={hasImmediateParent ? immediateParentId : ''}
+>
+  {hasImmediateParent && (
+    <a
+      class="parent-message-backdrop-link"
+      href={`/murmurio/${immediateParentId}`}
+      aria-label="Abrir murmúrio pai"
+      data-parent-message-backdrop-link
+    >
+      <div class="feed parent-message-feed parent-message-feed--backdrop" data-parent-message-backdrop></div>
+    </a>
+  )}
+  <div class="feed parent-message-feed parent-message-feed--current" data-parent-message-current></div>
 </aside>
 <script is:inline>
   (() => {
-    const mount = document.querySelector('[data-parent-message-feed]');
-    if (!mount) return;
-    const postId = String(mount.dataset.parentMessageId || '');
-    if (!postId) return;
-    const load = async () => {
+    const panel = document.querySelector('[data-parent-message-panel]');
+    if (!panel) return;
+
+    const currentMount = panel.querySelector('[data-parent-message-current]');
+    const backdropMount = panel.querySelector('[data-parent-message-backdrop]');
+    const currentId = String(panel.dataset.currentMessageId || '');
+    const immediateParentId = String(panel.dataset.immediateParentId || '');
+
+    const loadPost = async (mount, postId, options = {}) => {
+      if (!mount || !postId) return;
       try {
         const response = await fetch(`/api/posts?specificId=${encodeURIComponent(postId)}`, { credentials: 'same-origin' });
         const data = await response.json();
         const post = Array.isArray(data?.posts) ? data.posts.find(item => String(item?.id) === postId) : null;
         if (!post || typeof window.renderPost !== 'function') {
           if (!post) mount.innerHTML = '<p class="empty-state">Murmúrio não encontrado.</p>';
-          else setTimeout(load, 40);
+          else setTimeout(() => loadPost(mount, postId, options), 40);
           return;
         }
-        mount.innerHTML = window.renderPost(post, new Map(), new Set(), { repliesMode: 'none', contextParentId: postId });
+        mount.innerHTML = window.renderPost(post, new Map(), new Set(), {
+          repliesMode: 'none',
+          contextParentId: postId,
+        });
+        if (options.backdrop) {
+          const card = mount.querySelector('.murmur-card');
+          if (card) {
+            card.classList.add('murmur-card--parent-backdrop');
+            card.setAttribute('aria-hidden', 'true');
+          }
+        }
       } catch {
         mount.innerHTML = '<p class="empty-state">Não foi possível carregar o murmúrio.</p>';
       }
     };
-    load();
+
+    loadPost(currentMount, currentId);
+    loadPost(backdropMount, immediateParentId, { backdrop: true });
   })();
 </script>

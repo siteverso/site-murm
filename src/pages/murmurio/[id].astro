@@ -19,7 +19,7 @@ if (!parentPost) return Astro.redirect('/');
 <AppLayout title={`Murmúrio de @${parentPost.author} — ${t.site.title}`}>
   <Header />
   <div class="shell profile-grid public-profile-grid parent-feed-page parent-thread-page">
-    <ParentMessagePanel postId={parentId} />
+    <ParentMessagePanel postId={parentId} immediateParentId={parentPost.parentPostId} />
     <section class="public-profile-content">
       <FeedBoard parentId={parentId} showRandomMurmur={false} embedded={true} />
     </section>
