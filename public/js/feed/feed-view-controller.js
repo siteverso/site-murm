@@ -32,10 +32,11 @@ function bindFeedView() {
 
     const panels = $$('[data-feed-view-panel]', board);
     const buttons = $$('[data-feed-view]', switcher);
-    const validViews = new Set(['split', 'relevance', 'users', 'grid', 'deck', 'list']);
+    const validViews = new Set(['deck', 'split', 'grid', 'list']);
 
     const applyView = view => {
-        const mode = validViews.has(view) ? view : 'split';
+        const legacyColumnMode = view === 'relevance' || view === 'users';
+        const mode = legacyColumnMode ? 'split' : validViews.has(view) ? view : 'split';
         const previousMode = board.dataset.feedViewMode || '';
         board.dataset.feedViewMode = mode;
         const deckActive = mode === 'deck';
@@ -53,7 +54,7 @@ function bindFeedView() {
         if (previousMode === 'deck' && mode !== 'deck' && typeof renderNonDeckFeedsFromState === 'function') {
             renderNonDeckFeedsFromState();
         }
-        if (mode === 'split' || mode === 'relevance' || mode === 'users') requestAnimationFrame(setupFeedColumnAutoload);
+        if (mode === 'split') requestAnimationFrame(setupFeedColumnAutoload);
         storeFeedView(board, mode);
     };
 

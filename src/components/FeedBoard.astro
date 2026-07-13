@@ -24,40 +24,25 @@ const randomMurmurIntervalMs = Number.isFinite(configuredRandomMurmurInterval) &
       </div>}
       <div class="feed-display-controls">
         <div class="segmented-control feed-view-switch" data-feed-view-switch aria-label="Modo de visualização dos murmúrios">
+        <button class="segmented-control__button feed-view-button feed-view-button--deck" type="button" data-feed-view="deck" aria-label="Ver em cartas" title="Cartas">
+          <svg viewBox="0 0 20 20" aria-hidden="true" fill="none">
+            <rect x="5" y="3" width="11" height="14" rx="2" transform="rotate(7 5 3)" stroke="currentColor" stroke-width="1.35"/>
+            <rect x="3" y="3" width="11" height="14" rx="2" transform="rotate(-4 3 3)" fill="var(--surface)" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M6 7h5M6 10h5M6 13h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+        </button>
         <button class="segmented-control__button feed-view-button" type="button" data-feed-view="split" aria-label="Ver em colunas" title="Colunas">
           <svg viewBox="0 0 20 20" aria-hidden="true" fill="none">
             <rect x="3" y="4" width="5" height="12" rx="1.5" stroke="currentColor" stroke-width="1.6"/>
             <rect x="12" y="4" width="5" height="12" rx="1.5" stroke="currentColor" stroke-width="1.6"/>
           </svg>
         </button>
-        <button class="segmented-control__button feed-view-button feed-view-button--relevance" type="button" data-feed-view="relevance" aria-label="Ver colunas por relevância" title="Colunas por relevância">
-          <svg viewBox="0 0 20 20" aria-hidden="true" fill="none">
-            <rect x="2.5" y="3.5" width="4" height="13" rx="1.4" stroke="currentColor" stroke-width="1.45"/>
-            <rect x="8" y="3.5" width="4" height="13" rx="1.4" stroke="currentColor" stroke-width="1.45"/>
-            <rect x="13.5" y="3.5" width="4" height="13" rx="1.4" stroke="currentColor" stroke-width="1.45"/>
-            <path d="M1.4 10h2l1.1-3 1.8 6 1.5-3h1.7l1.15-2.2L12 12l1.4-2h1.7l1-2 1.2 2h1.3" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
-        <button class="segmented-control__button feed-view-button feed-view-button--users" type="button" data-feed-view="users" aria-label="Ver colunas por usuários" title="Colunas por usuários">
-          <svg viewBox="0 0 20 20" aria-hidden="true" fill="none">
-            <path d="M4.25 8.1a2.2 2.2 0 1 0 0-4.4 2.2 2.2 0 0 0 0 4.4ZM10 7.2a2.65 2.65 0 1 0 0-5.3 2.65 2.65 0 0 0 0 5.3Zm5.75.9a2.2 2.2 0 1 0 0-4.4 2.2 2.2 0 0 0 0 4.4Z" stroke="currentColor" stroke-width="1.35"/>
-            <path d="M.9 15.8c.15-3 1.45-4.55 3.35-4.55 1.05 0 1.9.45 2.5 1.3M19.1 15.8c-.15-3-1.45-4.55-3.35-4.55-1.05 0-1.9.45-2.5 1.3M5.8 17.1c.15-4.25 1.75-6.4 4.2-6.4s4.05 2.15 4.2 6.4" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/>
-            <path d="M8.25 14.8h3.5M10 13.05v3.5" stroke="currentColor" stroke-width="1.15" stroke-linecap="round"/>
-          </svg>
-        </button>
-        <button class="segmented-control__button feed-view-button feed-view-button--grid" type="button" data-feed-view="grid" aria-label="Ver em grade responsiva" title="Grade responsiva">
+        <button class="segmented-control__button feed-view-button feed-view-button--grid" type="button" data-feed-view="grid" aria-label="Ver em grid" title="Grid">
           <svg viewBox="0 0 20 20" aria-hidden="true" fill="none">
             <rect x="2.5" y="2.5" width="6" height="6" rx="1.35" stroke="currentColor" stroke-width="1.5"/>
             <rect x="11.5" y="2.5" width="6" height="6" rx="1.35" stroke="currentColor" stroke-width="1.5"/>
             <rect x="2.5" y="11.5" width="6" height="6" rx="1.35" stroke="currentColor" stroke-width="1.5"/>
             <rect x="11.5" y="11.5" width="6" height="6" rx="1.35" stroke="currentColor" stroke-width="1.5"/>
-          </svg>
-        </button>
-        <button class="segmented-control__button feed-view-button feed-view-button--deck" type="button" data-feed-view="deck" aria-label="Ver murmúrios para decidir" title="Murmúrios para decidir">
-          <svg viewBox="0 0 20 20" aria-hidden="true" fill="none">
-            <rect x="5" y="3" width="11" height="14" rx="2" transform="rotate(7 5 3)" stroke="currentColor" stroke-width="1.35"/>
-            <rect x="3" y="3" width="11" height="14" rx="2" transform="rotate(-4 3 3)" fill="var(--surface)" stroke="currentColor" stroke-width="1.5"/>
-            <path d="M6 7h5M6 10h5M6 13h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
           </svg>
         </button>
         <button class="segmented-control__button feed-view-button" type="button" data-feed-view="list" aria-label="Ver em lista" title="Lista">
@@ -75,9 +60,6 @@ const randomMurmurIntervalMs = Number.isFinite(configuredRandomMurmurInterval) &
     <section class="network-board" data-feed-board data-parent-id={parentId ?? undefined} data-profile-username={profileUsername || undefined} data-feed-context-key={feedContextKey}>
       <div class="feed-view-panel split-view" data-feed-view-panel="split" data-feed-columns></div>
 
-      <div class="feed-view-panel split-view relevance-view" data-feed-view-panel="relevance" data-feed-relevance-columns hidden></div>
-
-      <div class="feed-view-panel split-view users-view" data-feed-view-panel="users" data-feed-user-columns hidden></div>
 
       <div class="feed-view-panel grid-view" data-feed-view-panel="grid" hidden>
         <section class="network-lane all-lane">
