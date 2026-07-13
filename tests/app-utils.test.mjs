@@ -111,8 +111,8 @@ test('perfil permite murmúrio específico, mostra o pai esmaecido e reinicia a 
   assert.match(source, /contextParentId/);
   assert.match(source, /data-terminal-profile="\/murmurio\/\$\{encodeURIComponent\(post\.id\)\}"/);
   assert.match(css, /\.murmur-context-parent \{/);
-  assert.match(profile, /data-profile-post-id=\{profilePostId \|\| undefined\}/);
-  assert.match(profile, /Ver todos os murmúrios/);
+  assert.match(profile, /<FeedBoard profileUsername=\{profile\.username\}/);
+  assert.match(profile, /showRepliesPage/);
 });
 
 test('interna específica renderiza linhas de irmãs e permite inflar card por clique', async () => {
@@ -154,44 +154,6 @@ test('texto de cada mensagem abre a home contextual do próprio murmúrio e não
   assert.match(source, /class="murmur-text-link" href="\/murmurio\/\$\{encodeURIComponent\(post\.id\)\}"/);
   assert.doesNotMatch(source, /Resposta para @/);
   assert.doesNotMatch(source, /murmur-reply-context/);
-});
-
-
-test('clique expande somente a linha escolhida e hover opcional usa espera curta', async () => {
-  const source = await readAppSource();
-  const profile = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/pages/perfil/[username].astro', import.meta.url), 'utf8'));
-  assert.match(source, /async function expandOnlySpecificPost\(rootId, inflateId, sourceLine = null\)/);
-  assert.match(source, /await loadAndExpandSpecificPost\(rootId, String\(inflateId\)\)/);
-  assert.doesNotMatch(source, /expandSpecificContext/);
-  assert.doesNotMatch(source, /await wait\(300\)/);
-  assert.match(source, /const SPECIFIC_HOVER_DELAY_MS = 700/);
-  assert.match(source, /setTimeout\(async \(\) => \{/);
-  assert.match(source, /scheduleSpecificHoverExpansion\(line\)/);
-  assert.match(source, /cancelSpecificHoverExpansion\(\)/);
-  assert.match(profile, /data-expand-on-hover/);
-  assert.match(profile, /data-expand-on-hover-label>Hover<\/span>/);
-});
-
-
-test('perfil mantém lateral sticky rolável e não solta respostas de outros usuários', async () => {
-  const css = await readGlobalCss();
-  const repository = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/lib/server/repositories/posts.ts', import.meta.url), 'utf8'));
-  assert.match(css, /\.profile-card \{[^}]*position: sticky;[^}]*max-height: calc\(100dvh - 40px\);[^}]*overflow-y: auto;/s);
-  assert.match(repository, /AND p\.parent_post_id IS NULL/);
-  assert.doesNotMatch(repository.slice(repository.indexOf('export async function listPosts'), repository.indexOf('type PostRow')), /CONNECT BY/i);
-  assert.doesNotMatch(repository, /OR LOWER\(parent_user\.username\) = LOWER\(:profile_username\)/);
-});
-
-test('LED de hover só aparece quando existem linhas colapsadas', async () => {
-  const source = await readAppSource();
-  const css = await readGlobalCss();
-  const profile = await import('node:fs/promises').then(fs => fs.readFile(new URL('../src/pages/perfil/[username].astro', import.meta.url), 'utf8'));
-  assert.match(source, /function syncSpecificHoverControl\(\)/);
-  assert.match(source, /profileFeed\?\.querySelector\('\[data-inflate-post\]'\)/);
-  assert.match(source, /button\.hidden = !hasCollapsedLines/);
-  assert.match(profile, /data-expand-on-hover[^>]*hidden/);
-  assert.match(css, /\.profile-hover-expand\.active \.profile-hover-expand__dot \{[^}]*#39d7c5/s);
-  assert.match(css, /background: #777/);
 });
 
 

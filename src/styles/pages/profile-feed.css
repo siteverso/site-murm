@@ -179,15 +179,23 @@
   margin-left: auto;
 }
 
-/* No card-pai, Pulso fica em uma linha e as ações em outra para não truncar. */
+/* No card-pai, Pulso fica compacto em uma linha e as ações ocupam outra linha. */
 .parent-message-panel .score-line {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
   gap: 10px;
+}
+.parent-message-panel .murmur-pulse {
+  width: fit-content;
+  max-width: 100%;
+  flex: 0 0 auto;
+  align-self: flex-start;
 }
 .parent-message-panel .murmur-actions {
   width: 100%;
+  max-width: 100%;
   margin-left: 0;
   justify-content: space-between;
   gap: 4px;
@@ -201,11 +209,90 @@
   font-size: .76rem;
 }
 
+/* Pai e controles começam na mesma linha estrutural; todas as colunas iniciam o conteúdo na mesma altura. */
+.parent-feed-page {
+  align-items: start;
+}
+.parent-feed-page > .parent-message-panel,
+.parent-feed-page > .public-profile-card,
+.parent-feed-page > .public-profile-content > .feed-board--embedded > .network-board-heading {
+  margin-top: 0;
+}
+.feed-board--embedded .network-board-heading {
+  min-height: 48px;
+  align-items: flex-start;
+}
+.feed-board--embedded .split-view .network-lane {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  align-content: start;
+}
+.feed-board--embedded .split-view .lane-heading {
+  min-height: 56px;
+  align-items: flex-end;
+}
+.feed-board--embedded .split-view .lane-feed {
+  align-content: start;
+}
+.feed-board--embedded .split-view .empty-state {
+  margin: 0;
+}
+
 @media (max-width: 980px) {
   .parent-feed-page.public-profile-grid {
     grid-template-columns: 1fr;
   }
   .parent-message-panel {
     position: static;
+  }
+}
+
+/* Contexto pai: o painel lateral deve alinhar com o primeiro card do feed,
+   enquanto o seletor permanece no topo direito como na Home. */
+.parent-feed-page {
+  --context-feed-toolbar-height: 48px;
+  --context-feed-toolbar-gap: 14px;
+  --context-feed-lane-heading-height: 56px;
+}
+.parent-feed-page .feed-board--embedded {
+  padding-top: 0;
+}
+.parent-feed-page .feed-board--embedded .network-board-heading {
+  height: var(--context-feed-toolbar-height);
+  min-height: var(--context-feed-toolbar-height);
+  margin-bottom: var(--context-feed-toolbar-gap);
+  align-items: center;
+}
+.parent-feed-page .feed-board--embedded .split-view .lane-heading {
+  height: var(--context-feed-lane-heading-height);
+  min-height: var(--context-feed-lane-heading-height);
+  box-sizing: border-box;
+}
+.parent-feed-page > .parent-message-panel,
+.parent-feed-page > .public-profile-card {
+  margin-top: calc(
+    var(--context-feed-toolbar-height)
+    + var(--context-feed-toolbar-gap)
+    + var(--context-feed-lane-heading-height)
+  );
+}
+.parent-feed-page .feed-board--embedded .feed-display-controls {
+  width: 100%;
+  justify-content: flex-end;
+}
+.parent-feed-page .feed-board--embedded .split-view {
+  align-items: start;
+}
+.parent-feed-page .feed-board--embedded .split-view .network-lane,
+.parent-feed-page .feed-board--embedded .split-view .lane-feed,
+.parent-feed-page .feed-board--embedded .split-view .murmur-card,
+.parent-feed-page .feed-board--embedded .split-view .empty-state {
+  align-self: start;
+}
+
+@media (max-width: 980px) {
+  .parent-feed-page > .parent-message-panel,
+  .parent-feed-page > .public-profile-card {
+    margin-top: 0;
   }
 }

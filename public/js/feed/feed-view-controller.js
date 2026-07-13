@@ -1,3 +1,30 @@
+function resolveFeedViewStorageKey(board) {
+    const contextKey = String(board?.dataset?.feedContextKey || 'home').trim().toLowerCase() || 'home';
+    return `murmur_feed_view:${contextKey}`;
+}
+
+function readStoredFeedView(board) {
+    const storageKey = resolveFeedViewStorageKey(board);
+    try {
+        const contextualView = localStorage.getItem(storageKey);
+        if (contextualView) return contextualView;
+
+        // Compatibilidade: a preferência global antiga pertence somente à Home.
+        if (board?.dataset?.feedContextKey === 'home') {
+            return localStorage.getItem('murmur_feed_view') || 'split';
+        }
+    } catch {
+    }
+    return 'split';
+}
+
+function storeFeedView(board, mode) {
+    try {
+        localStorage.setItem(resolveFeedViewStorageKey(board), mode);
+    } catch {
+    }
+}
+
 function bindFeedView() {
     const switcher = $('[data-feed-view-switch]');
     const board = $('[data-feed-board]');
@@ -23,19 +50,10 @@ function bindFeedView() {
             panel.hidden = panel.dataset.feedViewPanel !== mode;
         });
         if (mode === 'split' || mode === 'relevance' || mode === 'users') requestAnimationFrame(setupFeedColumnAutoload);
-        try {
-            localStorage.setItem('murmur_feed_view', mode);
-        } catch {
-        }
+        storeFeedView(board, mode);
     };
 
-    const initial = (() => {
-        try {
-            return localStorage.getItem('murmur_feed_view') || 'split';
-        } catch {
-            return 'split';
-        }
-    })();
+    const initial = readStoredFeedView(board);
     applyView(initial);
 
     switcher.addEventListener('click', event => {

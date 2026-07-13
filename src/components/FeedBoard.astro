@@ -1,5 +1,11 @@
 ---
 const { parentId = null, profileUsername = '', showRandomMurmur = true, embedded = false } = Astro.props;
+const normalizedProfileUsername = String(profileUsername || '').trim().replace(/^@/, '').toLowerCase();
+const feedContextKey = parentId !== null && parentId !== undefined && String(parentId) !== ''
+  ? `message:${String(parentId)}`
+  : normalizedProfileUsername
+    ? `profile:${normalizedProfileUsername}`
+    : 'home';
 const configuredRandomMurmurInterval = Number.parseInt(import.meta.env.PUBLIC_HOME_RANDOM_MURMUR_INTERVAL_MS || '', 10);
 const randomMurmurIntervalMs = Number.isFinite(configuredRandomMurmurInterval) && configuredRandomMurmurInterval >= 250
   ? configuredRandomMurmurInterval
@@ -66,7 +72,7 @@ const randomMurmurIntervalMs = Number.isFinite(configuredRandomMurmurInterval) &
       </div>
     </div>
 
-    <section class="network-board" data-feed-board data-parent-id={parentId ?? undefined} data-profile-username={profileUsername || undefined}>
+    <section class="network-board" data-feed-board data-parent-id={parentId ?? undefined} data-profile-username={profileUsername || undefined} data-feed-context-key={feedContextKey}>
       <div class="feed-view-panel split-view" data-feed-view-panel="split" data-feed-columns></div>
 
       <div class="feed-view-panel split-view relevance-view" data-feed-view-panel="relevance" data-feed-relevance-columns hidden></div>
