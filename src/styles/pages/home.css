@@ -348,7 +348,7 @@ body.deck-mode-active {
 .deck-card { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: calc(20 - var(--deck-index)); transform-origin: 50% 92%; transform: translate3d(0, calc(var(--deck-index) * 11px), calc(var(--deck-index) * -40px)) scale(calc(1 - var(--deck-index) * .024)); opacity: calc(1 - var(--deck-index) * .13); transition: transform .28s cubic-bezier(.2,.8,.2,1), opacity .24s ease, filter .24s ease; pointer-events: none; --deck-drag-progress: 0; transform-style: preserve-3d; will-change: transform, opacity, filter; backface-visibility: hidden; }
 .deck-card[data-deck-index="0"] { pointer-events: auto; cursor: grab; }
 .deck-card[data-deck-index="0"]:active, .deck-card.is-dragging { cursor: grabbing; transition: none; }
-.deck-card.is-returning { transition: transform .42s cubic-bezier(.16, 1, .3, 1), opacity .32s ease, filter .32s ease; }
+.deck-card.is-returning { pointer-events: none; will-change: transform; transition: none !important; }
 .deck-card.is-flying { pointer-events: none; }
 .deck-card .murmur-card { position: relative; width: min(760px, calc(100vw - max(44px, var(--page-gutter)))); min-height: min(72dvh, 620px); margin: 0; box-shadow: 0 26px 74px rgb(0 0 0 / 20%), 0 6px 20px rgb(0 0 0 / 10%); transition: box-shadow .2s ease, border-color .2s ease, filter .2s ease; }
 .deck-card:not([data-deck-index="0"]) .murmur-card { filter: saturate(calc(1 - var(--deck-index) * .08)); }

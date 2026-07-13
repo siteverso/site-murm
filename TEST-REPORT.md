@@ -1,13 +1,27 @@
-# TEST REPORT — site-murm-baralho-resposta-imediata
+# TEST REPORT — retorno físico parametrizável
 
-## Ajuste
-- próxima carta liberada quase imediatamente após soltar a anterior
-- carta arremessada passa a voar em uma camada independente
-- hover e drag da nova carta ficam disponíveis em cerca de 70 ms
-- subida da pilha permanece animada e fluida
-- abertura para cima continua levando à página do murmúrio
+## Alterações
+- mantida a página `/teste-retorno-baralho`
+- retorno mais suave com quatro keyframes físicos
+- parâmetros expostos na página de teste:
+  - posição X/Y
+  - duração e fator de distância
+  - velocidade X/Y
+  - aceleração X/Y
+  - direção
+  - profundidade Z e elevação
+  - rotação X/Y/Z
+  - velocidade angular
+  - escala
+  - overshoot e limites
+  - amortecimento
+  - offsets dos keyframes
+  - curva de aceleração
+- painel mostra o JSON completo dos parâmetros atuais
+- drag manual mede a velocidade real do ponteiro e preenche os campos
+- a função continua desacoplada em `public/js/feed/deck-return-motion.js`
 
 ## Validações
-- `node --test tests/home-card-deck.test.mjs` ✅ 5/5
-- `node --check public/js/feed/card-deck.js` ✅
+- `node --check public/js/feed/deck-return-motion.js` ✅
+- `node --test tests/deck-return-motion.test.mjs` ✅ 3/3
 - `npm run build` ✅

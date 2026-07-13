@@ -61,3 +61,11 @@ test('deck promotes the next cards fluidly and opens the message on upward drag'
   assert.match(css, /is-returning/);
   assert.match(page, /para cima para abrir o murmúrio/);
 });
+
+
+test('deck returns unconfirmed cards smoothly to the pile', () => {
+  assert.match(deck, /animateDeckReturn/);
+  assert.match(deck, /cubic-bezier\(\.16, 1, \.3, 1\)/);
+  assert.match(deck, /deckRestTransform\(0\)/);
+  assert.match(deck, /deckSuppressClickUntil = Date\.now\(\) \+ 120/);
+});

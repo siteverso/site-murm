@@ -162,6 +162,28 @@ function clearDeckDragState(card) {
     card.style.transform = '';
 }
 
+
+function animateDeckReturn(card, dragState = {}) {
+    if (!card) return Promise.resolve();
+
+    const {x = 0, y = 0} = dragState;
+    const displayedY = getDeckDisplayedY(y);
+    const fromTransform = card.style.transform
+        || `translate3d(${x}px, ${displayedY}px, 0) rotateX(0deg) rotateY(0deg) rotateZ(${x / 24}deg)`;
+
+    delete card.dataset.deckDirection;
+    delete card.dataset.deckArmed;
+    card.style.removeProperty('--deck-drag-progress');
+
+    return window.DeckReturnMotion.animateReturn(card, {
+        x,
+        y: displayedY,
+        fromTransform,
+        toTransform: deckRestTransform(0),
+        clearTransform: true,
+    });
+}
+
 function measureDeckVelocity(history = []) {
     if (history.length < 2) return {vx: 0, vy: 0};
     const end = history[history.length - 1];
@@ -272,7 +294,7 @@ function bindCardDeck() {
 
     deck.addEventListener('pointerdown', event => {
         const card = event.target.closest('[data-deck-card=""][data-deck-index="0"]');
-        if (!card || event.button !== 0 || event.target.closest('button, input, textarea, select, form')) return;
+        if (!card || card.classList.contains('is-returning') || event.button !== 0 || event.target.closest('button, input, textarea, select, form')) return;
         deckDragging = {
             card,
             pointerId: event.pointerId,
@@ -322,9 +344,8 @@ function bindCardDeck() {
             return;
         }
 
-        card.classList.add('is-returning');
-        requestAnimationFrame(() => clearDeckDragState(card));
-        setTimeout(() => card.classList.remove('is-returning'), 420);
+        deckSuppressClickUntil = Date.now() + 120;
+        void animateDeckReturn(card, dragState);
     };
 
     deck.addEventListener('pointerup', finishDrag);
