@@ -1,4 +1,4 @@
-function createOptimisticReply(parentId, text, isPrivate = false) {
+function createOptimisticReply(parentId, text, isPrivate = false, renderTarget = 'inline') {
     const parent = (Array.isArray(posts) ? posts : []).find(post => sameId(post.id, parentId));
     const temporaryId = `temp-reply-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const reply = {
@@ -31,8 +31,18 @@ function createOptimisticReply(parentId, text, isPrivate = false) {
     }
     feedSignature = getFeedSignature(posts);
 
-    insertOptimisticReplyCard(reply, parentId);
+    insertOptimisticReply(reply, parentId, renderTarget);
     return reply;
+}
+
+
+function insertOptimisticReply(reply, parentId, renderTarget = 'inline') {
+    if (renderTarget === 'children') {
+        renderNonDeckFeedsFromState();
+        if (typeof renderDeck === 'function') renderDeck(feedBuckets.all);
+        return document.querySelector(`[data-post-id="${CSS.escape(String(reply.id))}"]`);
+    }
+    return insertOptimisticReplyCard(reply, parentId);
 }
 
 function ensureReplyContainer(parentCard, parentId) {
@@ -77,12 +87,12 @@ function insertOptimisticReplyCard(reply, parentId) {
 
 function commitOptimisticReply(reply, realId) {
     const temporaryId = String(reply.id);
-    const card = document.querySelector(`[data-reply-preview-id="${CSS.escape(temporaryId)}"]`);
+    const card = document.querySelector(`[data-reply-preview-id="${CSS.escape(temporaryId)}"], [data-post-id="${CSS.escape(temporaryId)}"]`);
     reply.id = Number(realId);
     delete reply.optimistic;
 
     if (card) {
-        card.dataset.replyPreviewId = String(realId);
+        if (card.dataset.replyPreviewId !== undefined) card.dataset.replyPreviewId = String(realId);
         card.dataset.postId = String(realId);
         delete card.dataset.optimisticReply;
         card.classList.remove('reply-optimistic');
@@ -104,7 +114,7 @@ function commitOptimisticReply(reply, realId) {
 
 function rollbackOptimisticReply(reply) {
     const replyId = String(reply.id);
-    const card = document.querySelector(`[data-reply-preview-id="${CSS.escape(replyId)}"]`);
+    const card = document.querySelector(`[data-reply-preview-id="${CSS.escape(replyId)}"], [data-post-id="${CSS.escape(replyId)}"]`);
     const replies = card?.closest('[data-replies-for]');
     card?.remove();
     if (replies && !replies.querySelector('.reply-preview-item')) replies.remove();
@@ -116,4 +126,8 @@ function rollbackOptimisticReply(reply) {
         parent.hasMyReply = posts.some(post => sameId(post.parentPostId, parent.id) && sameId(post.userId, currentUser?.id));
     }
     feedSignature = getFeedSignature(posts);
+    if (document.querySelector('[data-feed-board][data-parent-id]')) {
+        renderNonDeckFeedsFromState();
+        if (typeof renderDeck === 'function') renderDeck(feedBuckets.all);
+    }
 }

@@ -14,7 +14,7 @@ test('resposta otimista no modo cartas reutiliza a prévia compacta da home', ()
 });
 
 test('publicação aparece antes da API e é reconciliada sem refresh', () => {
-  const createAt = interactions.indexOf('createOptimisticReply(parentId, text, isPrivate)');
+  const createAt = interactions.indexOf('createOptimisticReply(parentId, text, isPrivate, replyRenderTarget)');
   const apiAt = interactions.indexOf('await api(`/api/posts/${parentId}/reply`');
   assert.ok(createAt >= 0 && apiAt > createAt);
   assert.match(interactions, /commitOptimisticReply\(optimisticReply, result\.id\)/);

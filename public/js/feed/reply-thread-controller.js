@@ -12,14 +12,14 @@ function focusReplyInput(form) {
     setTimeout(focus, 60);
 }
 
-function openReplyForm(card, {toggle = false} = {}) {
+function openReplyForm(card, {toggle = false, focus = true} = {}) {
     const form = card?.querySelector('[data-reply-form]');
     if (!form) return;
 
     if (toggle) form.classList.toggle('open');
     else form.classList.add('open');
 
-    if (form.classList.contains('open')) focusReplyInput(form);
+    if (focus && form.classList.contains('open')) focusReplyInput(form);
 }
 
 function openPostAuthorProfile(card) {

@@ -287,6 +287,14 @@ async function loadFeed(force = false) {
         feedBuckets.all = posts;
         renderNonDeckFeedsFromState();
         renderDeck(feedBuckets.all);
+
+        const threadParentId = board?.dataset.parentId || '';
+        if (threadParentId) {
+            document.querySelectorAll(`[data-post-id="${CSS.escape(String(threadParentId))}"]`).forEach(card => {
+                openReplyForm(card, {focus: false});
+            });
+        }
+
         restoreFeedAnchor(anchor);
         hasRenderedFeed = true;
     } finally {

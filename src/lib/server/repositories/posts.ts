@@ -574,7 +574,6 @@ export async function deletePost(postId: number, userId: number): Promise<void> 
              FROM murm_post
              WHERE id = :post_id
                  AND user_id = :user_id
-                 AND parent_post_id IS NULL
                  AND status = 'published'
                  AND lower(trim(post_type)) = 'murmur'`,
             {post_id: postId, user_id: userId},

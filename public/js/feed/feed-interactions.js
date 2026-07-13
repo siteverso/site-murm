@@ -79,15 +79,39 @@ function bindFeed() {
             }
             if (target.matches('[data-delete-post]')) {
                 const postId = target.dataset.deletePost;
-                modal(`<h2>Apagar murmúrio?</h2><p class="modal-subtitle">O murmúrio inteiro e todas as respostas deixarão de aparecer.</p><div class="modal-actions murmur-delete-confirm-actions"><button class="button" type="button" data-modal-close>Cancelar</button><button class="button primary" type="button" data-confirm-delete-post="${postId}">Apagar</button></div>`, 'confirm-delete-modal');
+                modal(`<h2>Apagar murmúrio?</h2><p class="modal-subtitle">O murmúrio inteiro e todas as respostas deixarão de aparecer.</p><div class="modal-actions murmur-delete-confirm-actions"><button class="button" type="button" data-modal-close>Cancelar</button><button class="button danger" type="button" data-confirm-delete-post="${postId}">Apagar</button></div>`, 'confirm-delete-modal');
             }
             if (target.matches('[data-confirm-delete-post]')) {
                 target.disabled = true;
-                await api(`/api/posts/${target.dataset.confirmDeletePost}`, {method: 'DELETE'});
-                announceFeedChanged();
-                closeModal();
-                if (!(await refreshReplyHistoryPage(target.dataset.confirmDeletePost))) await loadFeed(true);
-                toast('Murmúrio apagado.');
+                const postId = String(target.dataset.confirmDeletePost || '');
+                try {
+                    await api(`/api/posts/${postId}`, {method: 'DELETE'});
+                    announceFeedChanged();
+                    closeModal();
+
+                    const currentThreadId = location.pathname.match(/^\/murmurio\/(\d+)\/?$/)?.[1] || '';
+                    if (currentThreadId === postId) {
+                        location.assign('/');
+                        return;
+                    }
+
+                    if (!(await refreshReplyHistoryPage(postId))) await loadFeed(true);
+                    toast('Murmúrio apagado.');
+                } catch (error) {
+                    target.disabled = false;
+                    const message = error instanceof Error ? error.message : 'Não foi possível apagar o murmúrio.';
+                    const modalCard = target.closest('.modal-card');
+                    let errorBox = modalCard?.querySelector('[data-delete-error]');
+                    if (modalCard && !errorBox) {
+                        errorBox = document.createElement('p');
+                        errorBox.className = 'modal-delete-error';
+                        errorBox.dataset.deleteError = '';
+                        errorBox.setAttribute('role', 'alert');
+                        modalCard.querySelector('.modal-actions')?.before(errorBox);
+                    }
+                    if (errorBox) errorBox.textContent = message;
+                    else toast(message);
+                }
             }
             if (target.matches('[data-feed-more]')) {
                 expandSplitFeed(target.dataset.feedMore);
@@ -238,7 +262,9 @@ function bindFeed() {
             const parentId = String(card.dataset.postId || '');
             const replyButton = card.querySelector('[data-reply]');
             const replyCount = replyButton?.querySelector('span');
-            const optimisticReply = createOptimisticReply(parentId, text, isPrivate);
+            const threadBoard = document.querySelector('[data-feed-board][data-parent-id]');
+            const replyRenderTarget = threadBoard && sameId(threadBoard.dataset.parentId, parentId) ? 'children' : 'inline';
+            const optimisticReply = createOptimisticReply(parentId, text, isPrivate, replyRenderTarget);
             if (replyCount) replyCount.textContent = String(Number(replyCount.textContent || 0) + 1);
             replyButton?.classList.add('active', 'is-led-active');
             replyButton?.setAttribute('aria-pressed', 'true');

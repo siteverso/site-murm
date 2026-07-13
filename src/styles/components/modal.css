@@ -7,3 +7,53 @@
 .modal-actions { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 16px; color: var(--muted); font-size: .84rem; }
 @keyframes modal-in { from { opacity: 0; transform: translateY(12px) scale(.98); } }
 
+
+.confirm-delete-modal .button.danger {
+  color: #fff;
+  background: #9f1d2d;
+  border-color: #c72c40;
+  font-weight: 800;
+}
+.confirm-delete-modal .button.danger:hover,
+.confirm-delete-modal .button.danger:focus-visible {
+  color: #fff;
+  background: #bd2438;
+  border-color: #ee5a6c;
+  box-shadow: 0 0 0 3px rgb(199 44 64 / 22%);
+}
+.confirm-delete-modal .button.danger:disabled {
+  color: rgb(255 255 255 / 78%);
+  background: #6f2630;
+  border-color: #7f3540;
+  cursor: wait;
+}
+
+
+.confirm-delete-modal [data-modal-close] {
+  color: var(--text);
+  background: var(--surface-2);
+  border-color: var(--line-strong, var(--line));
+  font-weight: 750;
+  opacity: 1;
+}
+.confirm-delete-modal [data-modal-close]:hover,
+.confirm-delete-modal [data-modal-close]:focus-visible {
+  color: var(--text);
+  background: var(--surface-3, var(--surface-2));
+  border-color: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 18%, transparent);
+}
+.confirm-delete-modal .modal-delete-error {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid #c72c40;
+  border-radius: 12px;
+  color: #8f1727;
+  background: #fff0f2;
+  font-weight: 700;
+}
+[data-theme-code]:not([data-theme-code="paper"]) .confirm-delete-modal .modal-delete-error,
+html:not([data-theme="paper"]) .confirm-delete-modal .modal-delete-error {
+  color: #ffd8de;
+  background: #3a1118;
+}
