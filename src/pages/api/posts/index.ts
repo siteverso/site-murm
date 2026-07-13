@@ -58,9 +58,18 @@ export async function GET(context: APIContext): Promise<Response> {
                 }
             }
 
+            const contextualPosts = allPosts
+                .filter(post => descendants.has(String(post.id ?? '')))
+                .map(post => {
+                    const directChild = String(post.parentPostId ?? '') === String(parentId);
+                    return directChild
+                        ? {...post, parentPostId: null, parentAuthor: ''}
+                        : post;
+                });
+
             return json({
                 ok: true,
-                posts: allPosts.filter(post => descendants.has(String(post.id ?? ''))),
+                posts: contextualPosts,
             });
         }
 

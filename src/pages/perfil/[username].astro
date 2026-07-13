@@ -2,7 +2,7 @@
 import AppLayout from '../../layouts/AppLayout.astro';
 import Header from '../../components/Header.astro';
 import ProfileSidebar from '../../components/ProfileSidebar.astro';
-import Composer from '../../components/Composer.astro';
+import FeedBoard from '../../components/FeedBoard.astro';
 import ReplyHistorySection from '../../components/ReplyHistorySection.astro';
 import { findPublicProfileByUsername } from '../../lib/server/repositories/users';
 import { requireUser } from '../../lib/server/session';
@@ -35,20 +35,7 @@ const replyGroups = showRepliesPage ? await listReplyHistoryByUser(profile.id, c
           backLabel={t.profile.viewMurmurs}
         />
       ) : (
-        <>
-          <div class="feed-heading minimal profile-feed-heading">
-            <h2>{profilePostId ? `Murmúrio de @${profile.username}` : `Murmúrios de @${profile.username}`}</h2>
-            {profilePostId && <div class="profile-thread-tools">
-              <button class="profile-hover-expand" type="button" data-expand-on-hover aria-pressed="false" title="Expandir linha após alguns instantes com o mouse parado" hidden>
-                <span class="profile-hover-expand__dot" aria-hidden="true"></span>
-                <span data-expand-on-hover-label>Hover</span>
-              </button>
-              <a class="profile-show-all" href={`/perfil/${encodeURIComponent(profile.username)}`}>Ver todos os murmúrios</a>
-            </div>}
-          </div>
-          {isOwnProfile && !profilePostId && <div class="profile-own-composer"><Composer /></div>}
-          <div class="feed profile-feed" data-profile-feed data-profile-username={profile.username} data-profile-post-id={profilePostId || undefined} data-feed-include-replies="true" data-profile-compact-replies="true"></div>
-        </>
+        <FeedBoard profileUsername={profile.username} showRandomMurmur={false} embedded={true} />
       )}
     </section>
   </main>

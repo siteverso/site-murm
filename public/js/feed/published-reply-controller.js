@@ -105,3 +105,30 @@ function rollbackOptimisticReply(reply) {
     }
     feedSignature = getFeedSignature(posts);
 }
+
+async function revealPublishedReply(replyId, parentId, text = '') {
+    const safeReplyId = String(replyId || '').trim();
+    if (!safeReplyId) return null;
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+            await loadFeed(true);
+        } catch {
+            // A resposta já foi salva. Uma falha de atualização não deve exibir erro de publicação.
+        }
+
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const board = document.querySelector('[data-feed-board]');
+        const replyCard = board?.querySelector(`[data-post-id="${CSS.escape(safeReplyId)}"]`) || null;
+        if (replyCard) {
+            replyCard.classList.add('reply-just-published');
+            replyCard.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+            setTimeout(() => replyCard.classList.remove('reply-just-published'), 2600);
+            return replyCard;
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 90 * (attempt + 1)));
+    }
+
+    return null;
+}

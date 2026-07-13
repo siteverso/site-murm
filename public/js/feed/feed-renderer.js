@@ -239,7 +239,8 @@ async function loadFeed(force = false) {
     feedRequestRunning = true;
     if (!hasRenderedFeed) renderFeedSkeletons();
     try {
-        const profileUsername = profileFeed?.dataset.profileUsername || '';
+        const board = document.querySelector('[data-feed-board]');
+        const profileUsername = profileFeed?.dataset.profileUsername || board?.dataset.profileUsername || '';
         const profilePostId = profileFeed?.dataset.profilePostId || '';
         const feedContext = readFeedContext();
         const endpoint = buildFeedEndpoint({

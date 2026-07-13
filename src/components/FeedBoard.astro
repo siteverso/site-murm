@@ -1,11 +1,11 @@
 ---
-const { parentId = null, showRandomMurmur = true } = Astro.props;
+const { parentId = null, profileUsername = '', showRandomMurmur = true, embedded = false } = Astro.props;
 const configuredRandomMurmurInterval = Number.parseInt(import.meta.env.PUBLIC_HOME_RANDOM_MURMUR_INTERVAL_MS || '', 10);
 const randomMurmurIntervalMs = Number.isFinite(configuredRandomMurmurInterval) && configuredRandomMurmurInterval >= 250
   ? configuredRandomMurmurInterval
   : 4000;
 ---
-<main class="shell minimal-feed-page network-board-page">
+<main class:list={['minimal-feed-page', 'network-board-page', { shell: !embedded, 'feed-board--embedded': embedded }]} >
     <div class="feed-heading minimal network-board-heading">
       {showRandomMurmur && <div class="random-murmur" data-random-murmur data-random-murmur-interval-ms={randomMurmurIntervalMs} aria-live="polite">
         <div class="random-murmur__content" data-random-murmur-content hidden>
@@ -66,7 +66,7 @@ const randomMurmurIntervalMs = Number.isFinite(configuredRandomMurmurInterval) &
       </div>
     </div>
 
-    <section class="network-board" data-feed-board data-parent-id={parentId ?? undefined}>
+    <section class="network-board" data-feed-board data-parent-id={parentId ?? undefined} data-profile-username={profileUsername || undefined}>
       <div class="feed-view-panel split-view" data-feed-view-panel="split" data-feed-columns></div>
 
       <div class="feed-view-panel split-view relevance-view" data-feed-view-panel="relevance" data-feed-relevance-columns hidden></div>

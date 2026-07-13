@@ -150,3 +150,62 @@
 }
 .profile-photo-viewer-open { overflow: hidden; }
 
+
+.parent-message-panel {
+  min-width: 0;
+  align-self: start;
+  position: sticky;
+  top: 1rem;
+}
+
+.parent-message-feed .murmur-card {
+  margin: 0;
+}
+
+/* Feed contextual: o painel da esquerda mostra o pai; o feed à direita mantém o mesmo alinhamento da Home. */
+.parent-feed-page .public-profile-content {
+  min-width: 0;
+  padding: 0;
+}
+.feed-board--embedded {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+.feed-board--embedded .network-board-heading {
+  width: 100%;
+}
+.feed-board--embedded .feed-display-controls {
+  margin-left: auto;
+}
+
+/* No card-pai, Pulso fica em uma linha e as ações em outra para não truncar. */
+.parent-message-panel .score-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+}
+.parent-message-panel .murmur-actions {
+  width: 100%;
+  margin-left: 0;
+  justify-content: space-between;
+  gap: 4px;
+}
+.parent-message-panel .action-button {
+  min-width: 0;
+  flex: 1 1 0;
+  padding-inline: 5px;
+}
+.parent-message-panel .action-button span {
+  font-size: .76rem;
+}
+
+@media (max-width: 980px) {
+  .parent-feed-page.public-profile-grid {
+    grid-template-columns: 1fr;
+  }
+  .parent-message-panel {
+    position: static;
+  }
+}

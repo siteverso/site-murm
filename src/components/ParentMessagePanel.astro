@@ -1,0 +1,30 @@
+---
+const { postId } = Astro.props;
+---
+<aside class="parent-message-panel" aria-label="Murmúrio pai">
+  <div class="feed parent-message-feed" data-parent-message-feed data-parent-message-id={postId}></div>
+</aside>
+<script is:inline>
+  (() => {
+    const mount = document.querySelector('[data-parent-message-feed]');
+    if (!mount) return;
+    const postId = String(mount.dataset.parentMessageId || '');
+    if (!postId) return;
+    const load = async () => {
+      try {
+        const response = await fetch(`/api/posts?specificId=${encodeURIComponent(postId)}`, { credentials: 'same-origin' });
+        const data = await response.json();
+        const post = Array.isArray(data?.posts) ? data.posts.find(item => String(item?.id) === postId) : null;
+        if (!post || typeof window.renderPost !== 'function') {
+          if (!post) mount.innerHTML = '<p class="empty-state">Murmúrio não encontrado.</p>';
+          else setTimeout(load, 40);
+          return;
+        }
+        mount.innerHTML = window.renderPost(post, new Map(), new Set(), { repliesMode: 'none', contextParentId: postId });
+      } catch {
+        mount.innerHTML = '<p class="empty-state">Não foi possível carregar o murmúrio.</p>';
+      }
+    };
+    load();
+  })();
+</script>

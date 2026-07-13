@@ -2,39 +2,26 @@
 import AppLayout from '../../layouts/AppLayout.astro';
 import Header from '../../components/Header.astro';
 import FeedBoard from '../../components/FeedBoard.astro';
-import ProfileSidebar from '../../components/ProfileSidebar.astro';
+import ParentMessagePanel from '../../components/ParentMessagePanel.astro';
 import { currentUser } from '../../lib/server/session';
 import { listSpecificThread } from '../../lib/server/repositories/posts';
-import { findPublicProfileByUsername } from '../../lib/server/repositories/users';
 import { getMessages, normalizeLocale } from '../../i18n';
 
 const locale = normalizeLocale(Astro.cookies.get('murmurinho-language')?.value);
 const t = getMessages(locale);
 const parentId = Number(Astro.params.id || 0);
 if (!Number.isInteger(parentId) || parentId <= 0) return Astro.redirect('/');
-
 const viewer = await currentUser(Astro);
 const thread = await listSpecificThread(parentId, viewer?.id || null);
 const parentPost = (Array.isArray(thread.posts) ? thread.posts : []).find((post: any) => Number(post?.id) === parentId) as any;
-if (!parentPost?.author) return Astro.redirect('/');
-
-const profile = await findPublicProfileByUsername(String(parentPost.author));
-if (!profile) return Astro.redirect('/');
-const isOwnProfile = viewer?.id === profile.id;
+if (!parentPost) return Astro.redirect('/');
 ---
-<AppLayout title={`Murmúrio de @${profile.username} — ${t.site.title}`}>
+<AppLayout title={`Murmúrio de @${parentPost.author} — ${t.site.title}`}>
   <Header />
   <div class="shell profile-grid public-profile-grid parent-feed-page">
-    <ProfileSidebar
-      profile={profile}
-      showEditAccount={isOwnProfile}
-      showDirectAction={!isOwnProfile}
-      responsesUrl={`/perfil/${encodeURIComponent(profile.username)}?aba=respostas`}
-      responsesLabel={t.profile.viewReplies}
-      labels={t.profile}
-    />
+    <ParentMessagePanel postId={parentId} />
     <section class="public-profile-content">
-      <FeedBoard parentId={parentId} showRandomMurmur={false} />
+      <FeedBoard parentId={parentId} showRandomMurmur={false} embedded={true} />
     </section>
   </div>
   <button class="floating-action" type="button" data-new-murmur aria-label="Novo murmúrio">＋</button>

@@ -461,3 +461,5 @@ function renderLane(feed, posts, repliesMode = 'none', rootPostId = '') {
 }
 
 
+
+window.renderPost = renderPost;
