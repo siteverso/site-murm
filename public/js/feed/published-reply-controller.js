@@ -81,8 +81,8 @@ function commitOptimisticReply(reply, realId) {
         delete card.dataset.optimisticReply;
         card.classList.remove('reply-optimistic');
 
-        card.querySelectorAll(`[href*="murmurio=${encodeURIComponent(temporaryId)}"]`).forEach(link => {
-            link.href = link.href.replace(`murmurio=${encodeURIComponent(temporaryId)}`, `murmurio=${encodeURIComponent(realId)}`);
+        card.querySelectorAll(`[href="/murmurio/${encodeURIComponent(temporaryId)}"]`).forEach(link => {
+            link.href = link.href.replace(`/murmurio/${encodeURIComponent(temporaryId)}`, `/murmurio/${encodeURIComponent(realId)}`);
         });
         card.querySelectorAll('[data-delete-reply]').forEach(button => {
             button.dataset.deleteReply = String(realId);

@@ -80,7 +80,7 @@ function renderDistantAncestorLine(post) {
     const preview = post?.isDeleted ? 'Este murmúrio foi removido.' : String(post?.text || '').trim();
     const author = String(post?.author || '').trim();
     const href = author
-        ? `/perfil/${encodeURIComponent(author)}?murmurio=${encodeURIComponent(post.id)}`
+        ? `/murmurio/${encodeURIComponent(post.id)}`
         : '#';
     const disabled = !author ? ' is-disabled' : '';
     return `<a class="thread-ancestor-line${disabled}" href="${href}"${!author ? ' aria-disabled="true" tabindex="-1"' : ''}>
@@ -190,7 +190,7 @@ function renderReplyPreview(reply, {expandable = false, childrenByParent = new M
         <button class="reply-inline-delete-button" type="button" data-toggle-delete-reply="${reply.id}" aria-label="Apagar resposta" title="Apagar resposta">×</button>
       </div>`
         : '';
-    const replyProfileUrl = `/perfil/${encodeURIComponent(reply.author)}?murmurio=${encodeURIComponent(reply.id)}`;
+    const replyProfileUrl = `/murmurio/${encodeURIComponent(reply.id)}`;
     const content = `<strong>@${escapeHtml(reply.author)}</strong>
       ${reply.isPrivate ? '<em class="reply-private-mini" title="Resposta privada"><i aria-hidden="true"></i></em>' : ''}
       ${isPrivateRedacted ? '' : `<span>${escapeHtml(reply.text)}</span>`}`;
@@ -226,7 +226,7 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
         const visibleReplies = selectVisibleReplies(replies, 2);
         const hiddenReplyCount = Math.max(0, Number(post.replyCount || 0) - visibleReplies.length);
         const allRepliesLink = hiddenReplyCount > 0
-            ? `<a class="reply-preview-more" href="/perfil/${encodeURIComponent(post.author)}?murmurio=${encodeURIComponent(post.id)}">Ver todas as ${post.replyCount} respostas →</a>`
+            ? `<a class="reply-preview-more" href="/murmurio/${encodeURIComponent(post.id)}">Ver todas as ${post.replyCount} respostas →</a>`
             : '';
         nestedReplies = `<div class="replies replies-compact" data-replies-for="${post.id}"><ul class="reply-preview-list">${visibleReplies.map(reply => renderReplyPreview(reply, {expandable: compactRepliesExpandable, childrenByParent, parentPostId: post.id})).join('')}</ul>${allRepliesLink}</div>`;
     }
@@ -241,7 +241,7 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
 
     const terminalProfile = repliesMode === 'recursive' && depth >= maxDepth;
     const terminalAttribute = terminalProfile
-        ? ` data-terminal-profile="/perfil/${encodeURIComponent(post.author)}?murmurio=${encodeURIComponent(post.id)}"`
+        ? ` data-terminal-profile="/murmurio/${encodeURIComponent(post.id)}"`
         : '';
     const terminalClass = terminalProfile ? ' murmur-terminal-level' : '';
     const contextParentClass = sameId(post.id, contextParentId) ? ' murmur-context-parent' : '';
@@ -278,7 +278,7 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
       ${post.isPrivate ? '<span class="reply-private-badge" title="Resposta privada"><i aria-hidden="true"></i>Privada</span>' : ''}
       ${renderPostHeaderActions(post)}
     </div>
-    <a class="murmur-text-link" href="/perfil/${encodeURIComponent(post.author)}?murmurio=${encodeURIComponent(post.id)}" aria-label="Abrir esta mensagem no perfil de @${escapeHtml(post.author)}"><p class="murmur-text">${escapeHtml(post.text)}</p></a>
+    <a class="murmur-text-link" href="/murmurio/${encodeURIComponent(post.id)}" aria-label="Abrir esta mensagem no perfil de @${escapeHtml(post.author)}"><p class="murmur-text">${escapeHtml(post.text)}</p></a>
     <div class="score-line">
       ${MurmurPulse.render(post)}
       <div class="murmur-actions">

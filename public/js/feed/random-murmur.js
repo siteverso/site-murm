@@ -68,7 +68,7 @@ function showRandomMurmur({animate = true} = {}) {
 
     const apply = () => {
         const author = String(post.author).trim().replace(/^@+/, '');
-        const postUrl = `/perfil/${encodeURIComponent(author)}?murmurio=${encodeURIComponent(post.id)}`;
+        const postUrl = `/murmurio/${encodeURIComponent(post.id)}`;
 
         userLink.textContent = `@${author}`;
         userLink.href = `/perfil/${encodeURIComponent(author)}`;

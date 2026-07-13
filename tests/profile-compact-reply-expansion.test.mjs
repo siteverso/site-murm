@@ -28,5 +28,5 @@ test('home permanece com respostas compactas fixas', () => {
 
 test('link para ver todas as respostas continua levando à página da mensagem', () => {
   assert.match(postsSource, /reply-preview-more/);
-  assert.match(postsSource, /\?murmurio=\$\{encodeURIComponent\(post\.id\)\}/);
+  assert.match(postsSource, /\/murmurio\/\$\{encodeURIComponent\(post\.id\)\}/);
 });

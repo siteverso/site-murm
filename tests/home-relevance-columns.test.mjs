@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('home mantém sexo e lista e acrescenta relevância', async () => {
-  const page = await read('src/pages/index.astro');
+  const page = await read('src/components/FeedBoard.astro');
   assert.match(page, /data-feed-view="split"/);
   assert.match(page, /data-feed-view="relevance"/);
   assert.match(page, /data-feed-view="list"/);

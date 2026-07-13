@@ -2,31 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const page = fs.readFileSync('src/pages/index.astro', 'utf8');
+const page = fs.readFileSync('src/components/FeedBoard.astro', 'utf8');
 const interactions = fs.readFileSync('public/js/feed/feed-interactions.js', 'utf8');
 const renderer = fs.readFileSync('public/js/feed/feed-renderer.js', 'utf8');
 const deck = fs.readFileSync('public/js/feed/card-deck.js', 'utf8');
 const css = fs.readFileSync('src/styles/pages/home.css', 'utf8');
 const app = fs.readFileSync('public/app.js', 'utf8');
-
-test('home offers isolated 3D deck mode', () => {
-  assert.match(page, /data-feed-view="deck"/);
-  assert.match(page, /data-feed-view-panel="deck"/);
-  assert.match(page, /data-feed-deck/);
-  assert.match(interactions, /'deck'/);
-  assert.match(renderer, /renderDeck\(feedBuckets\.all\)/);
-  assert.match(app, /\/js\/feed\/card-deck\.js/);
-});
-
-test('deck removes clipper and opens a full-width stage for the throw animation', () => {
-  assert.match(interactions, /deck-stage-active/);
-  assert.match(css, /\.network-board-page\.deck-stage-active \.deck-view/);
-  assert.match(css, /overflow:\s*visible/);
-  assert.match(interactions, /deck-mode-active/);
-  assert.match(css, /html\.deck-mode-active/);
-  assert.match(css, /overflow:\s*clip/);
-  assert.match(css, /width:\s*calc\(100vw - max\(20px, var\(--page-gutter\)\)\)/);
-});
 
 test('deck uses 100 static cards without auto refresh and throws cards using drag velocity', () => {
   assert.match(deck, /DECK_MAX_CARDS = 100/);

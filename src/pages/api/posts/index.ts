@@ -20,6 +20,9 @@ export async function GET(context: APIContext): Promise<Response> {
         const specificId = Number(
             url.searchParams.get('specificId') || 0,
         );
+        const parentId = Number(
+            url.searchParams.get('parentId') || 0,
+        );
 
         if (Number.isInteger(specificId) && specificId > 0) {
             const data = await listSpecificThread(
@@ -30,6 +33,34 @@ export async function GET(context: APIContext): Promise<Response> {
             return json({
                 ok: true,
                 ...data,
+            });
+        }
+
+        if (Number.isInteger(parentId) && parentId > 0) {
+            const data = await listSpecificThread(
+                parentId,
+                user?.id || null,
+            );
+            const allPosts = Array.isArray(data.posts) ? data.posts as Array<Record<string, unknown>> : [];
+            const descendants = new Set<string>();
+            let changed = true;
+
+            while (changed) {
+                changed = false;
+                for (const post of allPosts) {
+                    const postParentId = post.parentPostId == null ? null : String(post.parentPostId);
+                    const postId = String(post.id ?? '');
+                    if (!postId || descendants.has(postId)) continue;
+                    if (postParentId === String(parentId) || (postParentId && descendants.has(postParentId))) {
+                        descendants.add(postId);
+                        changed = true;
+                    }
+                }
+            }
+
+            return json({
+                ok: true,
+                posts: allPosts.filter(post => descendants.has(String(post.id ?? ''))),
             });
         }
 
