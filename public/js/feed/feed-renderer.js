@@ -315,11 +315,9 @@ function pinCardActions(postId) {
 function startFeedPolling() {
     if (!$('[data-feed-columns]') && !$('[data-feed-relevance-columns]') && !$('[data-feed-user-columns]') && !$('[data-feed-grid]') && !$('[data-feed-deck]') && !$('[data-feed-all-list]') && !$('[data-profile-feed]')) return;
 
-    if ($('[data-feed-deck]')) {
-        clearInterval(feedTimer);
-        return;
-    }
-
+    // A sincronização precisa existir em todos os modos, inclusive no baralho.
+    // BroadcastChannel/localStorage cobrem abas do mesmo navegador; o polling
+    // cobre outro navegador, outro perfil e alterações confirmadas no banco.
     bindFeedSyncEvents();
     clearInterval(feedTimer);
     feedTimer = setInterval(() => {
