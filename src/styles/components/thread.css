@@ -417,24 +417,3 @@
   18% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent), 0 0 28px color-mix(in srgb, var(--accent) 22%, transparent); transform: translateY(0); opacity: 1; }
   100% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 0%, transparent); transform: none; opacity: 1; }
 }
-.published-reply-receipt {
-  display: grid;
-  gap: 7px;
-  margin-top: 12px;
-  padding: 12px 14px;
-  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--accent) 6%, var(--surface-2));
-}
-.published-reply-receipt__status {
-  color: var(--accent);
-  font-size: .7rem;
-  font-weight: 900;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-}
-.published-reply-receipt__body { display: flex; gap: 7px; min-width: 0; font-size: .82rem; }
-.published-reply-receipt__body span { min-width: 0; color: var(--muted); overflow-wrap: anywhere; }
-.published-reply-receipt a { width: fit-content; margin-left: auto; color: var(--muted); font-size: .72rem; font-weight: 800; text-decoration: none; }
-.published-reply-receipt a:hover,
-.published-reply-receipt a:focus-visible { color: var(--text); }

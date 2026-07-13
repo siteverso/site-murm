@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 const postsSource = readFileSync(new URL('../public/js/posts/posts-and-replies.js', import.meta.url), 'utf8');
-const interactionsSource = readFileSync(new URL('../public/js/feed/feed-interactions.js', import.meta.url), 'utf8');
+const interactionsSource = [
+  '../public/js/feed/reply-thread-controller.js',
+  '../public/js/feed/feed-interactions.js',
+].map(path => readFileSync(new URL(path, import.meta.url), 'utf8')).join('\n');
 const runtimeSource = readFileSync(new URL('../public/js/core/runtime.js', import.meta.url), 'utf8');
 const profileSource = readFileSync(new URL('../src/pages/perfil/[username].astro', import.meta.url), 'utf8');
 const homeRendererSource = readFileSync(new URL('../public/js/feed/feed-renderer.js', import.meta.url), 'utf8');

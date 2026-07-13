@@ -6,7 +6,11 @@ Os arquivos são carregados sequencialmente por `public/app.js`. A ordem preserv
 - `user/user.js`: usuário atual, avatar e resumo do perfil.
 - `posts/posts-and-replies.js`: árvore, cards, respostas e histórico.
 - `feed/feed-renderer.js`: skeleton, colunas, carregamento e polling.
-- `feed/feed-interactions.js`: eventos e expansão dos cards.
+- `feed/feed-view-controller.js`: seleção e persistência do modo de visualização.
+- `feed/reply-thread-controller.js`: abertura, expansão, recolhimento e hover das respostas.
+- `feed/inline-post-editor.js`: edição inline e estado visual otimista das ações.
+- `feed/published-reply-controller.js`: atualização e revelação de respostas recém-publicadas.
+- `feed/feed-interactions.js`: delegação dos eventos de clique, duplo clique e envio.
 - `ui/ui.js`: modal, compositor e componentes de interface.
 - `profile/profile.js`: foto, recorte, países e conta.
 - `auth/auth.js`: login, cadastro e recuperação.

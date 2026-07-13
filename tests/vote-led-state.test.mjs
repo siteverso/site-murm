@@ -35,7 +35,10 @@ test('feed consulta o voto do usuário atual em vez de zerar myVote', () => {
 });
 
 test('clique aplica o LED imediatamente antes da atualização do feed', () => {
-  const source = readProjectFile('public/js/feed/feed-interactions.js');
+  const source = [
+    readProjectFile('public/js/feed/inline-post-editor.js'),
+    readProjectFile('public/js/feed/feed-interactions.js'),
+  ].join('\n');
   assert.match(source, /function applyOptimisticVoteState\(card, selectedButton\)/);
   assert.match(source, /button\.classList\.toggle\('is-led-active', active\)/);
   assert.match(source, /applyOptimisticVoteState\(card, target\);\s*await api/);

@@ -1,27 +1,13 @@
-# TEST REPORT — retorno físico parametrizável
+# Relatório de validação
 
-## Alterações
-- mantida a página `/teste-retorno-baralho`
-- retorno mais suave com quatro keyframes físicos
-- parâmetros expostos na página de teste:
-  - posição X/Y
-  - duração e fator de distância
-  - velocidade X/Y
-  - aceleração X/Y
-  - direção
-  - profundidade Z e elevação
-  - rotação X/Y/Z
-  - velocidade angular
-  - escala
-  - overshoot e limites
-  - amortecimento
-  - offsets dos keyframes
-  - curva de aceleração
-- painel mostra o JSON completo dos parâmetros atuais
-- drag manual mede a velocidade real do ponteiro e preenche os campos
-- a função continua desacoplada em `public/js/feed/deck-return-motion.js`
+## Correções desta entrega
 
-## Validações
-- `node --check public/js/feed/deck-return-motion.js` ✅
-- `node --test tests/deck-return-motion.test.mjs` ✅ 3/3
-- `npm run build` ✅
+- Removido o card redundante “Resposta publicada / Abrir conversa completa”.
+- Mantidos a inserção da resposta, a expansão do ramo, o contador e o destaque temporário.
+- O nome do usuário no painel lateral agora é um link para o perfil exibido.
+
+## Testes
+
+- 5 testes direcionados passaram.
+- `node --check` do controlador de respostas passou.
+- O build Astro não foi executado porque o pacote recebido não contém `node_modules` e o comando `astro` não está instalado neste ambiente.

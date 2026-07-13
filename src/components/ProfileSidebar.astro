@@ -15,6 +15,7 @@ const sexCode = profile?.sexCode || '';
 const sexLabel = sexCode === 'M' ? 'Masculino' : sexCode === 'F' ? 'Feminino' : 'Sexo não informado';
 const countryLabel = profile?.countryName || '';
 const countryCallingCode = profile?.countryCallingCode || '';
+const profileUrl = `/perfil/${encodeURIComponent(username)}`;
 ---
 <aside class="panel profile-card public-profile-card">
   {editableAvatar ? (
@@ -50,7 +51,7 @@ const countryCallingCode = profile?.countryCallingCode || '';
     </>
   )}
 
-  <h1 data-profile-username={dynamic || undefined}>@{username}</h1>
+  <h1><a class="public-profile-username-link" href={profileUrl} data-profile-username={dynamic || undefined}>@{username}</a></h1>
   {(dynamic || profile?.email) && <span class="handle" data-profile-email={dynamic || undefined}>{profile?.email || 'usuario@exemplo.com'}</span>}
   <div class="public-profile-tags">
     <span class="profile-sex" data-profile-sex={dynamic || undefined}>{sexLabel}</span>
