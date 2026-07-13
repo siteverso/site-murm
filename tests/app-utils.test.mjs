@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { readGlobalCss, readGlobalCssSync } from './css-test-utils.mjs';
-import { formatDateTime, getRelevanceColumnDefinitions, getSexColumnDefinitions, getUserColumnDefinitions, hasUnreadMessages } from '../public/app-utils.mjs';
+import { formatDateTime, getAgeColumnDefinitions, getRelevanceColumnDefinitions, getSexColumnDefinitions, getUserColumnDefinitions, hasUnreadMessages } from '../public/app-utils.mjs';
 import { readAppSource } from './js-source-test-utils.mjs';
 
 test('agrupamento por sexo inclui a terceira coluna para cadastros sem sexo', () => {
@@ -29,6 +29,7 @@ test('colunas por sexo, relevância e usuários usam títulos no mesmo padrão',
   assert.match(source, /mode !== 'list'/);
   assert.deepEqual(getSexColumnDefinitions().map(item => item.label), ['Masculino', 'Feminino', 'Sem sexo']);
   assert.deepEqual(getUserColumnDefinitions().map(item => item.code), ['oldest', 'newest', 'active']);
+  assert.deepEqual(getAgeColumnDefinitions().map(item => item.code), ['young', 'adult', 'mature', 'unknown']);
 });
 
 test('envio de bilhete usa somente spinner e restaura o ícone original', async () => {

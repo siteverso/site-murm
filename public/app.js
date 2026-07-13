@@ -1,7 +1,8 @@
-import { formatDateTime, getRelevanceColumnDefinitions, getSexColumnDefinitions, getUserColumnDefinitions, hasUnreadMessages } from '/app-utils.mjs';
+import { formatDateTime, getAgeColumnDefinitions, getRelevanceColumnDefinitions, getSexColumnDefinitions, getUserColumnDefinitions, hasUnreadMessages } from '/app-utils.mjs';
 
 window.MurmAppUtils = Object.freeze({
   formatDateTime,
+  getAgeColumnDefinitions,
   getRelevanceColumnDefinitions,
   getSexColumnDefinitions,
   getUserColumnDefinitions,
@@ -13,7 +14,7 @@ const scripts = ["/js/feed/core/feed-contracts.js", "/js/feed/core/feed-context.
 async function loadClassicScript(src) {
   await new Promise((resolve, reject) => {
     const script = document.createElement('script');
-    script.src = `${src}?v=20260713-feed-structure-2`;
+    script.src = `${src}?v=20260713-column-filter-1`;
     script.async = false;
     script.onload = resolve;
     script.onerror = () => reject(new Error(`Falha ao carregar módulo JavaScript: ${src}`));

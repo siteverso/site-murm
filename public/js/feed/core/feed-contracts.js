@@ -11,11 +11,12 @@
         }),
         columnGroups: Object.freeze({
             sex: Object.freeze(utils.getSexColumnDefinitions()),
+            age: Object.freeze(utils.getAgeColumnDefinitions()),
             relevance: Object.freeze(utils.getRelevanceColumnDefinitions()),
             users: Object.freeze(utils.getUserColumnDefinitions()),
         }),
         viewModes: Object.freeze(['columns', 'deck', 'grid', 'list']),
-        groupModes: Object.freeze(['sex', 'relevance', 'users', 'none']),
+        groupModes: Object.freeze(['sex', 'age', 'users', 'none']),
     });
 
     global.MurmFeedContracts = contracts;

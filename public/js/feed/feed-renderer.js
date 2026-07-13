@@ -1,3 +1,8 @@
+function getSelectedColumnGroupMode() {
+    const selected = String($('[data-column-group-select]')?.value || $('[data-feed-board]')?.dataset.columnGroupMode || 'sex');
+    return ['sex', 'age', 'users'].includes(selected) ? selected : 'sex';
+}
+
 function renderFeedSkeletons() {
     const columns = $('[data-feed-columns]');
     const relevanceColumns = $('[data-feed-relevance-columns]');
@@ -26,7 +31,7 @@ function renderFeedSkeletons() {
     const cards = (count = 3) => Array.from({length: count}, skeletonCard).join('');
 
     [
-        [columns, 'sex'],
+        [columns, getSelectedColumnGroupMode()],
         [relevanceColumns, 'relevance'],
         [userColumns, 'users'],
     ].forEach(([container, mode]) => {
@@ -130,7 +135,7 @@ function renderColumnGroup(container, mode) {
 }
 
 function renderSplitFeeds() {
-    renderColumnGroup($('[data-feed-columns]'), 'sex');
+    renderColumnGroup($('[data-feed-columns]'), getSelectedColumnGroupMode());
     renderColumnGroup($('[data-feed-relevance-columns]'), 'relevance');
     renderColumnGroup($('[data-feed-user-columns]'), 'users');
     setupFeedColumnAutoload();
@@ -188,6 +193,8 @@ function getFeedSignature(items) {
         post.myVote,
         post.userCreatedAt,
         post.userActivityCount,
+        post.userAge,
+        post.userBirthDate,
         post.parentPostId,
         post.parentAuthor,
         post.replyCount,

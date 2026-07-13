@@ -1,6 +1,6 @@
 // noinspection JSUnresolvedReference
 
-const {formatDateTime, getRelevanceColumnDefinitions, getSexColumnDefinitions, getUserColumnDefinitions, hasUnreadMessages} = window.MurmAppUtils;
+const {formatDateTime, getAgeColumnDefinitions, getRelevanceColumnDefinitions, getSexColumnDefinitions, getUserColumnDefinitions, hasUnreadMessages} = window.MurmAppUtils;
 
 const $ = (selector, root = document) => root?.querySelector?.(selector) ?? null;
 const configuredTextLimit = Number.parseInt(String(window.__MURMUR_TEXT_LIMIT__ ?? ''), 10);

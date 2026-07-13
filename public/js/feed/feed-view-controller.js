@@ -25,6 +25,28 @@ function storeFeedView(board, mode) {
     }
 }
 
+
+function resolveColumnGroupStorageKey(board) {
+    const contextKey = String(board?.dataset?.feedContextKey || 'home').trim().toLowerCase() || 'home';
+    return `murmur_feed_columns:${contextKey}`;
+}
+
+function readStoredColumnGroup(board) {
+    try {
+        const value = localStorage.getItem(resolveColumnGroupStorageKey(board));
+        return ['sex', 'age', 'users'].includes(value) ? value : 'sex';
+    } catch {
+        return 'sex';
+    }
+}
+
+function storeColumnGroup(board, mode) {
+    try {
+        localStorage.setItem(resolveColumnGroupStorageKey(board), mode);
+    } catch {
+    }
+}
+
 function bindFeedView() {
     const switcher = $('[data-feed-view-switch]');
     const board = $('[data-feed-board]');
@@ -33,6 +55,19 @@ function bindFeedView() {
     const panels = $$('[data-feed-view-panel]', board);
     const buttons = $$('[data-feed-view]', switcher);
     const validViews = new Set(['deck', 'split', 'grid', 'list']);
+    const columnGroupControl = $('[data-column-group-control]');
+    const columnGroupSelect = $('[data-column-group-select]');
+    if (columnGroupSelect) {
+        const storedGroup = readStoredColumnGroup(board);
+        columnGroupSelect.value = storedGroup;
+        board.dataset.columnGroupMode = storedGroup;
+        columnGroupSelect.addEventListener('change', () => {
+            const groupMode = ['sex', 'age', 'users'].includes(columnGroupSelect.value) ? columnGroupSelect.value : 'sex';
+            board.dataset.columnGroupMode = groupMode;
+            storeColumnGroup(board, groupMode);
+            if (board.dataset.feedViewMode === 'split' && typeof renderSplitFeeds === 'function') renderSplitFeeds();
+        });
+    }
 
     const applyView = view => {
         const legacyColumnMode = view === 'relevance' || view === 'users';
@@ -40,6 +75,7 @@ function bindFeedView() {
         const previousMode = board.dataset.feedViewMode || '';
         board.dataset.feedViewMode = mode;
         const deckActive = mode === 'deck';
+        if (columnGroupControl) columnGroupControl.hidden = mode !== 'split';
         board.closest('.network-board-page')?.classList.toggle('deck-stage-active', deckActive);
         document.documentElement.classList.toggle('deck-mode-active', deckActive);
         document.body.classList.toggle('deck-mode-active', deckActive);

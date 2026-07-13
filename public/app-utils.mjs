@@ -4,6 +4,13 @@ export const getSexColumnDefinitions = () => [
   { code: '', label: 'Sem sexo', className: 'unspecified-lane' },
 ];
 
+export const getAgeColumnDefinitions = () => [
+  { code: 'to25', label: 'Até 25 anos', className: 'age-to-25-lane' },
+  { code: 'to50', label: '26 a 50 anos', className: 'age-to-50-lane' },
+  { code: 'to75', label: '51 a 75 anos', className: 'age-to-75-lane' },
+  { code: 'over75', label: '75+ anos', className: 'age-over-75-lane' },
+];
+
 export const getRelevanceColumnDefinitions = () => [
   { code: 'pulse', label: 'Mais pulsos', className: 'pulse-lane' },
   { code: 'echoes', label: 'Mais ecos', className: 'echoes-lane' },
