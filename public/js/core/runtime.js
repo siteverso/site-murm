@@ -5,6 +5,8 @@ const {formatDateTime, getRelevanceColumnDefinitions, getSexColumnDefinitions, g
 const $ = (selector, root = document) => root?.querySelector?.(selector) ?? null;
 const configuredTextLimit = Number.parseInt(String(window.__MURMUR_TEXT_LIMIT__ ?? ''), 10);
 const TEXT_LIMIT = Number.isInteger(configuredTextLimit) && configuredTextLimit > 0 ? configuredTextLimit : 256;
+const configuredReplyMaxDepth = Number.parseInt(String(window.__MURMUR_REPLY_MAX_DEPTH__ ?? ''), 10);
+const REPLY_MAX_DEPTH = Number.isInteger(configuredReplyMaxDepth) && configuredReplyMaxDepth >= 1 ? configuredReplyMaxDepth : 10;
 const SPECIFIC_SIBLING_WINDOW = 5;
 const specificThreadStates = new Map();
 const profileCompactExpandedIds = new Set();

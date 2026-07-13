@@ -39,6 +39,7 @@ export function errorResponse(error: unknown): Response {
         AVATAR_TIPO_INVALIDO: [415, 'Use uma imagem JPG, PNG ou WebP.'],
         POST_NAO_ENCONTRADO: [404, 'Murmúrio não encontrado.'],
         RESPOSTA_NAO_ENCONTRADA: [404, 'Resposta não encontrada.'],
+        LIMITE_PROFUNDIDADE_RESPOSTA: [422, 'Esta conversa atingiu o limite de respostas. Crie um novo tópico.'],
         DIRECT_INVALIDO: [400, 'Bilhete inválido ou destinatário indisponível.'],
         DIRECT_AGUARDE: [429, 'Aguarde 2 segundos antes de enviar outro bilhete.'],
         DIRECT_BLOQUEADO: [403, 'Não foi possível entregar este bilhete.'],

@@ -122,7 +122,7 @@ function renderSpecificThread(parentPost, rootPost, allPosts, siblingStubs = [])
         return `<div class="thread-expanded-card${animationClass}" data-expanded-post="${postId}">${renderPost(loadedPost, byParent, new Set([String(parentPost.id)]), {
             repliesMode: 'recursive',
             depth: 2,
-            maxDepth: 100,
+            maxDepth: REPLY_MAX_DEPTH,
             contextParentId: String(parentPost.id),
             collapsibleHeader: true,
         })}</div>`;
@@ -139,7 +139,7 @@ function renderSpecificThread(parentPost, rootPost, allPosts, siblingStubs = [])
     const selectedCard = renderPost(rootPost, byParent, new Set([String(parentPost.id)]), {
         repliesMode: 'recursive',
         depth: 2,
-        maxDepth: 100,
+        maxDepth: REPLY_MAX_DEPTH,
         contextParentId: String(parentPost.id),
     });
     const parentShell = renderPost(parentPost, new Map([[String(parentPost.id), []]]), new Set(), {repliesMode: 'none', contextParentId: String(parentPost.id)});
@@ -175,7 +175,7 @@ function renderReplyPreview(reply, {expandable = false, childrenByParent = new M
         return `<li class="reply-preview-item reply-preview-item--expanded" data-reply-preview-id="${reply.id}">
       <div class="thread-expanded-card profile-reply-expanded-card" data-profile-expanded-reply="${reply.id}">${renderPost(reply, childrenByParent, new Set(parentPostId == null ? [] : [String(parentPostId)]), {
             repliesMode: 'recursive',
-            maxDepth: 100,
+            maxDepth: REPLY_MAX_DEPTH,
             contextParentId: parentPostId == null ? null : String(parentPostId),
             collapsibleHeader: true,
         })}</div>
@@ -207,7 +207,7 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
     const {
         repliesMode = 'none',
         depth = 1,
-        maxDepth = 100,
+        maxDepth = REPLY_MAX_DEPTH,
         contextParentId = null,
         collapsibleHeader = false,
         compactRepliesExpandable = false,
@@ -247,7 +247,7 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
     const contextParentClass = sameId(post.id, contextParentId) ? ' murmur-context-parent' : '';
 
     if (post.isDeleted) {
-        return `<article id="murmurio-${post.id}" class="panel murmur-card lazy-reveal reply-history-parent-card--deleted${contextParentClass}" data-post-id="${post.id}" data-user-id="${post.userId || 0}">
+        return `<article id="murmurio-${post.id}" class="panel murmur-card lazy-reveal reply-history-parent-card--deleted${contextParentClass}" data-post-id="${post.id}" data-reply-depth="${depth}" data-user-id="${post.userId || 0}">
       <div class="murmur-head">
         <span class="avatar murmur-profile-link reply-history-disabled-avatar" aria-hidden="true">××</span>
         <div class="murmur-author"><strong>Murmúrio removido</strong><span>${post.createdAt ? new Date(post.createdAt).toLocaleString() : ''}</span></div>
@@ -262,7 +262,7 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
     const privateRedactedClass = isPrivateRedacted ? ' murmur-card-private-redacted' : '';
 
     if (isPrivateRedacted) {
-        return `<article id="murmurio-${post.id}" class="panel murmur-card lazy-reveal ${sexClass}${post.parentPostId ? ' murmur-reply-card' : ''}${terminalClass}${contextParentClass}${collapsibleHeader ? ' murmur-card-collapsible' : ''}${privateCardClass}${privateRedactedClass}" data-post-id="${post.id}"${collapsibleHeader ? ` data-collapse-expanded-post="${post.id}"` : ''}${terminalAttribute}>
+        return `<article id="murmurio-${post.id}" class="panel murmur-card lazy-reveal ${sexClass}${post.parentPostId ? ' murmur-reply-card' : ''}${terminalClass}${contextParentClass}${collapsibleHeader ? ' murmur-card-collapsible' : ''}${privateCardClass}${privateRedactedClass}" data-post-id="${post.id}" data-reply-depth="${depth}"${collapsibleHeader ? ` data-collapse-expanded-post="${post.id}"` : ''}${terminalAttribute}>
     <div class="murmur-head">
       <a class="avatar murmur-profile-link" href="/perfil/${encodeURIComponent(post.author)}" aria-label="Abrir perfil de @${escapeHtml(post.author)}">${post.avatarUrl ? `<img class="lazy-media" src="${escapeHtml(post.avatarUrl)}" alt="Foto de @${escapeHtml(post.author)}" loading="lazy" decoding="async">` : escapeHtml(userInitials(post.author))}</a>
       <div class="murmur-author"><a href="/perfil/${encodeURIComponent(post.author)}"><strong>@${escapeHtml(post.author)}</strong></a><span>${new Date(post.createdAt).toLocaleString()}</span></div>
@@ -271,7 +271,7 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
   </article>`;
     }
 
-    return `<article id="murmurio-${post.id}" class="panel murmur-card lazy-reveal ${sexClass}${post.parentPostId ? ' murmur-reply-card' : ''}${terminalClass}${contextParentClass}${collapsibleHeader ? ' murmur-card-collapsible' : ''}${hasPersistentAction ? ' actions-pinned' : ''}${privateCardClass}${privateRedactedClass}" data-post-id="${post.id}"${collapsibleHeader ? ` data-collapse-expanded-post="${post.id}"` : ''}${terminalAttribute}>
+    return `<article id="murmurio-${post.id}" class="panel murmur-card lazy-reveal ${sexClass}${post.parentPostId ? ' murmur-reply-card' : ''}${terminalClass}${contextParentClass}${collapsibleHeader ? ' murmur-card-collapsible' : ''}${hasPersistentAction ? ' actions-pinned' : ''}${privateCardClass}${privateRedactedClass}" data-post-id="${post.id}" data-reply-depth="${depth}"${collapsibleHeader ? ` data-collapse-expanded-post="${post.id}"` : ''}${terminalAttribute}>
     <div class="murmur-head">
       <a class="avatar murmur-profile-link" href="/perfil/${encodeURIComponent(post.author)}" aria-label="Abrir perfil de @${escapeHtml(post.author)}">${post.avatarUrl ? `<img class="lazy-media" src="${escapeHtml(post.avatarUrl)}" alt="Foto de @${escapeHtml(post.author)}" loading="lazy" decoding="async">` : escapeHtml(userInitials(post.author))}</a>
       <div class="murmur-author"><a href="/perfil/${encodeURIComponent(post.author)}"><strong>@${escapeHtml(post.author)}</strong></a><span>${new Date(post.createdAt).toLocaleString()}</span></div>
@@ -284,18 +284,22 @@ function renderPost(post, childrenByParent = new Map(), ancestry = new Set(), op
       <div class="murmur-actions">
         <button class="action-button action-button--echo ${post.myVote === 1 ? 'active is-led-active' : ''}" data-vote="1" title="Ecoar" aria-label="Ecoar este murmúrio" aria-pressed="${post.myVote === 1 ? 'true' : 'false'}">${ICONS.echo}<span>${post.positive}</span></button>
         <button class="action-button action-button--ignore ${post.myVote === -1 ? 'active is-led-active' : ''}" data-vote="-1" title="Ignorar" aria-label="Ignorar este murmúrio" aria-pressed="${post.myVote === -1 ? 'true' : 'false'}">${ICONS.ignore}<span>${post.negative}</span></button>
-        <button class="action-button action-button--reply ${post.hasMyReply ? 'active is-led-active' : ''}" data-reply title="Responder" aria-label="Responder a este murmúrio" aria-pressed="${post.hasMyReply ? 'true' : 'false'}">${ICONS.reply}<span>${post.replyCount || 0}</span></button>
+        ${depth >= REPLY_MAX_DEPTH
+            ? `<button class="action-button action-button--reply-limit" type="button" data-create-topic-from="${post.id}" title="Limite de ${REPLY_MAX_DEPTH} níveis atingido" aria-label="Criar novo tópico a partir desta conversa">${ICONS.reply}<span>${post.replyCount || 0}</span></button>`
+            : `<button class="action-button action-button--reply ${post.hasMyReply ? 'active is-led-active' : ''}" data-reply title="Responder" aria-label="Responder a este murmúrio" aria-pressed="${post.hasMyReply ? 'true' : 'false'}">${ICONS.reply}<span>${post.replyCount || 0}</span></button>`}
         <button class="action-button" data-share title="Compartilhar link" aria-label="Compartilhar link deste murmúrio">${ICONS.share}<span>${post.shares}</span></button>
       </div>
     </div>
-    <form class="reply-box" data-reply-form>
+    ${depth >= REPLY_MAX_DEPTH
+        ? `<div class="reply-depth-limit" role="note"><span>Esta conversa atingiu o limite de ${REPLY_MAX_DEPTH} níveis.</span><button type="button" data-create-topic-from="${post.id}" data-create-topic-author="${escapeHtml(post.author)}">Criar novo tópico a partir daqui</button></div>`
+        : `<form class="reply-box" data-reply-form>
       <input maxlength="${TEXT_LIMIT}" placeholder="Responder sem fazer barulho…" required>
       <label class="reply-private-toggle" title="Somente você e @${escapeHtml(post.author)} poderão ver esta resposta">
         <input type="checkbox" name="private">
         <span><i aria-hidden="true"></i><b class="reply-private-public">Pública</b><b class="reply-private-active">Privada</b></span>
       </label>
       <button class="reply-send-button" type="submit" title="Enviar resposta" aria-label="Enviar resposta">${ICONS.send}</button>
-    </form>
+    </form>`}
     ${nestedReplies}
   </article>`;
 }
@@ -313,7 +317,7 @@ function renderReplyHistoryGroup(group) {
     return `<div class="reply-history-group" data-reply-history-root="${escapeHtml(rootId)}">${renderPost(root, childrenByParent, new Set(), {
         repliesMode: 'recursive',
         depth: 1,
-        maxDepth: 100,
+        maxDepth: REPLY_MAX_DEPTH,
         contextParentId: String(root.id),
     })}</div>`;
 }

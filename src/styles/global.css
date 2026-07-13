@@ -31,3 +31,31 @@
 .reply-optimistic {
     overflow-anchor: none;
 }
+
+
+.reply-depth-limit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  margin-top: .7rem;
+  padding: .7rem .85rem;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: .85rem;
+  font-size: .88rem;
+  opacity: .9;
+}
+.reply-depth-limit button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.action-button--reply-limit { opacity: .72; }
+@media (max-width: 640px) {
+  .reply-depth-limit { align-items: flex-start; flex-direction: column; }
+}

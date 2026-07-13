@@ -1,3 +1,4 @@
+import { REPLY_MAX_DEPTH } from '../../config/replies';
 // noinspection TypeScriptUnresolvedReference,SqlResolve,TypeScriptValidateTypes
 
 import oracledb from 'oracledb';
@@ -425,6 +426,19 @@ export async function getPostBranch(postId: number, currentUserId: number | null
 
 export async function createPost(userId: number, contents: string, parentPostId: number | null = null, isPrivate = false): Promise<number> {
     return withConnection(async connection => {
+        if (parentPostId != null) {
+            const depthResult = await connection.execute<Record<string, unknown>>(
+                `SELECT max(level) AS depth
+                 FROM murm_post
+                 START WITH id = :parent_post_id
+                 CONNECT BY PRIOR parent_post_id = id`,
+                {parent_post_id: parentPostId},
+            );
+            const parentDepth = Number(depthResult.rows?.[0]?.DEPTH || 0);
+            if (!parentDepth) throw new Error('POST_NAO_ENCONTRADO');
+            if (parentDepth >= REPLY_MAX_DEPTH) throw new Error('LIMITE_PROFUNDIDADE_RESPOSTA');
+        }
+
         const result = await connection.execute(
             `
                 BEGIN

@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import { getMessages, normalizeLocale, type Locale } from '../i18n';
 import { TEXT_LIMIT } from '../lib/config/text';
+import { REPLY_MAX_DEPTH } from '../lib/config/replies';
 
 const requestedLocale = Astro.cookies.get('murmurinho-language')?.value;
 const locale: Locale = normalizeLocale(requestedLocale);
@@ -14,6 +15,7 @@ const {
 
 const clientMessages = JSON.stringify(messages).replace(/</g, '\\u003c');
 const clientTextLimit = JSON.stringify(TEXT_LIMIT);
+const clientReplyMaxDepth = JSON.stringify(REPLY_MAX_DEPTH);
 ---
 <!doctype html>
 <html lang={locale}>
@@ -34,10 +36,10 @@ const clientTextLimit = JSON.stringify(TEXT_LIMIT);
         document.documentElement.dataset.theme = theme;
       })();
     </script>
-    <script is:inline set:html={`window.__MURMUR_I18N__ = ${clientMessages}; window.__MURMUR_LOCALE__ = ${JSON.stringify(locale)}; window.__MURMUR_TEXT_LIMIT__ = ${clientTextLimit};`} />
+    <script is:inline set:html={`window.__MURMUR_I18N__ = ${clientMessages}; window.__MURMUR_LOCALE__ = ${JSON.stringify(locale)}; window.__MURMUR_TEXT_LIMIT__ = ${clientTextLimit}; window.__MURMUR_REPLY_MAX_DEPTH__ = ${clientReplyMaxDepth};`} />
   </head>
   <body data-auth-required={auth ? 'true' : 'false'}>
     <slot />
-    <script type="module" is:inline src="/app.js?v=20260713-optimistic-reply-1"></script>
+    <script type="module" is:inline src="/app.js?v=20260713-reply-depth-env-1"></script>
   </body>
 </html>

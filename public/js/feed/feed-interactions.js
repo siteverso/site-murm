@@ -7,6 +7,12 @@ function bindFeed() {
         }
         const card = target.closest('[data-post-id]');
         try {
+            if (target.matches('[data-create-topic-from]')) {
+                const sourceCard = target.closest('[data-post-id]');
+                const author = target.dataset.createTopicAuthor || sourceCard?.querySelector('.murmur-author strong')?.textContent?.replace(/^@/, '') || '';
+                const sourceId = target.dataset.createTopicFrom || sourceCard?.dataset.postId || '';
+                openComposer(`Continuação da conversa de @${author} (#${sourceId})\n\n`);
+            }
             if (target.matches('[data-edit-post]')) openInlineEditor(card);
             if (target.matches('[data-cancel-edit-post]')) closeInlineEditor(card);
             if (target.matches('[data-reply]')) openReplyForm(card, {toggle: true});
@@ -223,12 +229,16 @@ function bindFeed() {
             event.preventDefault();
             const card = form.closest('[data-post-id]');
             const text = form.querySelector('input:not([type="checkbox"])').value.trim();
+            const parentDepth = Number(card?.dataset.replyDepth || 1);
+            if (parentDepth >= REPLY_MAX_DEPTH) {
+                toast(`Esta conversa atingiu o limite de ${REPLY_MAX_DEPTH} níveis. Crie um novo tópico.`);
+                return;
+            }
             const isPrivate = Boolean(form.querySelector('input[name="private"]')?.checked);
-            const parentId = String(card.dataset.postId || '');
-            const submitButton = form.querySelector('button[type="submit"]');
-            const optimisticReply = createOptimisticReply(parentId, text, isPrivate);
             try {
-                if (submitButton) submitButton.disabled = true;
+                const parentId = String(card.dataset.postId || '');
+                const result = await api(`/api/posts/${parentId}/reply`, {method: 'POST', body: JSON.stringify({text, private: isPrivate})});
+                announceFeedChanged();
                 form.reset();
                 form.classList.remove('open');
                 const replyButton = card.querySelector('[data-reply]');
@@ -236,19 +246,10 @@ function bindFeed() {
                 if (replyCount) replyCount.textContent = String(Number(replyCount.textContent || 0) + 1);
                 replyButton?.classList.add('active', 'is-led-active');
                 replyButton?.setAttribute('aria-pressed', 'true');
-
-                const result = await api(`/api/posts/${parentId}/reply`, {method: 'POST', body: JSON.stringify({text, private: isPrivate})});
-                commitOptimisticReply(optimisticReply, result.id);
-                announceFeedChanged();
+                await revealPublishedReply(result.id, parentId, text);
                 toast('Resposta publicada.');
             } catch (error) {
-                rollbackOptimisticReply(optimisticReply);
-                const replyButton = card.querySelector('[data-reply]');
-                const replyCount = replyButton?.querySelector('span');
-                if (replyCount) replyCount.textContent = String(Math.max(0, Number(replyCount.textContent || 0) - 1));
                 toast(error.message);
-            } finally {
-                if (submitButton) submitButton.disabled = false;
             }
         }
     });

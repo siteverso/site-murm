@@ -113,9 +113,10 @@ function updateTextProgress(field) {
     progress.classList.toggle('at-limit', ratio >= 1);
 }
 
-function openComposer() {
+function openComposer(initialText = '') {
     modal(`<h2>Novo murmúrio</h2><form data-floating-composer><textarea maxlength="${TEXT_LIMIT}" autofocus placeholder="O que está murmurando?" required></textarea><div class="modal-actions">${progressMarkup()}<button class="button primary">Murmurar</button></div></form>`);
     const field = $('[data-floating-composer] textarea');
+    if (field && initialText) field.value = initialText;
     if (field) updateTextProgress(field);
     focusModalField('[data-floating-composer] textarea');
 }
