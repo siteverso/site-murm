@@ -192,7 +192,6 @@ function getFeedSignature(items) {
         post.negative,
         post.shares,
         post.myVote,
-        post.createdAt,
         post.userCreatedAt,
         post.userActivityCount,
         post.parentPostId,

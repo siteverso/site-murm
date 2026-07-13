@@ -1,133 +1,107 @@
-function mergeReplyBranchIntoFeed(branchPosts = []) {
-    const byId = new Map((Array.isArray(posts) ? posts : []).map(post => [String(post.id), post]));
-    (Array.isArray(branchPosts) ? branchPosts : []).forEach(post => byId.set(String(post.id), post));
-    posts = [...byId.values()];
-}
-
-function getReplyPath(branchPosts, replyId) {
-    const byId = new Map((Array.isArray(branchPosts) ? branchPosts : []).map(post => [String(post.id), post]));
-    const path = [];
-    const visited = new Set();
-    let current = byId.get(String(replyId));
-    while (current && !visited.has(String(current.id))) {
-        visited.add(String(current.id));
-        path.unshift(current);
-        current = current.parentPostId == null ? null : byId.get(String(current.parentPostId));
-    }
-    return path;
-}
-
-function captureReplyViewportAnchor(parentId) {
-    const card = document.querySelector(`[data-post-id="${CSS.escape(String(parentId))}"]`);
-    return {
-        parentId: String(parentId),
-        top: card?.getBoundingClientRect().top ?? null,
-        scrollY: window.scrollY,
+function createOptimisticReply(parentId, text, isPrivate = false) {
+    const parent = (Array.isArray(posts) ? posts : []).find(post => sameId(post.id, parentId));
+    const temporaryId = `temp-reply-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const reply = {
+        id: temporaryId,
+        userId: Number(currentUser?.id || 0),
+        parentPostId: Number(parentId),
+        parentAuthor: String(parent?.author || ''),
+        author: String(currentUser?.username || 'usuario'),
+        sexCode: String(currentUser?.sexCode || '').trim().toUpperCase(),
+        avatarUrl: String(currentUser?.avatarUrl || ''),
+        text: String(text || ''),
+        languageCode: String(currentUser?.languageCode || 'pt-BR'),
+        positive: 0,
+        negative: 0,
+        shares: 0,
+        myVote: 0,
+        hasMyReply: false,
+        createdAt: Date.now(),
+        isPrivate: Boolean(isPrivate),
+        canViewPrivate: true,
+        isPrivateRedacted: false,
+        replyCount: 0,
+        optimistic: true,
     };
+
+    posts.push(reply);
+    if (parent) {
+        parent.replyCount = Number(parent.replyCount || 0) + 1;
+        parent.hasMyReply = true;
+    }
+    feedSignature = getFeedSignature(posts);
+
+    insertOptimisticReplyCard(reply, parentId);
+    return reply;
 }
 
-let cancelReplyViewportStabilizer = null;
+function ensureReplyContainer(parentCard, parentId) {
+    let replies = parentCard.querySelector(`:scope > [data-replies-for="${CSS.escape(String(parentId))}"]`);
+    if (replies) return replies;
 
-function keepReplyViewportAnchorStable(anchor, maxDurationMs = 15000) {
-    cancelReplyViewportStabilizer?.();
-
-    let cancelled = false;
-    let frameId = 0;
-    const startedAt = performance.now();
-    const cancelOnUserIntent = () => stop();
-    const userIntentEvents = ['wheel', 'touchstart', 'pointerdown', 'keydown'];
-
-    function stop() {
-        if (cancelled) return;
-        cancelled = true;
-        cancelAnimationFrame(frameId);
-        userIntentEvents.forEach(type => window.removeEventListener(type, cancelOnUserIntent, true));
-        document.documentElement.classList.remove('reply-viewport-locked');
-        if (cancelReplyViewportStabilizer === stop) cancelReplyViewportStabilizer = null;
-    }
-
-    function correctPosition() {
-        if (cancelled) return;
-        const card = document.querySelector(`[data-post-id="${CSS.escape(anchor.parentId)}"]`);
-        if (card && anchor.top != null) {
-            const delta = card.getBoundingClientRect().top - anchor.top;
-            if (Math.abs(delta) > 0.5) {
-                window.scrollBy({top: delta, left: 0, behavior: 'auto'});
-            }
-        } else if (Math.abs(window.scrollY - anchor.scrollY) > 0.5) {
-            window.scrollTo({top: anchor.scrollY, left: 0, behavior: 'auto'});
-        }
-
-        const now = performance.now();
-        const reachedSafetyLimit = now - startedAt >= maxDurationMs;
-        if (reachedSafetyLimit) {
-            stop();
-            return;
-        }
-        frameId = requestAnimationFrame(correctPosition);
-    }
-
-    document.documentElement.classList.add('reply-viewport-locked');
-    userIntentEvents.forEach(type => window.addEventListener(type, cancelOnUserIntent, true));
-    frameId = requestAnimationFrame(correctPosition);
-    cancelReplyViewportStabilizer = stop;
-    return stop;
+    replies = document.createElement('div');
+    replies.className = 'replies replies-recursive';
+    replies.dataset.repliesFor = String(parentId);
+    parentCard.append(replies);
+    return replies;
 }
 
-async function restoreReplyViewportAnchor(anchor) {
-    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    const card = document.querySelector(`[data-post-id="${CSS.escape(anchor.parentId)}"]`);
-    if (card && anchor.top != null) {
-        const delta = card.getBoundingClientRect().top - anchor.top;
-        if (Math.abs(delta) > 0.5) window.scrollBy({top: delta, left: 0, behavior: 'auto'});
-    } else {
-        window.scrollTo({top: anchor.scrollY, left: 0, behavior: 'auto'});
-    }
-    keepReplyViewportAnchorStable(anchor);
-}
+function insertOptimisticReplyCard(reply, parentId) {
+    const parentCard = document.querySelector(`[data-post-id="${CSS.escape(String(parentId))}"]`);
+    if (!parentCard) return null;
 
-function animatePublishedReply(replyId) {
-    const card = document.querySelector(`[data-post-id="${CSS.escape(String(replyId))}"]`);
-    if (!card) return false;
-    card.classList.add('reply-just-published');
+    const replies = ensureReplyContainer(parentCard, parentId);
+    const template = document.createElement('template');
+    template.innerHTML = renderPost(reply, new Map(), new Set([String(parentId)]), {
+        repliesMode: 'recursive',
+        depth: 1,
+        maxDepth: 100,
+        contextParentId: String(parentId),
+    }).trim();
+
+    const card = template.content.firstElementChild;
+    if (!card) return null;
+    card.classList.add('reply-optimistic', 'reply-just-published');
+    card.dataset.optimisticReply = 'true';
+    replies.prepend(card);
+    setupLazyVisuals(card);
     setTimeout(() => card.classList.remove('reply-just-published'), 2600);
-    return true;
+    return card;
 }
 
-async function revealPublishedReply(replyId, parentId, submittedText = '') {
-    const viewportAnchor = captureReplyViewportAnchor(parentId);
-    const data = await api(`/api/posts/${encodeURIComponent(replyId)}`);
-    const branchPosts = Array.isArray(data?.posts) ? data.posts : [];
-    mergeReplyBranchIntoFeed(branchPosts);
-    const path = getReplyPath(branchPosts, replyId);
-    const profileFeed = $('[data-profile-feed]');
+function commitOptimisticReply(reply, realId) {
+    const temporaryId = String(reply.id);
+    const card = document.querySelector(`[data-post-id="${CSS.escape(temporaryId)}"]`);
+    reply.id = Number(realId);
+    delete reply.optimistic;
 
-    if (profileFeed) {
-        const specificRootId = profileFeed.dataset.profilePostId || '';
-        if (specificRootId) {
-            const state = getSpecificThreadState(specificRootId);
-            path
-                .filter(post => String(post.id) !== String(specificRootId))
-                .forEach(post => state.expandedIds.add(String(post.id)));
-            renderLane(profileFeed, posts, 'recursive', specificRootId);
-            feedSignature = getFeedSignature(posts);
-        } else {
-            if (path.length > 1) profileCompactExpandedIds.add(String(path[1].id));
-            renderLane(profileFeed, posts, 'compact');
-        }
-        setupLazyVisuals(profileFeed);
-        await restoreReplyViewportAnchor(viewportAnchor);
-        if (animatePublishedReply(replyId)) return true;
+    if (card) {
+        card.id = `murmurio-${realId}`;
+        card.dataset.postId = String(realId);
+        delete card.dataset.optimisticReply;
+        card.classList.remove('reply-optimistic');
+
+        card.querySelectorAll(`[href*="murmurio=${encodeURIComponent(temporaryId)}"]`).forEach(link => {
+            link.href = link.href.replace(`murmurio=${encodeURIComponent(temporaryId)}`, `murmurio=${encodeURIComponent(realId)}`);
+        });
+        card.querySelectorAll('[data-delete-reply]').forEach(button => {
+            button.dataset.deleteReply = String(realId);
+        });
     }
 
-    if (await refreshReplyHistoryPage(parentId)) {
-        await restoreReplyViewportAnchor(viewportAnchor);
-        if (animatePublishedReply(replyId)) return true;
-    } else {
-        await loadFeed(true);
-        await restoreReplyViewportAnchor(viewportAnchor);
-        if (animatePublishedReply(replyId)) return true;
-    }
+    feedSignature = getFeedSignature(posts);
+    return card;
+}
 
-    return false;
+function rollbackOptimisticReply(reply) {
+    const replyId = String(reply.id);
+    document.querySelector(`[data-post-id="${CSS.escape(replyId)}"]`)?.remove();
+    posts = posts.filter(post => !sameId(post.id, replyId));
+
+    const parent = posts.find(post => sameId(post.id, reply.parentPostId));
+    if (parent) {
+        parent.replyCount = Math.max(0, Number(parent.replyCount || 0) - 1);
+        parent.hasMyReply = posts.some(post => sameId(post.parentPostId, parent.id) && sameId(post.userId, currentUser?.id));
+    }
+    feedSignature = getFeedSignature(posts);
 }

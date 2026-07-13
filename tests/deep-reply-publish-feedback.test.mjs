@@ -14,11 +14,12 @@ test('respostas profundas continuam recursivas sem corte visual no nível cinco'
   assert.match(postsSource, /repliesMode: 'recursive',[\s\S]*maxDepth: 100/);
 });
 
-test('resposta recém-publicada é localizada, expandida e destacada', () => {
-  assert.match(interactionsSource, /async function revealPublishedReply\(replyId, parentId/);
-  assert.match(interactionsSource, /profileCompactExpandedIds\.add\(String\(path\[1\]\.id\)\)/);
-  assert.match(interactionsSource, /animatePublishedReply\(replyId\)/);
-  assert.doesNotMatch(interactionsSource, /renderPublishedReplyReceipt/);
+test('resposta recém-publicada é inserida no pai correto e destacada sem reconstrução', () => {
+  assert.match(interactionsSource, /createOptimisticReply\(parentId, text, isPrivate\)/);
+  assert.match(interactionsSource, /ensureReplyContainer\(parentCard, parentId\)/);
+  assert.match(interactionsSource, /replies\.prepend\(card\)/);
+  assert.match(interactionsSource, /card\.classList\.add\('reply-optimistic', 'reply-just-published'\)/);
+  assert.doesNotMatch(interactionsSource, /revealPublishedReply|renderPublishedReplyReceipt/);
   assert.match(interactionsSource, /toast\('Resposta publicada\.'\)/);
 });
 

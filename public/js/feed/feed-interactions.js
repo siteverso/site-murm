@@ -224,10 +224,11 @@ function bindFeed() {
             const card = form.closest('[data-post-id]');
             const text = form.querySelector('input:not([type="checkbox"])').value.trim();
             const isPrivate = Boolean(form.querySelector('input[name="private"]')?.checked);
+            const parentId = String(card.dataset.postId || '');
+            const submitButton = form.querySelector('button[type="submit"]');
+            const optimisticReply = createOptimisticReply(parentId, text, isPrivate);
             try {
-                const parentId = String(card.dataset.postId || '');
-                const result = await api(`/api/posts/${parentId}/reply`, {method: 'POST', body: JSON.stringify({text, private: isPrivate})});
-                announceFeedChanged();
+                if (submitButton) submitButton.disabled = true;
                 form.reset();
                 form.classList.remove('open');
                 const replyButton = card.querySelector('[data-reply]');
@@ -235,10 +236,19 @@ function bindFeed() {
                 if (replyCount) replyCount.textContent = String(Number(replyCount.textContent || 0) + 1);
                 replyButton?.classList.add('active', 'is-led-active');
                 replyButton?.setAttribute('aria-pressed', 'true');
-                await revealPublishedReply(result.id, parentId, text);
+
+                const result = await api(`/api/posts/${parentId}/reply`, {method: 'POST', body: JSON.stringify({text, private: isPrivate})});
+                commitOptimisticReply(optimisticReply, result.id);
+                announceFeedChanged();
                 toast('Resposta publicada.');
             } catch (error) {
+                rollbackOptimisticReply(optimisticReply);
+                const replyButton = card.querySelector('[data-reply]');
+                const replyCount = replyButton?.querySelector('span');
+                if (replyCount) replyCount.textContent = String(Math.max(0, Number(replyCount.textContent || 0) - 1));
                 toast(error.message);
+            } finally {
+                if (submitButton) submitButton.disabled = false;
             }
         }
     });

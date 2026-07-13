@@ -27,8 +27,7 @@
 
 /* Durante a publicação de uma resposta, o aplicativo controla a âncora visual.
    Desativa a âncora automática do navegador para evitar uma segunda correção tardia. */
-html.reply-viewport-locked,
-html.reply-viewport-locked body,
-html.reply-viewport-locked [data-profile-feed] {
+/* A resposta otimista não bloqueia nem força a rolagem da página. */
+.reply-optimistic {
     overflow-anchor: none;
 }
