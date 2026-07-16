@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -e
+# cd /home/daniel/Code/site-murm/deploy/
+set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 

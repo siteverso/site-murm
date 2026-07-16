@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
+# cd /home/daniel/Code/site-murm/deploy/
 set -euo pipefail
 
 APP="site-murm"
 REMOTE="ubuntu@44.219.174.82"
 KEY="/home/daniel/amazon.ssh"
 DIR="/home/sites/$APP"
-HOST="${APP_HOST:-127.0.0.1}"
-PORT="${APP_PORT:-3002}"
 
 ssh -i "$KEY" "$REMOTE" "
   set -e
@@ -17,6 +16,18 @@ ssh -i "$KEY" "$REMOTE" "
   set -a
   source .env
   set +a
+
+  HOST=\"\${SITE_MURM_REMOTE_HOST:?Defina SITE_MURM_REMOTE_HOST no .env remoto}\"
+  PORT=\"\${SITE_MURM_REMOTE_PORT:?Defina SITE_MURM_REMOTE_PORT no .env remoto}\"
+
+  if ss -ltn \"sport = :\$PORT\" 2>/dev/null | grep -q LISTEN; then
+    EXISTING_PID=\"\$(pm2 pid '$APP' 2>/dev/null || true)\"
+    if [ -z \"\$EXISTING_PID\" ] || [ \"\$EXISTING_PID\" = '0' ]; then
+      echo \"ERRO: a porta remota \$PORT já está ocupada por outro processo.\"
+      ss -ltnp \"sport = :\$PORT\" || true
+      exit 1
+    fi
+  fi
 
   echo 'Instalando dependências...'
   npm ci --omit=dev --no-audit --no-fund
@@ -31,11 +42,11 @@ ssh -i "$KEY" "$REMOTE" "
 
   command -v pm2 >/dev/null || sudo npm install -g pm2 --no-audit --no-fund
 
-  echo 'Reiniciando aplicação...'
+  echo \"Iniciando em \$HOST:\$PORT...\"
   if pm2 describe '$APP' >/dev/null 2>&1; then
-    HOST='$HOST' PORT='$PORT' pm2 restart '$APP' --update-env
+    HOST=\"\$HOST\" PORT=\"\$PORT\" pm2 restart '$APP' --update-env
   else
-    HOST='$HOST' PORT='$PORT' pm2 start dist/server/entry.mjs --name '$APP'
+    HOST=\"\$HOST\" PORT=\"\$PORT\" pm2 start dist/server/entry.mjs --name '$APP'
   fi
 
   pm2 save
@@ -43,7 +54,7 @@ ssh -i "$KEY" "$REMOTE" "
 
   echo 'Testando aplicação...'
   sleep 2
-  curl -fsS --max-time 10 'http://$HOST:$PORT' >/dev/null
+  curl -fsS --max-time 10 \"http://\$HOST:\$PORT\" >/dev/null
 
   echo 'Produção atualizada.'
 "
